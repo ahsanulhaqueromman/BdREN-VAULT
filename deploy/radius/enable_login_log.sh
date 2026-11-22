@@ -64,10 +64,12 @@ done
 [ -n "$QUERIES" ] || die "FreeRADIUS mysql queries.conf not found"
 say "FreeRADIUS query file: $QUERIES"
 
-# The post-auth { ... } block. Indented blocks and CRLF line endings are accepted.
-POSTAUTH_RX='^[ \t]*post-auth\s*\{.*?\n[ \t]*\}[ \t]*\r?$'
-postauth_has() { perl -0ne 'exit((/'"$POSTAUTH_RX"'/sm && $& =~ /\b'"$1"'\b/) ? 0 : 1)' "$QUERIES"; }
-show_postauth() { perl -0ne 'print "$&\n" if /'"$POSTAUTH_RX"'/sm' "$1" | head -n 40 | sed 's/^/         | /' >&2; }
+# The TOP-LEVEL post-auth { ... } block (some packages also have post-auth blocks nested inside
+# accounting { }, which must not be touched): found by postauth_query.pl next to this script.
+PA="$(cd "$(dirname "$0")" && pwd)/postauth_query.pl"
+[ -r "$PA" ] || die "$PA is missing (copy the whole deploy/radius folder)"
+postauth_has() { perl "$PA" has "$1" "$QUERIES"; }
+show_postauth() { perl "$PA" show "$1" | head -n 40 | sed 's/^/         | /' >&2; }
 # A marker an older version of this script could leave behind made every later run fail: remove it.
 if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES"; then
   cp -p "$QUERIES" "$QUERIES.dbms-before-cleanup-$(date +%Y%m%d-%H%M%S)"
@@ -79,37 +81,13 @@ if postauth_has nasipaddress && postauth_has nasidentifier && postauth_has calle
 else
   BACKUP="$QUERIES.dbms-backup-$(date +%Y%m%d-%H%M%S)"
   cp -p "$QUERIES" "$BACKUP"; ok "backup saved: $BACKUP"
-  # Replace the first query = "..." inside the post-auth { ... } block (only there) with one that also
-  # writes the device columns. Rewriting it is more reliable than inserting into the packaged text, whose
-  # layout differs between FreeRADIUS versions, and it also upgrades a query patched by an older version
-  # of this script (nasipaddress/nasidentifier without calledstationid). Kept from the original query:
-  # the authdate format ('%S' on 3.0, '%S.%M' on 3.2) and the optional ${..class...} column.
-  # Exit code 3 = no post-auth query found (the file is left as it was).
+  # Replace the first query = "..." of the top-level post-auth block with one that also writes the
+  # device columns. Rewriting it is more reliable than inserting into the packaged text, whose layout
+  # differs between FreeRADIUS versions, and it also upgrades a query patched by an older version of
+  # this script. Kept from the original query: the authdate format ('%S' on 3.0, '%S.%M' on 3.2) and the
+  # optional ${..class...} column. Exit code 3 = no post-auth query found (the file is left as it was).
   set +e
-  perl -0pi -e '
-    BEGIN { $done = 0 }
-    $done = 1 if s{(^[ \t]*post-auth\s*\{(?:(?!\n[ \t]*\}).)*?\n[ \t]*query\s*=\s*)"((?:[^"\\]|\\.)*)"}{
-      my ($head, $old) = ($1, $2);
-      my $nl  = ($head =~ /\r\n/) ? "\r\n" : "\n";
-      my $ts  = ($old =~ /\x27(%S(?:\.%M)?)\x27/) ? $1 : "%S";
-      my $cls = ($old =~ /\$\{\.\.class\.column_name\}/);
-      my $q = "\"\\$nl"
-        . "\t\tINSERT INTO \${..postauth_table} \\$nl"
-        . "\t\t\t(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid"
-        . ($cls ? " \${..class.column_name}" : "") . ") \\$nl"
-        . "\t\tVALUES ( \\$nl"
-        . "\t\t\t\x27%{SQL-User-Name}\x27, \\$nl"
-        . "\t\t\t\x27%{%{User-Password}:-%{Chap-Password}}\x27, \\$nl"
-        . "\t\t\t\x27%{reply:Packet-Type}\x27, \\$nl"
-        . "\t\t\t\x27$ts\x27, \\$nl"
-        . "\t\t\t\x27%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}\x27, \\$nl"
-        . "\t\t\t\x27%{NAS-Identifier}\x27, \\$nl"
-        . "\t\t\t\x27%{Called-Station-Id}\x27"
-        . ($cls ? " \\$nl\t\t\t\${..class.reply_xlat})\"" : ")\"");
-      $head . $q;
-    }sem;
-    END { exit 3 unless $done }
-  ' "$QUERIES"
+  perl "$PA" patch "$QUERIES"
   rc=$?
   set -e
   if [ "$rc" != "0" ] || ! postauth_has nasipaddress || ! postauth_has nasidentifier || ! postauth_has calledstationid; then
