@@ -331,6 +331,37 @@ user-interface vty 0 4
  quit`],
     ["Test",`Super-admin gets level 15, Read-write 2, Read-only 1. A switch that only has levels 0-3: set its vendor to "Huawei (levels 0-3 only)" in NAS.`,
 `test-aaa user password radius-template VAULT`]]},
+  {key:"huawei_ne",label:"Huawei NetEngine",match:[],check:true,steps:v=>[
+    ["RADIUS server group","NetEngine 8000 / NE40E and other VRP 8 routers. Run in system-view. user-name original sends the name without a @domain. Put the interface that holds "+v.ip+" (the address in NAS) in place of LoopBack 0. Some versions use radius-server shared-key-cipher instead of shared-key.",
+`radius-server group vault
+ radius-server user-name original
+ radius-server shared-key ${v.secret}
+ radius-server source interface LoopBack 0
+ radius-server authentication ${v.server} 1812
+ radius-server accounting ${v.server} 1813
+ radius-server retransmit 2 timeout 3
+ quit`],
+    ["Use it for admin logins","radius local = the router's own accounts, used only when the RADIUS server does not answer. VRP 8 keeps changes as a candidate configuration: nothing takes effect until commit.",
+`aaa
+ authentication-scheme auth-vault
+  authentication-mode radius local
+  quit
+ accounting-scheme acct-vault
+  accounting-mode radius
+  quit
+ domain default_admin
+  authentication-scheme auth-vault
+  accounting-scheme acct-vault
+  radius-server group vault
+  quit
+ quit
+user-interface vty 0 4
+ authentication-mode aaa
+ quit
+commit`],
+    ["Test","Keep your current session open and log in from a second one with a VAULT RADIUS user. Super-admin gets level 15, Read-write 2, Read-only 1. Then check the result on Authentication Audit.",
+`display radius-server configuration group vault
+display users`]]},
   {key:"mikrotik",label:"MikroTik",match:["mikrotik"],steps:v=>[
     ["RADIUS server and login","VAULT sends the group full, write or read; these groups exist on every RouterOS.",
 `/radius add address=${v.server} secret="${v.secret}" service=login timeout=3s
