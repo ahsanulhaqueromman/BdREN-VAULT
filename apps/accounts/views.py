@@ -131,7 +131,7 @@ def login_view(request):
                              f"{'Wrong password' if user else 'Unknown username'} · {_browser(request)}")
                 error = "The username or password is incorrect. Check both and try again."
     return _auth_page(request, title="Sign in", setup=False, button="Sign in",
-                      sub="Use your VAULT username and password.", error=error,
+                      sub="Use your VAULT account to manage network configuration backups.", error=error,
                       username=username)
 
 
