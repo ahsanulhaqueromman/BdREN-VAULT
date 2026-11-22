@@ -27,6 +27,21 @@ The update keeps `.env`, `data/` (backups, `secret.key`) and the databases; repl
 The previous version is saved in `/var/backups/vault/` and restored automatically if anything fails. Then open
 the site and press **Ctrl+F5** once.
 
+## Backup account on the devices
+
+VAULT needs an account on each device that can **see the whole configuration but change nothing**. A plain
+read-only level is often not enough: the device then returns only part of the configuration (or refuses the
+command) while the backup still looks successful. Set this up once per device. Commands differ between OS
+versions, so **test on one device first** and compare the saved file with a full `show running-config`.
+
+| Vendor | One-time setup (example) |
+|---|---|
+| Cisco IOS / IOS-XE | `privilege exec level 3 show running-config` and `file privilege 3`, backup user at privilege 3. On some versions `privilege exec level 3 show running-config view full` is enough. |
+| Huawei VRP | `command-privilege level 1 view shell display current-configuration` |
+| Juniper Junos | `set system login class backup-ro permissions [ view view-configuration ]` (add `secret` to include secrets) |
+| MikroTik RouterOS | `/user group add name=backup policy=ssh,read,sensitive,!write,!policy` |
+| Fortinet FortiOS | A read-only admin profile can usually run `show full-configuration`; check on your version |
+
 ## Domain name
 
 ```bash

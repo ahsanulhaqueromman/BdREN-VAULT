@@ -1,8 +1,8 @@
 # Git Install Guide — BdREN VAULT
 
 How to install, update, and restore **BdREN VAULT** from the Git repo on an
-Ubuntu/Debian server. Written for a real deployment (user `bdren`, server at
-`/opt/vault`).
+Ubuntu/Debian server. Examples use the login user `bdren`; the app is installed
+in `/opt/vault`.
 
 > **One rule to remember:** you never copy files *straight into* `/opt/vault`
 > over SSH — the login user has no write permission there. Always land files in
@@ -40,11 +40,11 @@ migrate a server:
 ```bash
 sudo apt update && sudo apt install -y git
 cd ~
-git clone https://github.com/devahsanx09-collab/BdREN-VAULT.git
+git clone https://github.com/ahsanulhaqueromman/BdREN-VAULT.git
 ```
 
-The repo is **private**, so Git asks to sign in:
-- **Username:** `devahsanx09-collab`
+If the repository is **private**, Git asks to sign in:
+- **Username:** your GitHub username
 - **Password:** not your GitHub password — a **Personal Access Token**.
   GitHub.com → your avatar → **Settings → Developer settings → Personal access
   tokens → Tokens (classic) → Generate new token** → tick **`repo`** → copy the
@@ -122,7 +122,7 @@ You **cannot** `scp` straight to `/opt/vault` (permission denied). Two steps:
 
 **Windows (PowerShell) — send to home:**
 ```powershell
-scp "D:\path\to\file.zip" bdren@203.96.190.80:~/
+scp "D:\path\to\file.zip" bdren@<server-ip>:~/
 ```
 
 **Server (as root) — move it into place:**
