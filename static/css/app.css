@@ -40,6 +40,7 @@
   --bad:#d63447;    --bad-bg:#fdecee;
   --warn:#b97409;   --warn-bg:#fff3da;
   --idle:#64748b;   --idle-bg:#eef2f7;
+  --bad-ink:#b8283a; --idle-ink:#4a5668;   /* pill text: 4.5:1+ on the light pill backgrounds */
   --muted:var(--mute);
 
   --side-bg:#0a1222;
@@ -59,6 +60,7 @@
   --gutter:clamp(14px,2.6vw,36px);
 }
 @media (prefers-color-scheme:dark){:root{
+  --bad-ink:var(--bad); --idle-ink:var(--idle);
   --bg:#080e1c;
   --bg-glow:radial-gradient(1200px 520px at 100% -10%,rgba(76,110,245,.13),transparent 60%),radial-gradient(900px 420px at -10% 0%,rgba(14,165,198,.08),transparent 55%);
   --panel:#0f182b;
@@ -184,7 +186,7 @@ body.r-viewer .op{display:none!important}
 .notif-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:min(360px,calc(100vw - 24px));padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);animation:pop .18s var(--ease);transform-origin:top right}
 .notif-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .notif-head b{font-size:14px;font-weight:700}
-.notif-head .link{font-size:12.5px}
+.notif-head .link{min-height:34px;padding:6px 10px;font-size:12.5px}
 .notif-it{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;border:0;border-radius:11px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s}
 .notif-it+.notif-it{margin-top:2px}
 .notif-it:hover{background:var(--soft)}
@@ -377,12 +379,12 @@ button.kpi.kpi-link-success:hover .kpi-arrow{background:var(--ok);color:#fff}
 .progress i{display:block;height:100%;width:0;background:var(--grad);background-size:200% 100%;animation:shimmer 1.6s linear infinite;transition:width .4s var(--ease)}
 
 .pill{display:inline-flex;align-items:center;gap:6px;min-width:84px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:650;letter-spacing:.01em;white-space:nowrap;
-  background:var(--idle-bg);color:var(--idle);transition:background-color .35s,color .35s}
+  background:var(--idle-bg);color:var(--idle-ink);transition:background-color .35s,color .35s}
 .pill::before{content:"";width:7px;height:7px;flex:none;border-radius:50%;background:currentColor}
 .pill.SUCCESS,.pill.UP{background:var(--ok-bg);color:var(--ok)}
 .pill.UP::before{box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}   /* still glow: dozens of rows must not each run an endless animation */
 .pill.UNCHANGED{background:var(--info-bg);color:var(--info)}
-.pill.FAILED,.pill.DOWN{background:var(--bad-bg);color:var(--bad)}
+.pill.FAILED,.pill.DOWN{background:var(--bad-bg);color:var(--bad-ink)}
 .pill.chk::before{animation:blink 1.2s ease-in-out infinite}
 .pill.admin,.pill.lv-super-admin{background:var(--info-bg);color:var(--info)}
 .pill.operator,.pill.lv-read-write{background:var(--warn-bg);color:var(--warn)}
@@ -401,7 +403,7 @@ button.kpi.kpi-link-success:hover .kpi-arrow{background:var(--ok);color:#fff}
 .retry-card .job-fh .d{color:var(--mute);font-size:12.5px}
 .pill.retry-offline{background:var(--soft);color:var(--mute)}
 .pill.retry-transient{background:var(--warn-bg);color:var(--warn)}
-.pill.retry-auth{background:var(--bad-bg);color:var(--bad)}
+.pill.retry-auth{background:var(--bad-bg);color:var(--bad-ink)}
 .hint.rn-count{margin:-6px 0 0;padding:0 2px;border:0;background:none}
 .rn-count.bad{color:var(--bad);font-weight:600}
 .lvl-map{margin-top:18px}
@@ -446,10 +448,10 @@ input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--primary)
 .menu-btn i{font-style:normal;font-size:10px;color:var(--mute)}
 .menu-btn:hover{border-color:var(--blue);background:var(--info-bg)}
 #rowMenu{position:fixed;z-index:60;min-width:150px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);animation:pop .16s var(--ease)}
-#rowMenu button{display:block;width:100%;min-height:38px;padding:8px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
-#rowMenu button:hover{background:var(--info-bg)}
-#rowMenu button.d{color:var(--bad)}
-#rowMenu button.d:hover{background:var(--bad-bg)}
+#rowMenu button,.pop-menu>*{display:block;width:100%;min-height:38px;padding:8px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+#rowMenu button:hover,.pop-menu>*:hover{background:var(--info-bg)}
+#rowMenu button.d,.pop-menu>.d{color:var(--bad)}
+#rowMenu button.d:hover,.pop-menu>.d:hover{background:var(--bad-bg)}
 .pager{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 2px;color:var(--mute);font-size:13px}
 .pager .pg-size{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;color:var(--mute)}
 .pager select{min-height:34px;padding:4px 28px 4px 10px}
@@ -1281,3 +1283,43 @@ kbd{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-bot
   .netmap h3{margin-bottom:10px}
   .nm-sub{font-size:13px;line-height:1.5}
 }
+
+/* Header "More" menu (Devices): same look as the row Action menu */
+.more{position:relative;display:inline-flex}
+.more-btn i{font-style:normal;font-size:10px;color:var(--mute);margin-left:2px}
+.pop-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:210px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);animation:pop .16s var(--ease)}
+.pop-menu[hidden]{display:none}
+.pop-menu>*{box-sizing:border-box;text-decoration:none;white-space:nowrap}
+.pop-menu>.d{border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
+.pop-menu .m-only{display:none}
+@media (max-width:760px){
+  #devices .tacts #addBtn,#devices .tacts #retryFailed{display:none}
+  #devices .pop-menu .m-only{display:block}
+}
+/* "x / total" in figure tiles: the total is smaller and muted so the figure never wraps */
+.kpi strong .of{font-size:.6em;font-weight:600;color:var(--mute);white-space:nowrap;letter-spacing:0}
+.kpi strong{white-space:nowrap}
+
+/* Phones: device cards are three lines (name, IP + status, ping + last backup) and every checkbox has a 44px touch area */
+@media (max-width:760px){
+  .dt tr{grid-template-columns:30px minmax(0,1fr) max-content;grid-template-areas:"c dv acts" ". ip st" ". pg when";gap:8px 10px;margin-bottom:10px;padding:12px 14px}
+  .dt td.ip{padding-top:8px}
+  .dt td.st{padding-top:8px;border-top:1px dashed var(--line);align-self:stretch;display:flex;align-items:center;justify-content:flex-end}
+  .dt td.usr{display:none}
+  .dt td.c{display:grid;place-items:center;width:44px;height:44px;margin:-7px;cursor:pointer}
+  .dt td.c input,.mcheck input{width:20px;height:20px}
+  .mcheck label.ck{min-height:44px}
+  .dt td.when{white-space:nowrap}
+  .dt td.when::before{display:none!important}
+  .dt td.when .dd,.dt td.when .tm{display:inline}
+  .dt td.when .dd::after{content:" "}
+}
+.schedule-policy.schedule-on{margin:0}
+/* Users page: access-level reference is folded away until asked for */
+details.lvl-map{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);padding:0 14px}
+details.lvl-map>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;list-style:none}
+details.lvl-map>summary::-webkit-details-marker{display:none}
+details.lvl-map>summary::before{content:"B8";color:var(--mute);font-size:12px;transition:transform .2s var(--ease)}
+details.lvl-map[open]>summary::before{transform:rotate(90deg)}
+details.lvl-map>summary h4{margin:0}
+details.lvl-map[open]{padding-bottom:14px}

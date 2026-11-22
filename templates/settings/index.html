@@ -10,7 +10,8 @@
     <form id="sfrm" class="settings-stack">
       <div class="settings-section-label"><span>01</span><div><strong>Backup automation</strong><small>Define when backups run and how missed schedules are recovered.</small></div></div>
       <div class="card schedule-card"><div class="schedule-heading"><div><span class="eyebrow">AUTOMATION</span><h3>Scheduled backup</h3><p class="d">Choose how often the system should back up every configured device. Choose specific days of the month, such as the 1st and 15th, or any dates from 1 to 31. A configuration file is saved only when the configuration changes.</p></div><span class="schedule-mark" aria-hidden="true">↻</span></div>
-        <label class="ck schedule-toggle"><input type="checkbox" name="sched_on"><span><strong>Enable scheduled backup</strong><small>Run automatically in the background while the server service is running.</small></span></label>
+        <div class="schedule-policy schedule-on"><div class="schedule-policy-copy"><strong id="schedOnLbl">Enable scheduled backup</strong><small>Run automatically in the background while the server service is running.</small></div>
+          <label class="switch-control"><input type="checkbox" name="sched_on" aria-labelledby="schedOnLbl"><span class="switch-slider"></span></label></div>
         <div class="fg schedule-config-grid" style="margin-top:14px">
           <label>Backup frequency<select name="sched_mode" aria-describedby="schedModeHelp"><option value="semimonthly">Monthly — selected dates</option><option value="daily">Every day</option><option value="days">Every N days</option><option value="interval">Every N minutes</option></select></label>
           <label id="lAt">Run time (Bangladesh time, AM/PM)<input name="sched_at" type="text" inputmode="text" autocomplete="off" placeholder="02:00 AM" aria-label="Scheduled backup run time in Bangladesh time (AM/PM)" pattern="(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)"></label>

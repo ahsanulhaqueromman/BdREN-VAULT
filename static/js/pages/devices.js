@@ -17,16 +17,17 @@ let devFilter="all",devSort={k:"priority",dir:1};
 const isOk=d=>d.last_status==="SUCCESS"||d.last_status==="UNCHANGED";
 const pUp=d=>pingMap[d.id]&&pingMap[d.id].up,pDown=d=>pingMap[d.id]&&!pingMap[d.id].up;
 /* status square: red when the device is down (ping) or its last backup failed, green otherwise */
-const devBad=d=>d.last_status==="FAILED"||!!pDown(d);
+/* The dot by the vendor name shows reachability only: a failed backup is already shown by the red pill and the row bar. */
+const devBad=d=>!!pDown(d);
 const FILTERS=[["all","All",()=>true],["online","Online",pUp],["offline","Offline",pDown],["failed","Backup failed",d=>d.last_status==="FAILED"]];
 /* the KPI cards above the table */
 function renderStats(){
   const ok=devs.filter(isOk).length,bad=devs.filter(d=>d.last_status==="FAILED").length;
   const last=devs.map(d=>d.last_run).filter(Boolean).sort().pop();
-  morph($("#stats"),`<div class="kpi"><small>Total devices</small><strong>${devs.length}</strong></div>
+  morph($("#stats"),`<div class="kpi"><small>Total devices</small><strong>${fmtNum(devs.length)}</strong></div>
    <div class="kpi"><small>Online now</small><strong class="g" id="onlineNow" data-morph-skip>-</strong></div>
-   <div class="kpi"><small>Backup succeeded</small><strong class="g">${ok}</strong></div>
-   <div class="kpi"><small>Backup failed</small><strong class="${bad?"r":""}">${bad}</strong></div>
+   <div class="kpi"><small>Backup succeeded</small><strong class="g">${fmtNum(ok)}</strong></div>
+   <div class="kpi"><small>Backup failed</small><strong class="${bad?"r":""}">${fmtNum(bad)}</strong></div>
    <div class="kpi"><small>Last run</small><strong class="sm2">${last?fmtWhen(last):"Never"}</strong></div>`);
   paintPing();
 }
@@ -141,7 +142,7 @@ function paintPing(){
   const byId=new Map(devs.map(d=>[String(d.id),d]));
   document.querySelectorAll(".vt[data-vid]").forEach(el=>{const d=byId.get(el.dataset.vid);if(!d)return;const bad=devBad(d);if(el.classList.contains("st-bad")!==bad){el.classList.toggle("st-bad",bad);el.classList.toggle("st-ok",!bad)}});
   paintChips();
-  const el=$("#onlineNow");if(el)el.textContent=Object.keys(pingMap).length?devs.filter(d=>pingMap[d.id]&&pingMap[d.id].up).length+" / "+devs.length:"-";
+  const el=$("#onlineNow");if(el)el.innerHTML=Object.keys(pingMap).length?ofTotal(devs.filter(d=>pingMap[d.id]&&pingMap[d.id].up).length,devs.length):"-";
 }
 const pingActive=()=>PAGE==="devices"&&!!$("#pingOn")?.checked&&!document.hidden;
 async function pingVisible(){   /* only the rows on screen */
@@ -338,6 +339,8 @@ function openMenu(btn){
   rowMenu.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
   rowMenu.style.top=(below?r.bottom+4:r.top-hgt-4)+"px";
 }
+/* the whole checkbox cell toggles the box (bigger touch target on phones) */
+$o("#devList").addEventListener("click",e=>{const td=e.target.closest("td.c");if(td&&e.target.tagName!=="INPUT")td.querySelector("input")?.click()});
 $o("#devList").addEventListener("click",e=>{const b=e.target.closest(".menu-btn");if(b){e.stopPropagation();openMenu(b)}});
 rowMenu.addEventListener("click",e=>{
   const a=e.target.closest("[data-do]");if(!a)return;
@@ -348,6 +351,14 @@ document.addEventListener("click",e=>{if(!e.target.closest("#rowMenu"))closeMenu
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
 addEventListener("resize",closeMenu);
 addEventListener("scroll",()=>{if(Date.now()-menuAt>250)closeMenu()},true);   /* a scroll right after opening (button scrolled into view) is ignored */
+
+/* ---- "More" menu in the page header: Export CSV and Delete all (and, on phones, Add device / Retry failed). ---- */
+const moreBtn=$o("#moreBtn"),moreMenu=$o("#moreMenu");
+const setMore=open=>{moreMenu.hidden=!open;moreBtn.setAttribute("aria-expanded",open)};
+moreBtn.addEventListener("click",e=>{e.stopPropagation();setMore(moreMenu.hidden)});
+moreMenu.addEventListener("click",e=>{const it=e.target.closest("[role=menuitem]");if(!it)return;setMore(false);if(it.dataset.proxy)$o("#"+it.dataset.proxy).click()});
+document.addEventListener("click",e=>{if(!e.target.closest(".more"))setMore(false)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!moreMenu.hidden){setMore(false);moreBtn.focus()}});
 
 $o("#addBtn").onclick=()=>openDeviceForm("add");
 window.editDev=id=>openDeviceForm("edit",devs.find(d=>d.id===id));

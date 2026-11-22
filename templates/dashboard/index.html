@@ -4,6 +4,7 @@
 <section id="dashboard">
     <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Backup activity, device uptime and the automatic schedule at a glance." %}</div>
       <button class="b" id="dashRefresh" type="button">Refresh</button></div>
+    <div class="kpis" id="kpis"></div>
     <div class="netmap">
       <div class="nm-tx">
         <span class="nm-eyebrow"><i></i>Network overview</span>
@@ -36,7 +37,6 @@
         </g>
       </svg>
     </div>
-    <div class="kpis" id="kpis"></div>
     <div class="grid2">
       <div class="card"><h3>Backups per day</h3><p class="d">Last 14 days</p><div id="chDays"></div>
         <div class="lg"><span class="k ok">Saved</span><span class="k same">Unchanged</span><span class="k bad">Failed</span></div></div>

@@ -6,11 +6,11 @@
       <div class="tacts"><button class="b" id="radAuditRefresh" type="button">Refresh</button></div></div>
     <div class="kpis" id="radAuditKpis"></div>
     <div class="card"><h3>Blocked IPs</h3><p class="d">Addresses that tried a username not in the RADIUS database. FreeRADIUS rejects every login from them for 2 days; their later tries are counted here instead of filling Device logins.</p><div id="radBlockList"></div></div>
-    <div class="card"><h3>Panel audit log</h3><p class="d">Who created, changed or removed RADIUS users and devices</p><div id="radEventList"></div></div>
+    <div class="card"><h3>Panel audit log</h3><p class="d">Who created, changed or removed RADIUS users and devices</p><div id="radEventList"><div class="loading-block" role="status"><span class="spin"></span>Loading admin events…</div></div></div>
     <div class="card"><h3>Device logins</h3><p class="d">Which user logged in on which device, newest first, as recorded by FreeRADIUS</p>
       <div class="bar flt rad-login-bar"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="radLoginQ" autocomplete="off" spellcheck="false" placeholder="Search user, device name or device IP" aria-label="Search device logins"></div>
         <select id="radLoginRes" aria-label="Filter by result"><option value="ALL">All results</option><option value="accept">Accepted</option><option value="reject">Rejected</option></select>
         <span class="sp"></span><span class="d" id="radLoginCount" aria-live="polite"></span></div>
-      <div id="radLoginNote"></div><div id="radLoginList"></div></div>
+      <div id="radLoginNote"></div><div id="radLoginList"><div class="loading-block" role="status"><span class="spin"></span>Loading logins…</div></div></div>
   </section>
 {% endblock %}

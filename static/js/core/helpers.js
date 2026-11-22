@@ -268,6 +268,9 @@ cfm.addEventListener("cancel",e=>{if(cfmBusy)e.preventDefault()});              
 cfm.addEventListener("close",()=>{if(cfmEnd)cfmEnd(false)});                         /* Esc = Cancel */
 cfm.addEventListener("click",e=>{if(e.target===cfm&&!cfmBusy)cfm.close()});          /* click on the dark area = Cancel */
 const askDelete=(o)=>confirmAction(o);
+/* 20000 -> "20,000"; a count over a total -> "10,061 / 20,000" with the total small, so a tile never wraps */
+const fmtNum=n=>Number(n||0).toLocaleString("en-US");
+const ofTotal=(n,total)=>`${fmtNum(n)}<span class="of"> / ${fmtNum(total)}</span>`;
 
 /* ---- pagination for the Devices, Backups and Logs lists ----
    Each list has its own current page AND its own rows-per-page choice (10, 20 or 50), remembered in this browser. */

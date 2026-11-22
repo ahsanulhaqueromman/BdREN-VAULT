@@ -10,9 +10,9 @@
       <select id="radLevel" aria-label="Filter by access level"><option value="ALL">All access levels</option></select>
       <span class="sp"></span><span class="d" id="radUserCount" aria-live="polite"></span>
     </div>
-    <div id="radUserList"></div>
-    <div class="lvl-map">
-      <h4>What each access level gets on the device</h4>
+    <div id="radUserList"><div class="loading-block" role="status"><span class="spin"></span>Loading users…</div></div>
+    <details class="lvl-map">
+      <summary><h4>What each access level gets on the device</h4></summary>
       <div class="tbl stack"><table>
         <thead><tr><th>Access level</th><th>Cisco</th><th>Huawei</th><th>Juniper</th><th>MikroTik</th><th>Fortinet</th></tr></thead>
         <tbody>
@@ -22,6 +22,6 @@
         </tbody>
       </table></div>
       <p class="lvl-note">Which commands a level allows is defined on the device itself. To let read-only users view the full configuration, allow it once per device: Cisco <code>privilege exec level 1 show running-config view full</code>, Huawei <code>command-privilege level 1 view shell display current-configuration</code>.</p>
-    </div>
+    </details>
   </section>
 {% endblock %}

@@ -80,7 +80,6 @@ function repVisible(){
   const q=$("#repQ").value.trim().toLowerCase(),only=$("#repOnly").checked;
   return repData.devices.filter(r=>(!only||r.changes)&&(!q||`${r.device} ${r.ip}`.toLowerCase().includes(q)));
 }
-const fmtNum=n=>Number(n||0).toLocaleString("en-US");
 
 function renderReport(){
   if(!repData)return;

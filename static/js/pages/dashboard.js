@@ -53,11 +53,11 @@ function renderDashboard(d){
   const completed=Math.min(d.total, d.status.SUCCESS+d.status.UNCHANGED);
   const notCompleted=Math.max(0, d.total-completed);
   const failed=d.status.FAILED||0, neverRun=d.status.NONE||0;
-  setHTML("#kpis",`<button type="button" class="kpi kpi-link" data-go="devices" aria-label="View all devices"><span class="kpi-top"><small>Total devices</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong>${d.total}</strong><span class="d">All configured devices</span></button>
-   <div class="kpi"><small>Online (last check)</small><strong class="g">${last?last.up+" / "+last.total:"-"}</strong><span class="d">Reachable by ping</span></div>
+  setHTML("#kpis",`<button type="button" class="kpi kpi-link" data-go="devices" aria-label="View all devices"><span class="kpi-top"><small>Total devices</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong>${fmtNum(d.total)}</strong><span class="d">All configured devices</span></button>
+   <div class="kpi"><small>Online (last check)</small><strong class="g">${last?ofTotal(last.up,last.total):"-"}</strong><span class="d">Reachable by ping</span></div>
    <div class="kpi"><small>Uptime, 24 h</small><strong>${up24}</strong><span class="d">Average monitored availability</span></div>
-   <button type="button" class="kpi kpi-link kpi-link-success" data-go="backups" aria-label="View backups"><span class="kpi-top"><small>Backup completed</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="g">${completed} / ${d.total}</strong><span class="d">Saved or unchanged</span></button>
-   <div class="kpi"><small>Backup not completed</small><strong class="${notCompleted?"r":"g"}">${notCompleted}</strong><span class="d">${failed} failed · ${neverRun} not run</span></div>
+   <button type="button" class="kpi kpi-link kpi-link-success" data-go="backups" aria-label="View backups"><span class="kpi-top"><small>Backup completed</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="g">${ofTotal(completed,d.total)}</strong><span class="d">Saved or unchanged</span></button>
+   <div class="kpi"><small>Backup not completed</small><strong class="${notCompleted?"r":"g"}">${fmtNum(notCompleted)}</strong><span class="d">${fmtNum(failed)} failed · ${fmtNum(neverRun)} not run</span></div>
    <div class="kpi"><small>Auto backup</small><strong class="sm2">${d.job_running?"Running now":d.sched_on?"Next: "+esc(fmtBdDateTime(d.next_run)):"Off"}</strong><span class="d">Scheduled status</span></div>`);
   setHTML("#chDays",barChart(d.days));
   setHTML("#chDonut",donut(d.status,d.total));
@@ -74,7 +74,7 @@ function renderDashboard(d){
    <div class="kpi"><small>Database size</small><strong>${h.database_bytes==null?"Unavailable":esc(fmtBytes(h.database_bytes))}</strong><span class="d">${esc(h.database_engine||"Database")}${h.database_name?" · "+esc(h.database_name):""} (data + indexes)</span></div>
    <div class="kpi"><small>Backup storage</small><strong class="${h.backup_dir_exists?"g":"r"}">${h.backup_dir_exists?"Available":"Missing"}</strong><span class="d">Configured backup directory</span></div>
    <div class="kpi"><small>Last successful backup</small><strong class="sm2">${esc(h.last_success&&h.last_success!=="Never"?fmtBdDateTime(h.last_success):"Never")}</strong><span class="d">Saved or unchanged</span></div>
-   <div class="kpi"><small>Failures, last 24 h</small><strong class="${h.failed_24h?"r":"g"}">${Number(h.failed_24h||0)}</strong><span class="d">From backup logs</span></div>`);
+   <div class="kpi"><small>Failures, last 24 h</small><strong class="${h.failed_24h?"r":"g"}">${fmtNum(h.failed_24h)}</strong><span class="d">From backup logs</span></div>`);
   /* charts animate in on the first draw only; later 30-second refreshes update quietly (see app.css "Motion") */
   if(!renderDashboard.drawn){renderDashboard.drawn=true;setTimeout(()=>$("#dashboard").classList.add("charts-ready"),1600)}
 }
