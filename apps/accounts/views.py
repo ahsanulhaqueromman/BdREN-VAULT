@@ -130,8 +130,8 @@ def login_view(request):
                 record_audit(request, "login.failed", username[:100],
                              f"{'Wrong password' if user else 'Unknown username'} · {_browser(request)}")
                 error = "The username or password is incorrect. Check both and try again."
-    return _auth_page(request, title="Sign In", setup=False, button="Sign In",
-                      sub="Access your account to manage configuration backups.", error=error,
+    return _auth_page(request, title="Sign in", setup=False, button="Sign in",
+                      sub="Use your VAULT username and password.", error=error,
                       username=username)
 
 
