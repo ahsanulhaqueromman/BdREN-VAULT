@@ -130,9 +130,28 @@ fi
 RADIUSD="$(command -v freeradius || command -v radiusd || true)"
 [ -n "$RADIUSD" ] || die "freeradius binary not found"
 say "Checking the FreeRADIUS configuration"
-if ! "$RADIUSD" -C >/tmp/dbms-radius-check.log 2>&1; then
-  if [ "${CHANGED}" = "1" ]; then cp -p "$BACKUP" "$QUERIES"; fi
-  die "FreeRADIUS configuration check failed (see /tmp/dbms-radius-check.log). The original file was restored."
+CHECK_LOG=/tmp/dbms-radius-check.log
+check_errors() {   # the lines of the check that say what is wrong (FreeRADIUS prints a lot before them)
+  { grep -iE "error|fail|expect|invalid|unknown|no such|parse" "$CHECK_LOG" || tail -n 15 "$CHECK_LOG"; } \
+    | tail -n 15 | sed 's/^/         | /' >&2
+}
+if ! "$RADIUSD" -C >"$CHECK_LOG" 2>&1; then
+  if [ "${CHANGED}" != "1" ]; then
+    printf '\033[1;31mERROR:\033[0m %s\n' "The FreeRADIUS configuration is invalid (this script changed nothing). FreeRADIUS says:" >&2
+    check_errors
+    echo "       Fix that first (full output: sudo freeradius -XC), then run this script again." >&2
+    exit 1
+  fi
+  FAILED="$QUERIES.dbms-failed-$(date +%Y%m%d-%H%M%S)"
+  cp -p "$QUERIES" "$FAILED"
+  cp -p "$BACKUP" "$QUERIES"
+  if "$RADIUSD" -C >/dev/null 2>&1; then WHO="the changed post-auth query"; else WHO="something else in the configuration (it fails without this change too)"; fi
+  printf '\033[1;31mERROR:\033[0m %s\n' "FreeRADIUS rejected the configuration; the cause is $WHO. The original file was restored. FreeRADIUS says:" >&2
+  check_errors
+  echo "       The rejected version is kept as $FAILED; full output: $CHECK_LOG" >&2
+  echo "       This is the post-auth block that was tried (send this and the lines above to the VAULT maintainer):" >&2
+  show_postauth "$FAILED"
+  exit 1
 fi
 ok "configuration is valid"
 if [ "${CHANGED}" = "1" ]; then
