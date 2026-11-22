@@ -542,7 +542,7 @@ function renderRadLogins(){
   const {rows,bar}=paginate("radLogins",list);
   morph($("#radLoginList"),`<div class="tbl"><table><thead><tr><th>Time</th><th>User</th><th>Device</th><th>Result</th></tr></thead><tbody>`+
     rows.map(r=>`<tr data-key="${esc([r.ts,r.username,r.nas_ip,r.reply].join("|"))}"><td class="when">${fmtWhen(r.ts)}</td><td><strong>${esc(r.username||"-")}</strong></td>
-      <td>${r.nas_ip||r.device?`<span class="dn">${esc(r.device||r.nas_ip)}</span>${r.nas_ip&&r.device&&r.device!==r.nas_ip?`<span class="sub m">${esc(r.nas_ip)}</span>`:""}`:'<span class="none">Not recorded</span>'}</td>
+      <td>${r.nas_ip||r.device?`<span class="dn">${esc(r.device||r.nas_ip)}</span>${[r.device&&r.device!==r.nas_ip?r.nas_ip:"",r.station].filter(Boolean).length?`<span class="sub m">${esc([r.device&&r.device!==r.nas_ip?r.nas_ip:"",r.station].filter(Boolean).join(" · "))}</span>`:""}`:'<span class="none">Not recorded</span>'}</td>
       <td><span class="pill ${radAccepted(r)?"UP":"DOWN"}">${radAccepted(r)?"Accepted":"Rejected"}</span></td></tr>`).join("")+`</tbody></table></div>`+bar);
 }
 $o("#radAuditRefresh").onclick=loadRadAudit;

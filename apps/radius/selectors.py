@@ -159,6 +159,53 @@ def _login_columns():
     return _LOGIN_COLS["cols"]
 
 
+def device_namer():
+    """A function ip -> readable device name ("" when unknown), for labelling RADIUS logins.
+    Looks in order: a NAS Clients entry for that exact address, a Device Inventory device with that address,
+    then a NAS Clients network entry (10.0.0.0/24) containing it - the smallest network wins.
+    A NAS short name that is just the address again is skipped in favour of its description."""
+    from apps.devices import selectors as devices
+
+    def label(short, desc, nasname):
+        short, desc = (short or "").strip(), (desc or "").strip()
+        if short and short != nasname and not is_single_ip(short):
+            return short
+        return desc if desc and not is_single_ip(desc) else ""
+
+    exact, networks = {}, []
+    for nasname, short, desc in Nas.objects.values_list("nasname", "shortname", "description"):
+        name = label(short, desc, nasname)
+        if not name:
+            continue
+        nasname = (nasname or "").strip()
+        if is_single_ip(nasname):
+            exact[nasname] = name
+        else:
+            try:
+                networks.append((ipaddress.ip_network(nasname, strict=False), name))
+            except ValueError:
+                pass
+    inventory = devices.names_by_ip()
+    networks.sort(key=lambda n: -n[0].prefixlen)
+    cache = {}
+
+    def name_of(ip):
+        ip = (ip or "").strip()
+        if not ip:
+            return ""
+        if ip not in cache:
+            found = exact.get(ip) or inventory.get(ip, "")
+            if not found:
+                try:
+                    addr = ipaddress.ip_address(ip)
+                    found = next((n for net, n in networks if addr.version == net.version and addr in net), "")
+                except ValueError:
+                    found = ""
+            cache[ip] = found
+        return cache[ip]
+    return name_of
+
+
 def recent_logins(q="", limit=500):
     """Newest logins first: username, result, time and - when recorded - the device (IP, name).
     `q` matches the username, the device IP, or a device name from NAS Clients / Device Inventory.
@@ -166,11 +213,11 @@ def recent_logins(q="", limit=500):
     from django.db import connections
     from apps.devices import selectors as devices
     cols = _login_columns()
-    has_ip, has_id = "nasipaddress" in cols, "nasidentifier" in cols
-    names = {}                                                  # device IP -> readable name
-    names.update(devices.names_by_ip())                         # inventory names first ...
-    for nasname, short in Nas.objects.values_list("nasname", "shortname"):   # ... RADIUS NAS names win
-        if short:
+    has_ip, has_id, has_st = "nasipaddress" in cols, "nasidentifier" in cols, "calledstationid" in cols
+    name_of = device_namer()
+    names = dict(devices.names_by_ip())                         # device IP -> name, for searching by name
+    for nasname, short in Nas.objects.values_list("nasname", "shortname"):
+        if short and is_single_ip(nasname):
             names[nasname] = short
     where, params = [], []
     q = (q or "").strip()[:64]
@@ -188,9 +235,13 @@ def recent_logins(q="", limit=500):
         if has_id:
             parts.append("nasidentifier LIKE %s")
             params.append(like)
+        if has_st:
+            parts.append("calledstationid LIKE %s")
+            params.append(like)
         where.append("(" + " OR ".join(parts) + ")")
     sql = ("SELECT username, reply, authdate, " + ("nasipaddress" if has_ip else "''") + ", "
-           + ("nasidentifier" if has_id else "''") + " FROM radpostauth"
+           + ("nasidentifier" if has_id else "''") + ", "
+           + ("calledstationid" if has_st else "''") + " FROM radpostauth"
            + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT %s")
     params.append(max(1, min(int(limit), 2000)))
     with connections[DB].cursor() as cur:
@@ -199,8 +250,9 @@ def recent_logins(q="", limit=500):
     from datetime import timedelta, timezone as dt_tz
     shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
     as_utc = lambda t: (t - shift).replace(tzinfo=dt_tz.utc) if t is not None and t.tzinfo is None else t
+    # name: NAS Clients / Device Inventory first, then the name the device itself sent (NAS-Identifier)
     out = [{"username": u, "reply": r or "", "authdate": as_utc(t), "nas_ip": ip or "", "nas_id": nid or "",
-            "device": names.get(ip or "", "") or (nid or "")} for u, r, t, ip, nid in rows]
+            "station": st or "", "device": name_of(ip) or (nid or "")} for u, r, t, ip, nid, st in rows]
     return out, has_ip
 
 
@@ -229,8 +281,8 @@ def limit_violations(hours=24):
     except Exception:
         logger.warning("Could not check per-device login limits", exc_info=True)
         return []
-    names = {n: s for n, s in Nas.objects.values_list("nasname", "shortname")}
-    return [{"username": u, "ip": ip, "device": names.get(ip, ""), "count": n,
+    name_of = device_namer()
+    return [{"username": u, "ip": ip, "device": name_of(ip), "count": n,
              "last": t.strftime("%d %b %Y, %I:%M %p") if hasattr(t, "strftime") else str(t or "")}
             for u, ip, t, n in rows]
 
