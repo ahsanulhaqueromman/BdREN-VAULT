@@ -436,6 +436,12 @@ if command -v ufw >/dev/null 2>&1 && ! ufw status 2>/dev/null | grep -q "Status:
   fi
 fi
 
+# ---- 8c. hardening: login rate limit, fail2ban, automatic security updates -----------
+step "Hardening"
+if ! APP_DIR="$APP_DIR" ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/harden.sh" 2>&1 | sed 's/^/  /'; then
+  warn "hardening finished with warnings (above); fix them, then run: sudo bash $APP_DIR/deploy/harden.sh"
+fi
+
 # ---- 9. start and check ------------------------------------------------------------------------------
 step "Start"
 systemctl restart vault
