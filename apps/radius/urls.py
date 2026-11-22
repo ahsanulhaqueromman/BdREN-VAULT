@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/radius/nas/<int:pk>", views.nas_detail, name="api-radius-nas-detail"),
     path("api/radius/nas/<int:pk>/secret", views.nas_secret, name="api-radius-nas-secret"),
     path("api/radius/audit", views.audit, name="api-radius-audit"),
+    path("api/radius/blocks/<int:pk>", views.block_detail, name="api-radius-block-detail"),
 ]

@@ -111,6 +111,23 @@ class UserDevice(models.Model):
         unique_together = [("username", "nasname")]
 
 
+class IpBlock(models.Model):
+    """An address blocked by FreeRADIUS after a login with an unknown username (deploy/radius/dbms_ip_block).
+    FreeRADIUS writes the rows (times in the database server's clock, NOW()); while blocked_until is in the
+    future every login from `ip` (Calling-Station-Id) is rejected. The panel only lists and unblocks."""
+    ip = models.CharField(max_length=45, unique=True)
+    first_username = models.CharField(max_length=64, default="")
+    last_username = models.CharField(max_length=64, default="")
+    nasname = models.CharField(max_length=128, default="")       # the device the attempt came through
+    hits = models.IntegerField(default=1)
+    created_at = models.DateTimeField()
+    last_seen = models.DateTimeField()
+    blocked_until = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = "dbms_ip_block"
+
+
 class AuditLog(models.Model):
     actor = models.CharField(max_length=150)
     action = models.CharField(max_length=40)

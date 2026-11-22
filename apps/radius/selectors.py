@@ -306,6 +306,25 @@ def nas_exists(nasname):
     return Nas.objects.filter(nasname=nasname).exists()
 
 
+def blocked_ips(limit=500):
+    """Addresses FreeRADIUS is blocking now (deploy/radius/dbms_ip_block), newest first, or None when the
+    table does not exist yet. Times are compared in SQL (NOW()) because FreeRADIUS writes them in the
+    database server's clock; "seconds_left" / "seconds_ago" avoid any time-zone guessing."""
+    from django.db import connections
+    conn = connections[DB]
+    if "dbms_ip_block" not in conn.introspection.table_names():
+        return None
+    name_of = device_namer()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, ip, first_username, last_username, nasname, hits, "
+                    "TIMESTAMPDIFF(SECOND, NOW(), blocked_until), TIMESTAMPDIFF(SECOND, last_seen, NOW()) "
+                    "FROM dbms_ip_block WHERE blocked_until > NOW() ORDER BY last_seen DESC LIMIT %s", [int(limit)])
+        rows = cur.fetchall()
+    return [{"id": i, "ip": ip, "first_username": fu or "", "last_username": lu or "", "nas_ip": nas or "",
+             "device": name_of(nas), "hits": hits or 0, "seconds_left": max(0, left or 0),
+             "seconds_ago": max(0, ago or 0)} for i, ip, fu, lu, nas, hits, left, ago in rows]
+
+
 def admin_events(limit=500):
     """Changes made on the RADIUS pages, newest first."""
     return AuditLog.objects.all()[:limit]

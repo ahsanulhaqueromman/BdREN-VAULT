@@ -512,12 +512,32 @@ $o("#suBody").addEventListener("click",async e=>{
 });
 
 /* ---- RADIUS audit: panel actions + recent device logins ---- */
-let radLoggingOn=true;
+let radLoggingOn=true,radBlocks=[],radBlockingOn=true;
 async function loadRadAudit(){
   const q=($("#radLoginQ")?.value||"").trim();
-  try{const d=await api("/api/radius/audit"+(q?"?q="+encodeURIComponent(q):""));radEvents=d.events;radLogins=d.logins;radLoggingOn=d.device_logging!==false;renderRadEvents();renderRadLogins()}
-  catch(e){radFail("#radEventList","the RADIUS audit log",e);$("#radLoginList").innerHTML="";$("#radAuditKpis").innerHTML=""}
+  try{const d=await api("/api/radius/audit"+(q?"?q="+encodeURIComponent(q):""));radEvents=d.events;radLogins=d.logins;radLoggingOn=d.device_logging!==false;
+    radBlocks=d.blocks||[];radBlockingOn=d.blocking_on!==false;renderRadEvents();renderRadLogins();renderRadBlocks()}
+  catch(e){radFail("#radEventList","the RADIUS audit log",e);$("#radLoginList").innerHTML="";$("#radAuditKpis").innerHTML="";$("#radBlockList").innerHTML=""}
 }
+/* ---- Blocked IPs (FreeRADIUS dbms_ip_block policy) ---- */
+const radDur=s=>s>=86400?`${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h`:s>=3600?`${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m`:`${Math.max(1,Math.floor(s/60))}m`;
+function renderRadBlocks(){
+  const box=$("#radBlockList");if(!box)return;
+  if(!radBlockingOn){box.innerHTML=`<div class="rad-note"><b>IP blocking is not turned on.</b> Run this once on the server:<code>sudo bash /opt/vault/deploy/radius/enable_ip_block.sh</code></div>`;return}
+  if(!radBlocks.length){box.innerHTML=`<div class="empty"><b>No blocked addresses</b>An address is blocked for 2 days when it tries a username that is not in the RADIUS database.</div>`;return}
+  const {rows,bar}=paginate("radBlocks",radBlocks);
+  box.innerHTML=`<div class="tbl"><table><thead><tr><th>IP address</th><th>Usernames tried</th><th>Device</th><th>Tries</th><th>Last try</th><th>Unblocks in</th><th></th></tr></thead><tbody>`+
+    rows.map(b=>`<tr><td><strong class="m">${esc(b.ip)}</strong></td>
+      <td>${esc(b.first_username||"-")}${b.last_username&&b.last_username!==b.first_username?` <span class="sub m">last: ${esc(b.last_username)}</span>`:""}</td>
+      <td>${b.nas_ip?`<span class="dn">${esc(b.device||b.nas_ip)}</span>${b.device?`<span class="sub m">${esc(b.nas_ip)}</span>`:""}`:"-"}</td>
+      <td>${Number(b.hits||0).toLocaleString("en-US")}</td><td>${radDur(b.seconds_ago)} ago</td><td>${radDur(b.seconds_left)}</td>
+      <td><button type="button" class="b" data-unblock="${b.id}" data-ip="${esc(b.ip)}">Unblock</button></td></tr>`).join("")+`</tbody></table></div>`+bar;
+}
+$("#radBlockList")?.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-unblock]");if(!b)return;
+  if(await confirmAction({title:"Unblock this address?",message:"Logins from it are accepted again. If it tries an unknown username again it is blocked again for 2 days.",detail:b.dataset.ip,confirm:"Unblock",danger:false,run:()=>api("/api/radius/blocks/"+b.dataset.unblock,{method:"DELETE"})})){
+    toast("Logins from this address are allowed again.",{title:"Address unblocked"});loadRadAudit()}
+});
 /* search runs on the server (user, device IP, or a device name from NAS Clients / Device Inventory) */
 let radLoginT=0;
 $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT=setTimeout(()=>{PAGES.radLogins=1;loadRadAudit()},350)});
