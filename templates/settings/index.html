@@ -31,7 +31,7 @@
 
       <div class="settings-section-label"><span>02</span><div><strong>Backup performance</strong><small>Set safe concurrency for device connections and backup processing.</small></div></div>
       <div class="card"><h3>Performance</h3><p class="d">How many devices are backed up at the same time. For 500 devices, the system checks ICMP first, then uses a limited number of SSH sessions. Total time depends on device response and configuration size. Only one backup job runs at a time.</p>
-        <div class="fg"><label>Parallel SSH sessions (1 to 50)<input name="workers" type="number" min="1" max="50"></label></div>
+        <div class="fg"><label>Parallel SSH sessions (1 to {{ max_workers }})<input name="workers" type="number" min="1" max="{{ max_workers }}"></label></div>
         <div class="planner" id="capPlan" aria-live="polite"></div>
 </div>
       <div class="settings-section-label"><span>03</span><div><strong>Data retention</strong><small>Choose how long operational backup logs remain available.</small></div></div>

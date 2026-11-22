@@ -264,3 +264,15 @@ def prune_old_logs(now=None):
     if removed:
         logger.info("Removed %s backup log entries older than %s months", removed, months)
     return removed
+
+
+# ---------- backup file index (see storage.versions) ----------
+def warm_backup_index():
+    """Read every device's backup folder once (called right after start by the background threads)."""
+    storage.summaries()
+
+
+def backup_files_changed(folder):
+    """Tell the version index that snapshots under `folder` were added or removed outside the app's own
+    save/delete functions (manage.py backup_retention)."""
+    storage._changed(folder)

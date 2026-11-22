@@ -293,7 +293,9 @@ def scheduler_tick():
     from apps.backups.services import trim_log_table
     from apps.devices import selectors as devices
 
-    trim_log_table(20000)                                # keep the log table from growing forever
+    # keep the log table from growing forever, but never below ~6 weeks of nightly runs: with 20,000 devices
+    # a fixed 20,000 rows held less than one night (the Dashboard chart and Activity Logs lost their history)
+    trim_log_table(max(20000, devices.device_count() * 45))
     # Recover database state from a prior process crash before deciding what to run.
     from apps.backups.jobs import close_stale_jobs
     close_stale_jobs()

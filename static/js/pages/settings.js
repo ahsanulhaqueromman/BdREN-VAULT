@@ -61,10 +61,10 @@ async function loadCapacity(){
 }
 function paintCapacity(){
   const box=$("#capPlan");if(!box||capAvg==null)return;
-  const n=devs.length,w=Math.max(1,Math.min(50,+sfrm.elements.workers.value||1));
+  const cap=+sfrm.elements.workers.max||50,n=devs.length,w=Math.max(1,Math.min(cap,+sfrm.elements.workers.value||1));
   const est=s=>{s=Math.round(s);if(s<90)return s+" seconds";const m=Math.round(s/60);return m<90?m+" minutes":`${Math.floor(m/60)} h ${m%60} min`};
   const dur=w2=>Math.ceil(n/w2)*capAvg;
-  const target=30*60,rec=Math.min(50,Math.max(1,Math.ceil(n*capAvg/target)));
+  const target=30*60,rec=Math.min(cap,Math.max(1,Math.ceil(n*capAvg/target)));
   const over=dur(w)>target&&w<rec;
   box.className="planner "+(over?"warn":"ok");
   box.innerHTML=n?`<div class="pl-head"><b>Capacity planner</b><span>${capMeasured?`measured ${capAvg} s per device (recent jobs)`:"estimate: 25 s per device until the first job runs"}</span></div>

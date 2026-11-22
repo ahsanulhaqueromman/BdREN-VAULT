@@ -6,6 +6,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from apps.backups.services import backup_files_changed
+
 
 class Command(BaseCommand):
     help = 'List or remove backup snapshots older than N days, preserving each device latest snapshot.'
@@ -27,6 +29,7 @@ class Command(BaseCommand):
         count = freed = 0
         for device_dir in (p for p in root.iterdir() if p.is_dir()):
             snapshots = sorted((p for p in device_dir.rglob('*.txt') if p.is_file()), key=lambda p: (p.stat().st_mtime, str(p)))
+            removed_here = False
             for path in snapshots[:-1]:  # always preserve the latest snapshot for each device
                 try:
                     resolved = path.resolve()
@@ -38,11 +41,14 @@ class Command(BaseCommand):
                     self.stdout.write(f"{'DELETE' if options['apply'] else 'WOULD DELETE'} {path.relative_to(root)}")
                     if options['apply']:
                         path.unlink()
+                        removed_here = True
                         for sidecar in (path.with_suffix(path.suffix + '.sha256'), path.with_suffix('.sha256')):
                             if sidecar.is_file():
                                 sidecar.unlink()
                 except OSError as exc:
                     self.stderr.write(f'Could not process {path}: {exc}')
+            if removed_here:
+                backup_files_changed(device_dir)    # the web process re-reads this device's version list
         mode = 'Deleted' if options['apply'] else 'Dry run: eligible'
         self.stdout.write(self.style.WARNING(f'{mode}: {count} snapshots, approximately {freed / (1024**2):.2f} MiB.'))
         if not options['apply']:

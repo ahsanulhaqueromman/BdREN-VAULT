@@ -7,7 +7,7 @@ import json
 from datetime import datetime, time as dtime, timedelta
 
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from apps.core.api import ApiError
@@ -137,9 +137,9 @@ def backup_overview():
     for d in device_list:
         if d.name and d.name not in by_name:
             by_name[d.name] = d
-    latest_log_ip = {}
-    for item in BackupLog.objects.filter(status__in=GOOD).order_by("-id").values("name", "ip"):
-        latest_log_ip.setdefault(item["name"], item["ip"])
+    # newest good log line per backup folder name: one grouped query instead of reading the whole log table
+    newest_ids = BackupLog.objects.filter(status__in=GOOD).order_by().values("name").annotate(last=Max("id")).values("last")
+    latest_log_ip = dict(BackupLog.objects.filter(id__in=newest_ids).values_list("name", "ip"))
     seen_ids = set()
     for row in rows:
         log_ip = latest_log_ip.get(row["name"])
@@ -212,9 +212,11 @@ def zip_all_latest():
 
 # ---------- reports ----------
 def compliance_rows():
-    """(device, latest log line or None) for the compliance CSV, in inventory order."""
-    return [(device, BackupLog.objects.filter(ip=device.ip).order_by("-id").first())
-            for device in devices.devices_by_id()]
+    """(device, latest log line or None) for the compliance CSV, in inventory order.
+    Two queries in all (newest line per address), not one per device."""
+    newest_ids = BackupLog.objects.order_by().values("ip").annotate(last=Max("id")).values("last")
+    latest = {log.ip: log for log in BackupLog.objects.filter(id__in=newest_ids)}
+    return [(device, latest.get(device.ip)) for device in devices.devices_by_id()]
 
 
 def _names_line(names, keep=5):
@@ -272,12 +274,18 @@ def results_per_day(days):
     MySQL time-zone tables were loaded. Comparing plain datetimes works on every database."""
     per_day = {d.isoformat(): {"ok": 0, "same": 0, "bad": 0} for d in days}
     key_of = {"SUCCESS": "ok", "UNCHANGED": "same", "FAILED": "bad"}
-    first_moment = timezone.make_aware(datetime.combine(days[0], dtime.min), timezone.get_current_timezone())
-    for ts, status in BackupLog.objects.filter(ts__gte=first_moment).values_list("ts", "status").iterator(chunk_size=2000):
-        key = key_of.get(status)
-        day = timezone.localtime(ts).date().isoformat()
-        if key and day in per_day:
-            per_day[day][key] += 1
+    tz = timezone.get_current_timezone()
+    # One small COUNT per local day over the indexed ts column: a 20,000-device inventory writes
+    # 20,000 lines a night, far too many to read one by one for a chart.
+    for day in days:
+        start = timezone.make_aware(datetime.combine(day, dtime.min), tz)
+        end = timezone.make_aware(datetime.combine(day + timedelta(days=1), dtime.min), tz)
+        counts = (BackupLog.objects.filter(ts__gte=start, ts__lt=end).order_by()
+                  .values_list("status").annotate(n=Count("id")))
+        for status, n in counts:
+            key = key_of.get(status)
+            if key and day.isoformat() in per_day:
+                per_day[day.isoformat()][key] += n
     return per_day
 
 

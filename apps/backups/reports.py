@@ -24,13 +24,22 @@ PREVIEW_LINES = 8                               # changed lines shown per change
 MAX_CHANGES = 200                               # per device, newest kept
 
 
+_STAMP = re.compile(r"_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$")
+
+
 def _when(path):
     """Snapshot time from its file name (device_YYYYMMDD_HHMMSS.txt), else the file time."""
-    m = re.search(r"_(\d{8})_(\d{6})$", path.stem)
+    return _when_of(str(path))
+
+
+@lru_cache(maxsize=400000)           # saved snapshots never change; a 20,000-device report reuses the results
+def _when_of(path):
+    path = Path(path)
+    m = _STAMP.search(path.stem)
     tz = timezone.get_current_timezone()
     if m:
         try:
-            return datetime.strptime("".join(m.groups()), "%Y%m%d%H%M%S").replace(tzinfo=tz)
+            return datetime(*map(int, m.groups())).replace(tzinfo=tz)
         except ValueError:
             pass
     return datetime.fromtimestamp(path.stat().st_mtime, tz=tz)
@@ -69,14 +78,14 @@ def month_range(from_month, to_month):
 
 # Saved backups never change once written, so a comparison is cached by (file, modification time).
 # With 500-1000 devices the first report reads the files once; later reports reuse the results.
-@lru_cache(maxsize=20000)
+@lru_cache(maxsize=100000)
 def _compare_files(old_path, old_mtime, new_path, new_mtime):
     added, removed, preview = _compare(Path(old_path).read_text(encoding="utf-8", errors="replace"),
                                        Path(new_path).read_text(encoding="utf-8", errors="replace"))
     return added, removed, tuple(preview)
 
 
-@lru_cache(maxsize=20000)
+@lru_cache(maxsize=100000)
 def _line_count(path, mtime):
     return len(normalize(Path(path).read_text(encoding="utf-8", errors="replace")).splitlines())
 
@@ -87,7 +96,6 @@ def change_report(months=None, start=None, end=None):
     if start is None:
         start = now - timedelta(days=PERIODS[months])
     end = min(end or now, now)
-    root = storage.root()
     devices_by_key = {}
     for d in devices.devices_by_id():
         for key in (d.name, d.ip, d.ip.replace(".", "_")):
@@ -95,11 +103,14 @@ def change_report(months=None, start=None, end=None):
                 devices_by_key.setdefault(storage.safe_name(key).lower(), d)
 
     rows = []
-    folders = [f for f in root.iterdir() if f.is_dir()] if root.is_dir() else []
-    for folder in folders:
-        files = storage.versions(folder)
+    for folder, stamp in storage.device_folders():
+        files = storage.versions(folder, stamp)          # from the version index, not a walk of the disk
         if not files:
             continue
+        cut = len(str(folder)) + 1
+
+        def rel(path, cut=cut):
+            return str(path)[cut:].replace("\\", "/")
         dated = [(f, t) for f in files for t in (_when(f),) if t <= end]       # versions saved after the range are ignored
         if not dated:
             continue
@@ -108,8 +119,8 @@ def change_report(months=None, start=None, end=None):
         prev = before[-1] if before else None
         changes = []
         for f, t in inside:
-            entry = {"file": f.relative_to(folder).as_posix(), "time": t.strftime("%Y-%m-%d %H:%M:%S"),
-                     "prev": prev.relative_to(folder).as_posix() if prev else ""}
+            entry = {"file": rel(f), "time": t.strftime("%Y-%m-%d %H:%M:%S"),
+                     "prev": rel(prev) if prev else ""}
             if prev is None:
                 entry.update(first=True, added=_line_count(str(f), f.stat().st_mtime_ns), removed=0, preview=[])
             else:
@@ -134,8 +145,8 @@ def change_report(months=None, start=None, end=None):
             "added": sum(c["added"] for c in real),
             "removed": sum(c["removed"] for c in real),
             "last_change": changes[-1]["time"] if changes else "",
-            "baseline": before[-1].relative_to(folder).as_posix() if before else "",
-            "latest": dated[-1][0].relative_to(folder).as_posix(),        # newest version inside the range
+            "baseline": rel(before[-1]) if before else "",
+            "latest": rel(dated[-1][0]),        # newest version inside the range
             "timeline": list(reversed(changes))[:MAX_CHANGES],          # newest first
         })
     rows.sort(key=lambda r: (-r["changes"], r["last_change"] == "", r["device"].lower()))

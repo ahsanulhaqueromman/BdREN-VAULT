@@ -11,6 +11,8 @@ import os
 import re
 import shutil
 import tempfile
+import threading
+import time
 import zipfile
 import hashlib
 from dataclasses import dataclass
@@ -36,27 +38,116 @@ def read_text(path):
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def versions(folder):
+_STAMP = re.compile(r"_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$")
+
+
+def _order_key(path, stem=None):
+    """Snapshot time as a sort key: the timestamp in the file name, else the file's modification time."""
+    match = _STAMP.search(stem if stem is not None else path.stem)
+    if match:
+        try:
+            return (datetime(*map(int, match.groups())).timestamp(), str(path))
+        except (ValueError, OverflowError, OSError):
+            pass
+    return (path.stat().st_mtime, str(path))
+
+
+def _walk_versions(folder):
+    """Every *.txt snapshot under `folder`, oldest first (os.scandir: far faster than Path.rglob)."""
+    found, stack = [], [str(folder)]
+    while stack:
+        try:
+            with os.scandir(stack.pop()) as entries:
+                for entry in entries:
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(entry.path)
+                    elif entry.name.endswith(".txt") and entry.is_file(follow_symlinks=False):
+                        path = Path(entry.path)
+                        found.append((_order_key(path, entry.name[:-4]), path))
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+    found.sort(key=lambda item: item[0])
+    return [path for _, path in found]
+
+
+# ---- Version index ------------------------------------------------------------------------------------
+# With 20,000 devices a walk of every device folder takes minutes, so the list of snapshots of each device
+# folder is kept in memory and read again only when that folder changed. Every function here that adds or
+# removes a snapshot calls _changed(): it drops the entry AND moves the device folder's modification time
+# forward, so another process sharing the disk (manage.py run_background) sees the change too.
+# Unchanged runs only rewrite run.json and leave the index alone. INDEX_MAX_AGE reads an entry again now
+# and then, in case files were copied in or deleted by hand.
+INDEX_MAX_AGE = 6 * 3600
+_INDEX = {}                       # device folder path -> (folder mtime_ns, read at, [snapshot Path, ...])
+_INDEX_LOCK = threading.Lock()
+
+
+def _device_folder_of(path):
+    """The device folder (first level under the backup root) that holds `path`, or None."""
+    try:
+        rel = Path(path).resolve().relative_to(root().resolve())
+    except (ValueError, OSError):
+        return None
+    return root() / rel.parts[0] if rel.parts else None
+
+
+def _changed(path):
+    """A snapshot was added or removed under `path`: forget its device folder's version list."""
+    folder = _device_folder_of(path)
+    if folder is not None:
+        with _INDEX_LOCK:
+            _INDEX.pop(str(folder), None)
+        try:                      # strictly newer mtime, even on a file system with a coarse clock
+            old = folder.stat().st_mtime_ns
+            new = max(time.time_ns(), old + 1_000_000)
+            os.utime(folder, ns=(new, new))
+        except OSError:
+            pass
+    _invalidate()
+
+
+def versions(folder, stamp=None):
     """Configuration snapshots under a device or date folder, oldest first.
 
     Prefer the timestamp embedded in current filenames so copying/restoring a backup
     does not accidentally make an old snapshot appear newer just because its mtime changed.
-    Legacy filenames fall back to filesystem mtime.
+    Legacy filenames fall back to filesystem mtime. Device folders are served from the version index.
     """
-    if not folder.exists():
-        return []
+    folder = Path(folder)
+    if os.path.dirname(str(folder)) != str(root()):             # quick check first: called once per device
+        if folder.parent.resolve() != root().resolve():
+            return _walk_versions(folder) if folder.exists() else []
+        folder = root() / folder.name             # one index key per device folder, resolved or not
+    if stamp is None:
+        try:
+            stamp = folder.stat().st_mtime_ns
+        except OSError:
+            return []
+    key = str(folder)
+    with _INDEX_LOCK:
+        hit = _INDEX.get(key)
+    if hit and hit[0] == stamp and time.monotonic() - hit[1] < INDEX_MAX_AGE:
+        return list(hit[2])
+    files = _walk_versions(folder)
+    with _INDEX_LOCK:
+        _INDEX[key] = (stamp, time.monotonic(), files)
+    return list(files)
 
-    def order(path):
-        match = re.search(r"_(\d{8})_(\d{6})$", path.stem)
-        if match:
-            try:
-                stamp = datetime.strptime("".join(match.groups()), "%Y%m%d%H%M%S").timestamp()
-                return (stamp, str(path))
-            except ValueError:
-                pass
-        return (path.stat().st_mtime, str(path))
 
-    return sorted(folder.rglob("*.txt"), key=order)
+def device_folders():
+    """[(folder Path, mtime_ns)] of every device folder under the backup root (one directory listing)."""
+    out = []
+    try:
+        with os.scandir(root()) as entries:
+            for entry in entries:
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        out.append((root() / entry.name, entry.stat(follow_symlinks=False).st_mtime_ns))
+                except OSError:
+                    continue
+    except FileNotFoundError:
+        pass
+    return out
 
 
 def latest_file(folder):
@@ -79,7 +170,6 @@ def day_folder(name, when=None):
 
 
 def write_run_metadata(folder, *, status, backup_at, last_change_at="", last_change_file="", message=""):
-    _invalidate()
     payload = {
         "status": status,
         "backup_date": backup_at.strftime(DT_FORMAT),
@@ -139,7 +229,7 @@ def publish_staged(staged):
     """Make the staged snapshot visible under its final name (atomic rename on the same disk)."""
     os.replace(staged.tmp, staged.final)
     staged.published = True
-    _invalidate()
+    _changed(staged.final)
 
 
 def discard_staged(staged):
@@ -151,7 +241,7 @@ def discard_staged(staged):
             except OSError:
                 pass
     _remove_empty_parents(staged.final.parent, staged.name)
-    _invalidate()
+    _changed(device_folder(staged.name))
 
 
 def _remove_empty_parents(folder, name):
@@ -202,7 +292,8 @@ def save_backup(name, text, when=None):
 def _prune(name):
     keep = settings.KEEP_VERSIONS
     if keep > 0:
-        for old in versions(device_folder(name))[:-keep]:
+        old_files = versions(device_folder(name))[:-keep]
+        for old in old_files:
             old.unlink(missing_ok=True)
             old.with_suffix(old.suffix + ".sha256").unlink(missing_ok=True)
             for parent in old.parents:
@@ -211,10 +302,11 @@ def _prune(name):
                     if parent.is_dir() and not any(parent.iterdir()): parent.rmdir()
                 except OSError:
                     break
+        if old_files:
+            _changed(device_folder(name))
 
 
 def record_unchanged(name, when=None, last_file=None, last_change_at=""):
-    _invalidate()
     """Record that a scheduled/manual check ran but config was unchanged; do not duplicate config."""
     when = when or timezone.localtime()
     folder = day_folder(name, when)
@@ -242,7 +334,9 @@ def record_unchanged(name, when=None, last_file=None, last_change_at=""):
 def file_info(path, device_root=None):
     st = path.stat()
     mtime = datetime.fromtimestamp(st.st_mtime, tz=timezone.get_current_timezone())
-    filename = path.relative_to(device_root).as_posix() if device_root else path.name
+    filename = (str(path)[len(str(device_root)) + 1:].replace("\\", "/") if device_root and
+                str(path).startswith(str(device_root) + os.sep) else
+                path.relative_to(device_root).as_posix() if device_root else path.name)
     return {"file": filename, "name": path.name, "size": st.st_size, "time": mtime.strftime(DT_FORMAT)}
 
 
@@ -263,20 +357,29 @@ def _invalidate():
     cache.delete(SUMMARY_KEY)
 
 
+_ROWS = {}            # device folder name -> (folder mtime_ns, summary row): rebuilt only for changed folders
+
+
 def _scan_summaries():
     """One summary per device: saved configuration count, latest snapshot and last check."""
-    out = []
-    if not root().is_dir():
-        return out
-    for folder in root().iterdir():
-        if not folder.is_dir():
-            continue
-        files = versions(folder)
-        if not files:
-            continue
-        latest = files[-1]
-        out.append({"name": folder.name, "count": len(files), "latest": file_info(latest, folder),
-                    "previous": files[-2].relative_to(folder).as_posix() if len(files) > 1 else ""})
+    out, seen = [], set()
+    for folder, stamp in device_folders():
+        seen.add(folder.name)
+        hit = _ROWS.get(folder.name)
+        if hit and hit[0] == stamp:
+            row = hit[1]
+        else:
+            files = versions(folder, stamp)
+            row = None
+            if files:
+                cut = len(str(folder)) + 1
+                row = {"name": folder.name, "count": len(files), "latest": file_info(files[-1], folder),
+                       "previous": str(files[-2])[cut:].replace("\\", "/") if len(files) > 1 else ""}
+            _ROWS[folder.name] = (stamp, row)
+        if row:
+            out.append(dict(row, latest=dict(row["latest"])))
+    for gone in set(_ROWS) - seen:
+        _ROWS.pop(gone, None)
     return sorted(out, key=lambda d: d["latest"]["time"], reverse=True)
 
 
@@ -372,7 +475,6 @@ def tree_for_device(folder):
 
 
 def delete_file(path):
-    _invalidate()
     device_root = path
     while device_root.parent != root().resolve() and device_root.parent != device_root:
         device_root = device_root.parent
@@ -386,14 +488,17 @@ def delete_file(path):
             if parent.is_dir() and not any(parent.iterdir()): parent.rmdir()
         except OSError:
             break
+    _changed(device_root)
 
 
 def delete_folders(folders):
-    _invalidate()
     count = 0
     for folder in folders:
-        count += len(list(folder.rglob("*.txt")))
+        count += len(versions(folder))
         shutil.rmtree(folder)
+        with _INDEX_LOCK:
+            _INDEX.pop(str(root() / Path(folder).name), None)
+    _invalidate()
     return count
 
 

@@ -4,6 +4,7 @@ The ping itself is an integration with the operating system (the `ping` command)
 apps.devices.selectors.
 """
 import platform
+import shutil
 import sys
 import re
 import subprocess
@@ -54,6 +55,51 @@ def ping_host(ip):
     return {"up": False, "ms": None}
 
 
+FPING_CHUNK = 1000       # targets per fping process
+FPING_PARALLEL = 8       # fping processes at once (each sends to its targets at fping's own pace)
+_ALIVE = re.compile(r"^(\S+) is alive(?: \(([\d.]+) ms\))?")
+
+
+def _fping_chunk(exe, targets, timeout_ms, attempts):
+    """{target: {up, ms}} for one fping run, or None when fping failed (the caller then uses ping)."""
+    cmd = [exe, "-e", "-t", str(timeout_ms), "-r", str(attempts - 1)]
+    try:
+        done = subprocess.run(cmd, input="\n".join(targets), capture_output=True, text=True,
+                              timeout=len(targets) * 0.05 + attempts * timeout_ms / 1000 + 30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode > 2:            # 0 all alive, 1 some unreachable, 2 a name did not resolve
+        return None
+    out = {}
+    for line in (done.stdout or "").splitlines():
+        match = _ALIVE.match(line.strip())
+        if match:
+            out[match.group(1)] = {"up": True, "ms": float(match.group(2)) if match.group(2) else None}
+    return out
+
+
+def _fping_many(ips):
+    """Ping a big list with fping (a handful of processes) instead of one `ping` process per device:
+    with 20,000 devices that is 20,000 processes per sweep otherwise. None = fping not usable here."""
+    exe = None if IS_WIN else shutil.which("fping")
+    if not exe:
+        return None
+    from django.conf import settings
+    timeout_ms = max(250, min(int(getattr(settings, "PING_TIMEOUT_MS", 2000)), 5000))
+    attempts = max(1, min(int(getattr(settings, "PING_ATTEMPTS", 2)), 3))
+    targets = list(dict.fromkeys(ip for ip in ips if HOSTRX.match(ip)))
+    chunks = [targets[i:i + FPING_CHUNK] for i in range(0, len(targets), FPING_CHUNK)]
+    alive = {}
+    if chunks:
+        with ThreadPoolExecutor(max_workers=min(FPING_PARALLEL, len(chunks)), thread_name_prefix="dbms-fping") as pool:
+            for part in pool.map(lambda c: _fping_chunk(exe, c, timeout_ms, attempts), chunks):
+                if part is None:
+                    return None
+                alive.update(part)
+    down = {"up": False, "ms": None}
+    return [dict(alive.get(ip, down)) for ip in ips]
+
+
 def ping_many(ips, recheck=True):
     """Ping a list of hosts concurrently with a bounded worker pool; preserve input order.
 
@@ -70,6 +116,20 @@ def ping_many(ips, recheck=True):
     # per device. 64 workers keeps the worst-case offline scan bounded on an 8-core host.
     # Scale with the inventory: 1000 devices get 63 parallel pings (one sweep of 1000 mostly-offline hosts
     # then takes about 2 minutes instead of 7), small inventories keep the configured value.
+    # Big inventories use fping when it is installed (deploy/install.sh installs it).
+    if len(ips) >= 50:
+        results = _fping_many(ips)
+        if results is not None:
+            if recheck:
+                failed = [i for i, r in enumerate(results) if not r["up"]]
+                if failed:
+                    if len(failed) > max(5, len(ips) * 0.4):
+                        time.sleep(3)
+                    again = _fping_many([ips[i] for i in failed]) or []
+                    for i, r in zip(failed, again):
+                        if r["up"]:
+                            results[i] = r
+            return results
     configured = int(getattr(settings, "PING_WORKERS", 20))
     workers = max(1, min(max(configured, -(-len(ips) // 16)), 64, len(ips)))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="dbms-ping") as pool:

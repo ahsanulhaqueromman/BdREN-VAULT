@@ -18,6 +18,10 @@ class BackupLog(models.Model):
 
     class Meta:
         ordering = ["-id"]
+        # 20,000 devices write 20,000 lines a night: newest line per device / per name, and failures by time
+        indexes = [models.Index(fields=["ip", "id"], name="backuplog_ip_id"),
+                   models.Index(fields=["name", "id"], name="backuplog_name_id"),
+                   models.Index(fields=["status", "ts"], name="backuplog_status_ts")]
 
     def __str__(self):
         return f"{self.ts:%Y-%m-%d %H:%M} {self.ip} {self.status}"

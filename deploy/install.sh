@@ -102,7 +102,7 @@ fi
 # ---- 1. system packages --------------------------------------------------------------------------
 step "System packages"
 need=()
-for p in python3 python3-venv python3-pip rsync curl; do dpkg -s "$p" >/dev/null 2>&1 || need+=("$p"); done
+for p in python3 python3-venv python3-pip rsync curl fping; do dpkg -s "$p" >/dev/null 2>&1 || need+=("$p"); done
 if [ ${#need[@]} -gt 0 ]; then
   apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need[@]}" >/dev/null
   ok "installed: ${need[*]}"

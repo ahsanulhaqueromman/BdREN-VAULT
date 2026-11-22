@@ -368,6 +368,9 @@ def _second_pass(job_id, results, devices, reason, workers, ping_workers, force,
     _set_phase(job_id, f"Retrying {n} device{'s' if n != 1 else ''} that failed")
     index = {int(row["device_id"]): i for i, row in enumerate(results)
              if isinstance(row, dict) and str(row.get("device_id", "")).isdigit()}
+    # each progress write stores the whole result list (20,000 rows for a big inventory), so write it about
+    # 25 times in this pass, not once per retried device
+    flush_every, tried = max(1, n // 25), [0]
 
     def replace(result, device):
         if result.get("status") == "CANCELLED":         # stopped during the second pass: keep the first result
@@ -380,7 +383,9 @@ def _second_pass(job_id, results, devices, reason, workers, ping_workers, force,
             results.append(result)
         else:
             results[i] = result
-        _update_job(job_id, done=len(results), results=list(results))
+        tried[0] += 1
+        if tried[0] % flush_every == 0 or tried[0] == n:
+            _update_job(job_id, done=len(results), results=list(results))
 
     with engine.LOGIN_PACER.spacing(3.0):
         return _run_pass(job_id, batch, reason, max(1, min(int(settings.RETRY_PASS_WORKERS), workers)),

@@ -36,6 +36,19 @@ def _run_forever(name, func, interval, first_delay):
     threading.Thread(target=loop, name=name, daemon=True).start()
 
 
+def _warm_backup_index():
+    """Read every device's backup folder once, right after start, so the first visit to the Backups page
+    does not wait for it (20,000 device folders take a while to list)."""
+    from apps.backups.services import warm_backup_index
+    try:
+        time.sleep(5)
+        warm_backup_index()
+    except Exception:
+        logger.warning("Could not pre-load the backup index", exc_info=True)
+    finally:
+        connections.close_all()
+
+
 def start_background():
     """Start the scheduler (checks every 30 s) and continuous full-inventory ping monitor. Safe twice."""
     global _started
@@ -49,6 +62,7 @@ def start_background():
     from apps.scheduling.services import scheduler_tick
 
     close_stale_jobs()
+    threading.Thread(target=_warm_backup_index, name="backup-index", daemon=True).start()
     _run_forever("scheduler", scheduler_tick, 30, first_delay=30)
     _run_forever("log-retention", prune_old_logs, 24 * 3600, first_delay=120)
     if settings.PING_SECONDS > 0:

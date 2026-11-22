@@ -136,7 +136,7 @@ def _write_effective(username, access, by_role):
     if not access["devices"] and not access["types"]:
         return                                      # no rows = every device
     ips = _effective_ips(access["devices"], access["types"], by_role) or [NO_DEVICE]
-    UserDevice.objects.bulk_create([UserDevice(username=username, nasname=ip) for ip in ips])
+    UserDevice.objects.bulk_create([UserDevice(username=username, nasname=ip) for ip in ips], batch_size=2000)
 
 
 def _set_access(username, devices, types):
@@ -163,6 +163,47 @@ def resync_type_grants():
     with transaction.atomic(using=DB):
         for name in names:
             _write_effective(name, grants[name], by_role)
+
+
+def resync_devices(nasnames):
+    """After these devices were added, removed or changed type: update dbms_user_nas for THESE addresses only.
+
+    resync_type_grants() rewrites every row of every user who was given access by type. With 30,000 NAS that
+    is ~10,000 rows per such user, so one device change took minutes and rewrote millions of rows. Here only
+    the rows for the changed addresses are added or removed; the result is the same."""
+    nasnames = [n for n in dict.fromkeys(nasnames) if n]
+    names = selectors.usernames_with_type_grants()
+    if not nasnames or not names:
+        return
+    grants = selectors.user_grants()
+    roles = {n: r.lower() for n, r in NasRole.objects.filter(nasname__in=nasnames).values_list("nasname", "role")}
+    present = set(Nas.objects.filter(nasname__in=nasnames).values_list("nasname", flat=True))
+    should = set()
+    for name in names:
+        g = grants.get(name, {"types": [], "devices": []})
+        types = {t.lower() for t in g["types"]}
+        for ip in nasnames:
+            # a device picked one by one stays; a device counts for a type while it exists as a single address
+            by_type = ip in present and is_single_ip(ip) and roles.get(ip, "other") in types
+            if ip in g["devices"] or by_type:
+                should.add((name, ip))
+    have = set(UserDevice.objects.filter(username__in=names, nasname__in=nasnames).values_list("username", "nasname"))
+    gone, new = have - should, should - have
+    by_ip = {}
+    for name, ip in gone:
+        by_ip.setdefault(ip, []).append(name)
+    for ip, users in by_ip.items():                  # one DELETE per changed address
+        UserDevice.objects.filter(nasname=ip, username__in=users).delete()
+    UserDevice.objects.bulk_create([UserDevice(username=n, nasname=ip) for n, ip in new], batch_size=2000)
+    # a user limited by type with no device of that type left keeps the "none" marker (no row = every device)
+    touched = {n for n, _ in gone | new}
+    if touched:
+        real = set(UserDevice.objects.filter(username__in=touched).exclude(nasname=NO_DEVICE)
+                   .values_list("username", flat=True).distinct())
+        UserDevice.objects.filter(username__in=real, nasname=NO_DEVICE).delete()
+        missing = touched - real - set(UserDevice.objects.filter(username__in=touched, nasname=NO_DEVICE)
+                                        .values_list("username", flat=True))
+        UserDevice.objects.bulk_create([UserDevice(username=n, nasname=NO_DEVICE) for n in missing])
 
 
 def normalize_roles():
@@ -261,7 +302,7 @@ def update_nas_role(device, role):
     role = _checked_role(role)
     with transaction.atomic(using=DB):
         NasRole.objects.update_or_create(nasname=device.nasname, defaults={"role": role})
-        resync_type_grants()
+        resync_devices([device.nasname])
     return role
 
 
@@ -341,7 +382,7 @@ def delete_nas(device):
     with transaction.atomic(using=DB):
         device.delete()
         NasRole.objects.filter(nasname=nasname).delete()
-        resync_type_grants()
+        resync_devices([nasname])
     sync_firewall()                     # close RADIUS in the firewall for this address
     return reload_radius()
 
@@ -406,7 +447,7 @@ def add_nas_devices(addresses_text, names_text, vendor, secret="", description="
             added.append({"id": device.pk, "name": name, "nasname": addr})
         if added:
             set_nas_roles([d["nasname"] for d in added], role)
-            resync_type_grants()        # users allowed on this type can log in on the new devices at once
+            resync_devices([d["nasname"] for d in added])   # users allowed on this type can use them at once
 
     dynamic = getattr(settings, "RADIUS_DYNAMIC_CLIENTS", False)
     needs_restart = bool(added) and (not dynamic or any(not is_single_ip(d["nasname"]) for d in added))

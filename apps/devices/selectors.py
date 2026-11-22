@@ -15,7 +15,7 @@ def ip_sort_key(device):
 
 def devices_by_ip():
     """Every device, in IP order (the Device Inventory table)."""
-    return sorted(Device.objects.all(), key=ip_sort_key)
+    return sorted(Device.objects.select_related("created_by"), key=ip_sort_key)   # one query, not one per device
 
 
 def devices_by_id():
@@ -99,6 +99,10 @@ def id_ip_pairs(ids=None):
     if ids:
         rows = rows.filter(id__in=ids)
     return [(d.id, d.ip) for d in rows]
+
+
+def device_count():
+    return Device.objects.count()
 
 
 def type_and_status():

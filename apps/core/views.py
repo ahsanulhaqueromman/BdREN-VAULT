@@ -27,6 +27,7 @@ def _render_page(request, page, status=200, **extra):
         "vendor_menu": vendor_menu(),      # Device type list in the Add / Edit device pop-ups
         "role_label": ROLE_LABEL.get(request.user.role, request.user.role),
         "session_idle_ms": settings.SESSION_MINUTES * 60 * 1000,
+        "max_workers": settings.MAX_WORKERS,     # Settings page: parallel SSH sessions limit
         "denied": not allowed,
         **extra,
     }

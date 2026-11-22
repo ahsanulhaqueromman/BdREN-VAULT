@@ -243,7 +243,9 @@ STORAGES = {
 }
 
 # ---------- VAULT behaviour ----------
-MAX_WORKERS = 50                                         # ceiling for parallel SSH sessions (Settings page: 1 to 50)
+# ceiling for parallel SSH sessions on the Settings page. 50 suits up to ~10,000 devices a night; a very large
+# inventory (20,000+) can raise it with DBMS_MAX_WORKERS (at most 200; needs RAM and an AAA server that copes).
+MAX_WORKERS = max(1, min(env_int("DBMS_MAX_WORKERS", 50), 200))
 WORKERS = max(1, min(env_int("WORKERS", 5), MAX_WORKERS))  # low-load default; the Settings page value wins
 JOB_PROGRESS_BATCH = max(1, min(env_int("DBMS_PROGRESS_BATCH", 5), 25))
 KEEP_VERSIONS = env_int("DBMS_KEEP_VERSIONS", 0)      # newest N backups per device, 0 = keep all
