@@ -1323,3 +1323,4 @@ details.lvl-map>summary::before{content:"B8";color:var(--mute);font-size:12px;t
 details.lvl-map[open]>summary::before{transform:rotate(90deg)}
 details.lvl-map>summary h4{margin:0}
 details.lvl-map[open]{padding-bottom:14px}
+.retention-field+.retention-field{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}

@@ -491,6 +491,40 @@ def delete_file(path):
     _changed(device_root)
 
 
+def prune_older_than(cutoff):
+    """Delete configuration snapshots taken before `cutoff` (a Unix timestamp) in every device folder.
+
+    The newest snapshot of each device is always kept, however old it is: a device whose configuration
+    has not changed for a long time keeps its only (current) backup. Date folders left without any
+    snapshot are removed together with their run.json. Returns (files removed, bytes freed)."""
+    count = freed = 0
+    for folder, _ in device_folders():
+        files = versions(folder)
+        removed = False
+        for path in files[:-1]:                       # oldest first; the last one is never touched
+            try:
+                if _order_key(path)[0] >= cutoff:
+                    break                             # sorted oldest first: everything after is newer
+                size = path.stat().st_size
+                path.unlink()
+                path.with_suffix(path.suffix + ".sha256").unlink(missing_ok=True)
+            except OSError:
+                continue
+            count, freed, removed = count + 1, freed + size, True
+            for parent in path.parents:              # day / month / year folders that now hold no snapshot
+                if parent == folder or parent == root():
+                    break
+                try:
+                    if any(parent.rglob("*.txt")):
+                        break
+                    shutil.rmtree(parent)
+                except OSError:
+                    break
+        if removed:
+            _changed(folder)
+    return count, freed
+
+
 def delete_folders(folders):
     count = 0
     for folder in folders:

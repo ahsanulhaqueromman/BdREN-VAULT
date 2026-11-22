@@ -266,6 +266,35 @@ def prune_old_logs(now=None):
     return removed
 
 
+def prune_old_backup_files(now=None):
+    """Delete saved configuration files older than the number of months set on the Settings page
+    ("Keep saved configuration files for"). The newest file of every device is always kept.
+    Returns the number of files removed."""
+    from datetime import timedelta
+    from apps.scheduling.services import get_setting
+    try:
+        months = int(get_setting("file_retention_months") or 0)
+    except ValueError:
+        return 0
+    if months <= 0:
+        return 0
+    cutoff = ((now or timezone.now()) - timedelta(days=30 * months)).timestamp()
+    removed, freed = storage.prune_older_than(cutoff)
+    if removed:
+        logger.info("Removed %s configuration files older than %s months (%.1f MiB); the newest file of "
+                    "every device was kept", removed, months, freed / 1024 ** 2)
+    return removed
+
+
+def run_retention(now=None):
+    """Daily housekeeping: old Activity Logs rows and old saved configuration files."""
+    for task in (prune_old_logs, prune_old_backup_files):
+        try:
+            task(now)
+        except Exception:
+            logger.exception("Retention task %s failed", task.__name__)
+
+
 # ---------- backup file index (see storage.versions) ----------
 def warm_backup_index():
     """Read every device's backup folder once (called right after start by the background threads)."""
