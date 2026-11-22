@@ -64,49 +64,63 @@ done
 [ -n "$QUERIES" ] || die "FreeRADIUS mysql queries.conf not found"
 say "FreeRADIUS query file: $QUERIES"
 
-# Already done = the post-auth { } block writes all three device columns.
-postauth_has() { perl -0ne 'exit((/^post-auth\s*\{.*?\n\}/sm &&$& =~ /\b'"$1"'\b/) ? 0 : 1)' "$QUERIES"; }
+# The post-auth { ... } block. Indented blocks and CRLF line endings are accepted.
+POSTAUTH_RX='^[ \t]*post-auth\s*\{.*?\n[ \t]*\}[ \t]*\r?$'
+postauth_has() { perl -0ne 'exit((/'"$POSTAUTH_RX"'/sm && $& =~ /\b'"$1"'\b/) ? 0 : 1)' "$QUERIES"; }
+show_postauth() { perl -0ne 'print "$&\n" if /'"$POSTAUTH_RX"'/sm' "$1" | head -n 40 | sed 's/^/         | /' >&2; }
+# A marker an older version of this script could leave behind made every later run fail: remove it.
+if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES"; then
+  cp -p "$QUERIES" "$QUERIES.dbms-before-cleanup-$(date +%Y%m%d-%H%M%S)"
+  sed -i '/DBMS_PATCH_INCOMPLETE/d' "$QUERIES"; ok "removed a leftover marker from an earlier failed run"
+fi
 if postauth_has nasipaddress && postauth_has nasidentifier && postauth_has calledstationid; then
   ok "post-auth query already records the device"
   CHANGED=0
 else
   BACKUP="$QUERIES.dbms-backup-$(date +%Y%m%d-%H%M%S)"
   cp -p "$QUERIES" "$BACKUP"; ok "backup saved: $BACKUP"
-  # Replace the whole query = "..." inside the post-auth { ... } block (only there) with one that also
+  # Replace the first query = "..." inside the post-auth { ... } block (only there) with one that also
   # writes the device columns. Rewriting it is more reliable than inserting into the packaged text, whose
   # layout differs between FreeRADIUS versions, and it also upgrades a query patched by an older version
   # of this script (nasipaddress/nasidentifier without calledstationid). Kept from the original query:
   # the authdate format ('%S' on 3.0, '%S.%M' on 3.2) and the optional ${..class...} column.
+  # Exit code 3 = no post-auth query found (the file is left as it was).
+  set +e
   perl -0pi -e '
-    s{(^post-auth\s*\{.*?\n\})}{
-      my $b = $1;
-      my $ts  = ($b =~ /\x27(%S(?:\.%M)?)\x27/) ? $1 : "%S";
-      my $cls = ($b =~ /\$\{\.\.class\.column_name\}/);
-      my $q = "\"\\\n"
-        . "\t\tINSERT INTO \${..postauth_table} \\\n"
+    BEGIN { $done = 0 }
+    $done = 1 if s{(^[ \t]*post-auth\s*\{(?:(?!\n[ \t]*\}).)*?\n[ \t]*query\s*=\s*)"((?:[^"\\]|\\.)*)"}{
+      my ($head, $old) = ($1, $2);
+      my $nl  = ($head =~ /\r\n/) ? "\r\n" : "\n";
+      my $ts  = ($old =~ /\x27(%S(?:\.%M)?)\x27/) ? $1 : "%S";
+      my $cls = ($old =~ /\$\{\.\.class\.column_name\}/);
+      my $q = "\"\\$nl"
+        . "\t\tINSERT INTO \${..postauth_table} \\$nl"
         . "\t\t\t(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid"
-        . ($cls ? " \${..class.column_name}" : "") . ") \\\n"
-        . "\t\tVALUES ( \\\n"
-        . "\t\t\t\x27%{SQL-User-Name}\x27, \\\n"
-        . "\t\t\t\x27%{%{User-Password}:-%{Chap-Password}}\x27, \\\n"
-        . "\t\t\t\x27%{reply:Packet-Type}\x27, \\\n"
-        . "\t\t\t\x27$ts\x27, \\\n"
-        . "\t\t\t\x27%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}\x27, \\\n"
-        . "\t\t\t\x27%{NAS-Identifier}\x27, \\\n"
+        . ($cls ? " \${..class.column_name}" : "") . ") \\$nl"
+        . "\t\tVALUES ( \\$nl"
+        . "\t\t\t\x27%{SQL-User-Name}\x27, \\$nl"
+        . "\t\t\t\x27%{%{User-Password}:-%{Chap-Password}}\x27, \\$nl"
+        . "\t\t\t\x27%{reply:Packet-Type}\x27, \\$nl"
+        . "\t\t\t\x27$ts\x27, \\$nl"
+        . "\t\t\t\x27%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}\x27, \\$nl"
+        . "\t\t\t\x27%{NAS-Identifier}\x27, \\$nl"
         . "\t\t\t\x27%{Called-Station-Id}\x27"
-        . ($cls ? " \\\n\t\t\t\${..class.reply_xlat})\"" : ")\"");
-      $b .= "\n# DBMS_PATCH_INCOMPLETE"
-        unless $b =~ s/(\n[ \t]*query\s*=\s*)"(?:[^"\\]|\\.)*"/$1$q/s;
-      $b;
+        . ($cls ? " \\$nl\t\t\t\${..class.reply_xlat})\"" : ")\"");
+      $head . $q;
     }sem;
+    END { exit 3 unless $done }
   ' "$QUERIES"
-  if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES" || ! postauth_has calledstationid; then
+  rc=$?
+  set -e
+  if [ "$rc" != "0" ] || ! postauth_has nasipaddress || ! postauth_has nasidentifier || ! postauth_has calledstationid; then
     cp -p "$BACKUP" "$QUERIES"
-    die "This FreeRADIUS version's post-auth query has an unexpected format; nothing was changed.
-       Edit $QUERIES by hand: in the post-auth query add 'nasipaddress, nasidentifier, calledstationid'
-       after 'authdate' in the column list, and add
-       , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}', '%{Called-Station-Id}'
-       right after the authdate value ('%S' or '%S.%M')."
+    printf '\033[1;31mERROR:\033[0m %s\n' "The post-auth query in $QUERIES has a layout this script does not know; nothing was changed." >&2
+    echo "       This is the post-auth block found in the file (send it to the VAULT maintainer):" >&2
+    show_postauth "$BACKUP"
+    echo "       Or edit it by hand: add 'nasipaddress, nasidentifier, calledstationid' after 'authdate' in the" >&2
+    echo "       column list, and , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}', '%{Called-Station-Id}'" >&2
+    echo "       right after the authdate value ('%S' or '%S.%M'), then run this script again." >&2
+    exit 1
   fi
   ok "post-auth query now records the device IP, identifier and Called-Station-Id"
   CHANGED=1
