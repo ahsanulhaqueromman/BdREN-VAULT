@@ -304,8 +304,14 @@ if [ -n "$(env_get RADIUS_DB_PASSWORD)" ] && [ "$(env_get RADIUS_DB_PASSWORD)" !
   step "RADIUS / AAA"
   if py radius_init >/dev/null 2>&1; then ok "RADIUS tables ready"; else warn "RADIUS database not reachable: check RADIUS_DB_* in .env (the rest works)"; fi
   if command -v freeradius >/dev/null 2>&1 || command -v radiusd >/dev/null 2>&1; then
-    if ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_login_log.sh" >/dev/null 2>&1; then ok "logins are recorded with their device"
-    else warn "device logging for logins could not be enabled; run: sudo bash $APP_DIR/deploy/radius/enable_login_log.sh"; fi
+    # radpostauth device columns (nasipaddress, nasidentifier, calledstationid) + the post-auth query
+    if ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_login_log.sh" >/tmp/dbms-login-log.$$ 2>&1; then ok "logins are recorded with their device"
+    else
+      warn "device logging for logins could not be enabled; the reason:"
+      tail -n 8 /tmp/dbms-login-log.$$ | sed 's/^/      /' >&2
+      warn "fix it, then run: sudo bash $APP_DIR/deploy/radius/enable_login_log.sh"
+    fi
+    rm -f /tmp/dbms-login-log.$$
     if [ "$(env_get RADIUS_DYNAMIC_CLIENTS)" = 1 ] && grep -qs "dbms_dynamic_clients" /etc/freeradius/3.0/clients.conf; then ok "new switches work at once (no FreeRADIUS restart)"
     elif ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_dynamic_clients.sh" >/dev/null 2>&1; then ok "new switches work at once (no FreeRADIUS restart)"
     else warn "could not enable instant switch adding; run: sudo bash $APP_DIR/deploy/radius/enable_dynamic_clients.sh"; fi

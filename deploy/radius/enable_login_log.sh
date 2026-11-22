@@ -3,8 +3,9 @@
 # "user X logged in on device Y".
 #
 # FreeRADIUS's standard radpostauth table stores only username, result and time. This script:
-#   1. adds two columns to radpostauth: nasipaddress (device IP) and nasidentifier (device name it sends)
-#   2. changes ONLY the "post-auth" query of FreeRADIUS's SQL module so it fills those two columns
+#   1. adds three columns to radpostauth: nasipaddress (device IP), nasidentifier (device name it sends)
+#      and calledstationid (Called-Station-Id: port / AP / SSID the device reports)
+#   2. changes ONLY the "post-auth" query of FreeRADIUS's SQL module so it fills those columns
 #      (device IP = NAS-IP-Address, or the packet's source address when the device does not send it)
 #   3. checks the FreeRADIUS configuration; if the check fails the original file is put back
 #   4. restarts FreeRADIUS
@@ -47,6 +48,8 @@ if has_col nasipaddress; then ok "column nasipaddress already exists"
 else sql "ALTER TABLE radpostauth ADD COLUMN nasipaddress VARCHAR(45) NOT NULL DEFAULT ''"; ok "added column nasipaddress"; fi
 if has_col nasidentifier; then ok "column nasidentifier already exists"
 else sql "ALTER TABLE radpostauth ADD COLUMN nasidentifier VARCHAR(64) NOT NULL DEFAULT ''"; ok "added column nasidentifier"; fi
+if has_col calledstationid; then ok "column calledstationid already exists"
+else sql "ALTER TABLE radpostauth ADD COLUMN calledstationid VARCHAR(50) NOT NULL DEFAULT ''"; ok "added column calledstationid"; fi
 if [ "$(sql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='radpostauth' AND index_name='dbms_nasip'")" = "0" ]; then
   sql "CREATE INDEX dbms_nasip ON radpostauth (nasipaddress)"; ok "added an index for searching by device"
 fi
@@ -61,31 +64,51 @@ done
 [ -n "$QUERIES" ] || die "FreeRADIUS mysql queries.conf not found"
 say "FreeRADIUS query file: $QUERIES"
 
-if grep -q "nasipaddress" "$QUERIES"; then
+# Already done = the post-auth { } block writes all three device columns.
+postauth_has() { perl -0ne 'exit((/^post-auth\s*\{.*?\n\}/sm &&$& =~ /\b'"$1"'\b/) ? 0 : 1)' "$QUERIES"; }
+if postauth_has nasipaddress && postauth_has nasidentifier && postauth_has calledstationid; then
   ok "post-auth query already records the device"
   CHANGED=0
 else
   BACKUP="$QUERIES.dbms-backup-$(date +%Y%m%d-%H%M%S)"
   cp -p "$QUERIES" "$BACKUP"; ok "backup saved: $BACKUP"
-  # Only inside the post-auth { ... } block: add the two columns after "authdate", and their values
-  # right after the authdate value ('%S' or '%S.%M'), so they stay in the same order (class comes last).
+  # Replace the whole query = "..." inside the post-auth { ... } block (only there) with one that also
+  # writes the device columns. Rewriting it is more reliable than inserting into the packaged text, whose
+  # layout differs between FreeRADIUS versions, and it also upgrades a query patched by an older version
+  # of this script (nasipaddress/nasidentifier without calledstationid). Kept from the original query:
+  # the authdate format ('%S' on 3.0, '%S.%M' on 3.2) and the optional ${..class...} column.
   perl -0pi -e '
-    s{(\npost-auth\s*\{.*?\n\})}{
+    s{(^post-auth\s*\{.*?\n\})}{
       my $b = $1;
-      my $c = ($b =~ s/(\(\s*username\s*,\s*pass\s*,\s*reply\s*,\s*authdate)/$1, nasipaddress, nasidentifier/);
-      my $v = ($b =~ s/(\x27%S(?:\.%M)?\x27)/$1, \x27%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}\x27, \x27%{NAS-Identifier}\x27/);
-      $b .= "\n# DBMS_PATCH_INCOMPLETE" unless $c && $v;
+      my $ts  = ($b =~ /\x27(%S(?:\.%M)?)\x27/) ? $1 : "%S";
+      my $cls = ($b =~ /\$\{\.\.class\.column_name\}/);
+      my $q = "\"\\\n"
+        . "\t\tINSERT INTO \${..postauth_table} \\\n"
+        . "\t\t\t(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid"
+        . ($cls ? " \${..class.column_name}" : "") . ") \\\n"
+        . "\t\tVALUES ( \\\n"
+        . "\t\t\t\x27%{SQL-User-Name}\x27, \\\n"
+        . "\t\t\t\x27%{%{User-Password}:-%{Chap-Password}}\x27, \\\n"
+        . "\t\t\t\x27%{reply:Packet-Type}\x27, \\\n"
+        . "\t\t\t\x27$ts\x27, \\\n"
+        . "\t\t\t\x27%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}\x27, \\\n"
+        . "\t\t\t\x27%{NAS-Identifier}\x27, \\\n"
+        . "\t\t\t\x27%{Called-Station-Id}\x27"
+        . ($cls ? " \\\n\t\t\t\${..class.reply_xlat})\"" : ")\"");
+      $b .= "\n# DBMS_PATCH_INCOMPLETE"
+        unless $b =~ s/(\n[ \t]*query\s*=\s*)"(?:[^"\\]|\\.)*"/$1$q/s;
       $b;
-    }se;
+    }sem;
   ' "$QUERIES"
-  if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES" || ! grep -q "nasipaddress" "$QUERIES"; then
+  if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES" || ! postauth_has calledstationid; then
     cp -p "$BACKUP" "$QUERIES"
     die "This FreeRADIUS version's post-auth query has an unexpected format; nothing was changed.
-       Edit $QUERIES by hand: add 'nasipaddress, nasidentifier' after 'authdate' in the column list of
-       the post-auth query, and add  , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}'
+       Edit $QUERIES by hand: in the post-auth query add 'nasipaddress, nasidentifier, calledstationid'
+       after 'authdate' in the column list, and add
+       , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}', '%{Called-Station-Id}'
        right after the authdate value ('%S' or '%S.%M')."
   fi
-  ok "post-auth query now records the device IP and identifier"
+  ok "post-auth query now records the device IP, identifier and Called-Station-Id"
   CHANGED=1
 fi
 
