@@ -14,7 +14,7 @@ from .models import AppSetting
 
 DEFAULTS = {"workers": None, "sched_on": "0", "sched_mode": "semimonthly", "sched_every": "60",
             "sched_at": "02:00", "sched_days": "1,15", "sched_catchup": "1", "sched_last": "0",
-            "log_retention_months": "0", "file_retention_months": "0"}
+            "log_retention_months": "0"}
 # Internal runtime keys must have defaults too. They are stored in AppSetting but are
 # intentionally not exposed as editable form fields.
 RUNTIME_DEFAULTS = {
@@ -188,12 +188,8 @@ def clean_settings(data):
     out["sched_catchup"] = "1" if str(data.get("sched_catchup", "0")) in ("1", "true", "True", "on") else "0"
     months = str(data.get("log_retention_months", get_setting("log_retention_months")))
     if months not in LOG_RETENTION_CHOICES:
-        raise ApiError(400, "Choose how long to keep logs: forever, 1, 3, 6, 12 or 24 months")
+        raise ApiError(400, "Choose how long to keep logs and backup files: forever, 1, 3, 6, 12 or 24 months")
     out["log_retention_months"] = months
-    file_months = str(data.get("file_retention_months", get_setting("file_retention_months")))
-    if file_months not in LOG_RETENTION_CHOICES:
-        raise ApiError(400, "Choose how long to keep configuration files: forever, 1, 3, 6, 12 or 24 months")
-    out["file_retention_months"] = file_months
     return out
 
 

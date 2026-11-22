@@ -40,7 +40,7 @@ if($("#sfrm")){buildSchedDatePicker();sfrm.elements.sched_mode.onchange=schedUi}
 /* ---- settings tab (admin only): performance and schedule ---- */
 async function loadSettings(){
   const s=await api("/api/settings"),f=sfrm.elements;
-  f.workers.value=s.workers;f.sched_on.checked=s.sched_on==="1";f.sched_mode.value=s.sched_mode;f.sched_every.value=s.sched_every;f.sched_at.value=format12hTime(s.sched_at);f.sched_days.value=s.sched_days||"1,15";f.sched_catchup.checked=s.sched_catchup!=="0";f.log_retention_months.value=s.log_retention_months||"0";f.file_retention_months.value=s.file_retention_months||"0";savedFileKeep=f.file_retention_months.value;updateSchedDays();
+  f.workers.value=s.workers;f.sched_on.checked=s.sched_on==="1";f.sched_mode.value=s.sched_mode;f.sched_every.value=s.sched_every;f.sched_at.value=format12hTime(s.sched_at);f.sched_days.value=s.sched_days||"1,15";f.sched_catchup.checked=s.sched_catchup!=="0";f.log_retention_months.value=s.log_retention_months||"0";savedKeep=f.log_retention_months.value;updateSchedDays();
   $("#schedLast").textContent=s.sched_last_text?"Last scheduled run: "+fmtBdDateTime(s.sched_last_text,true)+(s.running?" (a backup is running now)":""):"Schedule is ready. The interval starts when you enable it.";
   $("#schedState").textContent=s.sched_on==="1"?(s.running?"Enabled · backup in progress":"Enabled · waiting for next run"):"Disabled";
   $("#schedNextText").textContent=(s.next_run?fmtBdDateTime(s.next_run):"Enable scheduling to calculate the next run");
@@ -76,14 +76,14 @@ function paintCapacity(){
 }
 if($("#sfrm"))sfrm.elements.workers.addEventListener("input",paintCapacity);
 
-let savedFileKeep="0";   /* the stored "Keep saved configuration files for" value */
+let savedKeep="0";   /* the stored "Keep logs and backup files for" value */
 sfrm.onsubmit=async e=>{
   e.preventDefault();const f=sfrm.elements;
   try{
-    const b={workers:f.workers.value,sched_on:f.sched_on.checked?"1":"0",sched_mode:f.sched_mode.value,sched_every:f.sched_every.value,sched_at:parse12hTime(f.sched_at.value),sched_days:f.sched_days.value,sched_catchup:f.sched_catchup.checked?"1":"0",log_retention_months:f.log_retention_months.value,file_retention_months:f.file_retention_months.value};
-    const keep=b.file_retention_months,shorter=keep!=="0"&&(savedFileKeep==="0"||+keep<+savedFileKeep);
+    const b={workers:f.workers.value,sched_on:f.sched_on.checked?"1":"0",sched_mode:f.sched_mode.value,sched_every:f.sched_every.value,sched_at:parse12hTime(f.sched_at.value),sched_days:f.sched_days.value,sched_catchup:f.sched_catchup.checked?"1":"0",log_retention_months:f.log_retention_months.value};
+    const keep=b.log_retention_months,shorter=keep!=="0"&&(savedKeep==="0"||+keep<+savedKeep);
     if(shorter){      /* a shorter file retention deletes saved configurations: ask first */
-      if(!await confirmAction({title:`Keep configuration files for ${keep} month${keep==="1"?"":"s"} only?`,message:`Saved configuration versions older than ${keep} month${keep==="1"?"":"s"} will be deleted at the next daily clean-up (within 24 hours). The newest configuration of every device is always kept. Deleted files cannot be recovered.`,confirm:"Save and delete old files",run:()=>api("/api/settings",J("PUT",b))}))return;
+      if(!await confirmAction({title:`Keep logs and backup files for ${keep} month${keep==="1"?"":"s"} only?`,message:`Activity Logs entries and saved configuration versions older than ${keep} month${keep==="1"?"":"s"} will be deleted at the next daily clean-up (within 24 hours). The newest configuration of every device is always kept. Deleted files cannot be recovered.`,confirm:"Save and delete old files",run:()=>api("/api/settings",J("PUT",b))}))return;
     }else await api("/api/settings",J("PUT",b));
     toast("Your settings were saved and are now in effect.",{title:"Settings saved"});loadSettings();
   }catch(err){toast(err.message,{type:"error"})}

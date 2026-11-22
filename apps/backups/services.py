@@ -250,7 +250,8 @@ def trim_log_table(keep=20000):
 
 def prune_old_logs(now=None):
     """Delete backup log rows older than the number of months set on the Settings page. Returns rows removed.
-    Only the Activity Logs records are removed; saved configuration files and the audit trail stay."""
+    Only the Activity Logs records are removed here (old configuration files: prune_old_backup_files, same
+    setting); the audit trail stays."""
     from datetime import timedelta
     from apps.scheduling.services import get_setting
     try:
@@ -268,12 +269,13 @@ def prune_old_logs(now=None):
 
 def prune_old_backup_files(now=None):
     """Delete saved configuration files older than the number of months set on the Settings page
-    ("Keep saved configuration files for"). The newest file of every device is always kept.
+    (the same "Keep logs and backup files for" choice as the Activity Logs). The newest file of every
+    device is always kept.
     Returns the number of files removed."""
     from datetime import timedelta
     from apps.scheduling.services import get_setting
     try:
-        months = int(get_setting("file_retention_months") or 0)
+        months = int(get_setting("log_retention_months") or 0)
     except ValueError:
         return 0
     if months <= 0:
