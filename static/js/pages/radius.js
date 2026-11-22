@@ -49,7 +49,7 @@ function paintRadViolations(){
     <ul>${radViolations.map(v=>`<li><b>${esc(v.username)}</b> on ${esc(v.device||"unknown device")} <span class="m">(${esc(v.ip)})</span> - ${v.count} login${v.count===1?"":"s"}, last at ${esc(v.last)}</li>`).join("")}</ul>
     (An entry disappears as soon as FreeRADIUS refuses that user on that device, and after 24 hours at the latest.)<br>
     Usually the "where this user can log in" rule is not installed in FreeRADIUS. Install it once on the server (this also checks and restarts FreeRADIUS):
-    <code>sudo bash /opt/vault/deploy/install.sh</code>If the rule is installed, the device sends its requests from a different address than the one in NAS Clients: register that address.</div>`:"";
+    <code>sudo bash /opt/vault/deploy/install.sh</code>If the rule is installed, the device sends its requests from a different address than the one in NAS: register that address.</div>`:"";
 }
 function renderRadUsers(){
   paintRadViolations();
@@ -76,7 +76,7 @@ function radScope(u){
   const tags=types.map(t=>`<span class="tag ty" title="Every ${esc(t)}, including ones added later">${esc(t)} &middot; ${radDevsOfType(t).length}</span>`)
     .concat(ips.map(ip=>`<span class="tag" title="${esc(ip)}">${esc(radDevName(ip))}</span>`));
   const now=u.effective||[];
-  const none=types.length&&!now.length?' <span class="none" title="No device of these types is registered yet">no device yet</span>':"";
+  const none=types.length&&!now.length?' <span class="none" title="No device of these groups is registered yet">no device yet</span>':"";
   return tags.slice(0,4).join(" ")+(tags.length>4?` <span class="none">+${tags.length-4} more</span>`:"")+none;
 }
 /* the "Where this user can log in" drop-down: search, "All devices", device types, individual devices.
@@ -120,7 +120,7 @@ function radPickPaint(){
   const note=$("#ruAccessNote");
   note.classList.toggle("warn",!all&&!live.size);
   note.textContent=all?"No limit: this user can log in on every RADIUS device, including ones added later."
-    :!live.size?"No device of the chosen type is registered yet, so this user cannot log in anywhere until one is added."
+    :!live.size?"No device of the chosen group is registered yet, so this user cannot log in anywhere until one is added."
     :`Can log in on ${radPlural(live.size,"device")} now`+(types.length?`; new ${types.join(" / ")} devices are included automatically.`:".");
 }
 /* search filters both lists; a section with no match is hidden */
@@ -187,9 +187,9 @@ function renderRadNas(){
   const list=radNas.filter(d=>!q||`${d.name} ${d.nasname} ${vendor(d.vendor)} ${d.role||""} ${d.description}`.toLowerCase().includes(q));
   $("#radNasCount").textContent=`${list.length} of ${radNas.length} devices`;
   const {rows,bar}=paginate("radNas",list);
-  $("#radNasList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>IP / network</th><th>Vendor</th><th>Device type</th><th>Shared secret</th><th>Description</th><th></th></tr></thead><tbody>`+
+  $("#radNasList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>IP / network</th><th>Vendor</th><th>Device Group</th><th>Shared secret</th><th>Description</th><th></th></tr></thead><tbody>`+
     rows.map(d=>{const on=radShown.has(d.id);return `<tr><td><span class="dn">${esc(d.name)}</span></td><td class="m">${esc(d.nasname)}</td><td><select class="rad-type" data-rad-vendor="${d.id}" aria-label="Vendor of ${esc(d.name)}">${radVendors.map(v=>`<option value="${esc(v.key)}"${v.key===d.vendor?" selected":""}>${esc(v.label)}</option>`).join("")}${radVendors.some(v=>v.key===d.vendor)?"":`<option selected>${esc(vendor(d.vendor))}</option>`}</select></td>
-     <td><input class="rad-role-edit" data-rad-role="${d.id}" list="radRoleList" autocomplete="off" maxlength="50" aria-label="Device type of ${esc(d.name)}" value="${esc(d.role||"Other")}"></td>
+     <td><input class="rad-role-edit" data-rad-role="${d.id}" list="radRoleList" autocomplete="off" maxlength="50" aria-label="Device Group of ${esc(d.name)}" value="${esc(d.role||"Other")}"></td>
      <td class="rad-sec">${on?`<code>${esc(radSecrets.get(d.id)||"")}</code>`:`<span class="dots" aria-label="Hidden">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>`}<button class="link" type="button" data-rad-show="${d.id}">${on?"Hide":"Show"}</button><button class="link" type="button" data-rad-copy="${d.id}">Copy</button></td>
      <td>${d.description?esc(d.description):'<span class="none">-</span>'}</td>
      <td class="acts"><button class="link d" type="button" data-rad-nasdel="${d.id}">Remove</button></td></tr>`}).join("")+`</tbody></table></div>`+bar
@@ -208,7 +208,7 @@ document.addEventListener("change",async e=>{
     await api("/api/radius/nas/"+d.id,J("PATCH",isRole?{role:value}:{vendor:value}));
     const label=isRole?value:sel.options[sel.selectedIndex].text;
     if(isRole){d.role=value;sel.value=value;if(!radRoles.includes(value)){radRoles.push(value);paintRadRoleList()}}else d.vendor=value;
-    toast(`${d.name} is now "${label}".`+(isRole?"":" Applies from the next login, no restart needed."),{title:isRole?"Device type changed":"Vendor changed"});
+    toast(`${d.name} is now "${label}".`+(isRole?"":" Applies from the next login, no restart needed."),{title:isRole?"Device Group changed":"Vendor changed"});
   }catch(err){sel.value=prev;toast(err.message,{type:"error"})}
 });
 const RAD_RESTART_FAILED="but the FreeRADIUS restart failed. Run: systemctl restart freeradius";
@@ -300,9 +300,9 @@ aaa accounting exec default start-stop group VAULT-GRP
 line vty 0 15
  login authentication default
  authorization exec default`],
-    ["Send RADIUS from the registered address",`Only when the switch has several addresses: requests must come from ${v.ip}, the address in NAS Clients. Put the interface that holds it in place of Vlan1.`,
+    ["Send RADIUS from the registered address",`Only when the switch has several addresses: requests must come from ${v.ip}, the address in NAS. Put the interface that holds it in place of Vlan1.`,
 `ip radius source-interface Vlan1`],
-    ["Test",`Replace user / password with a VAULT AAA user. Super-admin gets privilege 15, Read-write 7, Read-only 1.`,
+    ["Test",`Replace user / password with a VAULT RADIUS user. Super-admin gets privilege 15, Read-write 7, Read-only 1.`,
 `test aaa group VAULT-GRP user password legacy
 show aaa servers`]]},
   {key:"huawei",label:"Huawei",match:["huawei","huawei-3"],steps:v=>[
@@ -329,17 +329,17 @@ show aaa servers`]]},
 user-interface vty 0 4
  authentication-mode aaa
  quit`],
-    ["Test",`Super-admin gets level 15, Read-write 2, Read-only 1. A switch that only has levels 0-3: set its vendor to "Huawei (levels 0-3 only)" in NAS Clients.`,
+    ["Test",`Super-admin gets level 15, Read-write 2, Read-only 1. A switch that only has levels 0-3: set its vendor to "Huawei (levels 0-3 only)" in NAS.`,
 `test-aaa user password radius-template VAULT`]]},
   {key:"mikrotik",label:"MikroTik",match:["mikrotik"],steps:v=>[
     ["RADIUS server and login","VAULT sends the group full, write or read; these groups exist on every RouterOS.",
 `/radius add address=${v.server} secret="${v.secret}" service=login timeout=3s
 /user aaa set use-radius=yes default-group=read`],
-    ["Good to know","RouterOS checks its local users first: a local user with the same name as a VAULT user hides the RADIUS one. Behind NAT, register the NAT address in NAS Clients. If the server log shows no error but the login still fails, the router is waiting for a Message-Authenticator in the answer:",
+    ["Good to know","RouterOS checks its local users first: a local user with the same name as a VAULT user hides the RADIUS one. Behind NAT, register the NAT address in NAS. If the server log shows no error but the login still fails, the router is waiting for a Message-Authenticator in the answer:",
 `/radius set [find address=${v.server}] require-message-auth=no`],
-    ["Test","Log in with a VAULT AAA user (SSH, Winbox or web), then:",`/user active print`]]},
+    ["Test","Log in with a VAULT RADIUS user (SSH, Winbox or web), then:",`/user active print`]]},
   {key:"fortigate",label:"FortiGate",match:["fortinet"],steps:v=>[
-    ["RADIUS server",`source-ip = the address in NAS Clients (${v.ip}).`,
+    ["RADIUS server",`source-ip = the address in NAS (${v.ip}).`,
 `config user radius
     edit "VAULT"
         set server "${v.server}"
@@ -407,7 +407,7 @@ set system accounting destination radius`],
 set system login user operator class operator
 set system login user read-only class read-only
 commit`],
-    ["Test","Log in with a VAULT AAA user, then:",`show system users`]]},
+    ["Test","Log in with a VAULT RADIUS user, then:",`show system users`]]},
   {key:"bdcom",label:"BDCOM",match:["bdcom"],check:true,steps:v=>[
     ["RADIUS server and login order","Cisco-style CLI, configuration mode.",
 `radius-server host ${v.server} auth-port 1812 acct-port 1813
@@ -417,7 +417,7 @@ aaa authorization exec default radius local
 aaa accounting exec default start-stop radius
 line vty 0 4
  login authentication default`],
-    ["Test","Log in with a VAULT AAA user and check the level you get. VAULT sends the Cisco privilege (15, 7 or 1); if your model ignores it, users land on its default level.",`show privilege`]]},
+    ["Test","Log in with a VAULT RADIUS user and check the level you get. VAULT sends the Cisco privilege (15, 7 or 1); if your model ignores it, users land on its default level.",`show privilege`]]},
   {key:"vsol",label:"V-SOL",match:["vsol"],check:true,steps:v=>[
     ["Values to enter",`V-SOL OLTs set RADIUS in the web interface (System / AAA or Management / RADIUS) or the CLI, with names that differ per model. Enter these values:`,
 `RADIUS server:      ${v.server}
@@ -425,7 +425,7 @@ Authentication port: 1812
 Accounting port:     1813
 Shared secret:       ${v.secret}
 Login order:         RADIUS first, then local accounts`],
-    ["Test","Log in with a VAULT AAA user, then check the result on Authentication Audit. Keep a local admin account in case the server cannot be reached.",""]]},
+    ["Test","Log in with a VAULT RADIUS user, then check the result on Authentication Audit. Keep a local admin account in case the server cannot be reached.",""]]},
 ];
 function SU_FORTI_GROUPS(rw){
   const grp=(name,match)=>`    edit "${name}"
@@ -458,7 +458,7 @@ async function loadRadSetup(){
   try{
     const d=await api("/api/radius/nas");radDown="";radNas=d.devices;radVendors=d.vendors;radRoles=d.roles||radRoles;
     const sel=$("#suDev"),keep=sel.value;
-    sel.innerHTML=`<option value="">Choose a device from NAS Clients...</option>`+radNas.map(n=>`<option value="${n.id}">${esc(n.name)} (${esc(n.nasname)})</option>`).join("");
+    sel.innerHTML=`<option value="">Choose a device from NAS...</option>`+radNas.map(n=>`<option value="${n.id}">${esc(n.name)} (${esc(n.nasname)})</option>`).join("");
     sel.value=radNas.some(n=>String(n.id)===keep)?keep:"";
     if(!$("#suServer").value)$("#suServer").value=location.hostname;
     $("#suTabs").innerHTML=SU_VENDORS.map(x=>`<button type="button" class="chip" role="tab" data-su-tab="${x.key}">${esc(x.label)}</button>`).join("");
@@ -479,7 +479,7 @@ function suRender(){
   const server=$("#suServer").value.trim()||"<RADIUS-SERVER>",secret=$("#suSecret").value.trim()||SU_SECRET;
   const ip=SU.dev?SU.dev.nasname:"<DEVICE-IP>",vendor=SU_VENDORS.find(x=>x.key===SU.tab)||SU_VENDORS[0];
   $("#suTabs").querySelectorAll("[data-su-tab]").forEach(b=>{const on=b.dataset.suTab===vendor.key;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
-  $("#suNote").textContent=!SU.dev?"Choose the device first: it must be in NAS Clients with the address its requests come from (behind NAT: the NAT address).":
+  $("#suNote").textContent=!SU.dev?"Choose the device first: it must be in NAS with the address its requests come from (behind NAT: the NAT address).":
     secret===SU_SECRET?`Press Insert to put ${SU.dev.name}'s shared secret into the commands, or leave ${SU_SECRET} and paste it yourself.`:"";
   SU.codes=[];
   const lang=vendor.key==="vsol"?"Values":`${vendor.label} CLI`;

@@ -82,6 +82,6 @@ if [ "$BAD" -eq 0 ]; then
   done
 else
   echo "WARNING: $BAD NAS entr$( [ "$BAD" -eq 1 ] && echo y || echo ies) are not an IP address or network;" \
-       "RADIUS stays open to everyone until they are fixed on NAS Clients" >&2
+       "RADIUS stays open to everyone until they are fixed on NAS" >&2
 fi
 echo "RADIUS firewall: ${#WANT[@]} device address(es) allowed on UDP $PORTS (added $added, removed $removed)"

@@ -245,7 +245,7 @@ def create_nas(nasname, shortname, vendor, secret, description=""):
 def _checked_role(role):
     from apps.core.api import ApiError
     if len(role) > ROLE_MAX_LEN:
-        raise ApiError(400, f"Device type can be at most {ROLE_MAX_LEN} characters")
+        raise ApiError(400, f"Device Group can be at most {ROLE_MAX_LEN} characters")
     return selectors.canonical_role(clean_role(role))
 
 
@@ -400,7 +400,7 @@ def add_nas_devices(addresses_text, names_text, vendor, secret="", description="
                 continue
             seen.add(addr)
             if selectors.nas_exists(addr):
-                skipped.append({"nasname": addr, "name": name, "reason": "already in NAS Clients (left unchanged)"})
+                skipped.append({"nasname": addr, "name": name, "reason": "already in NAS (left unchanged)"})
                 continue
             device = create_nas(addr, name, vendor, secret, description)
             added.append({"id": device.pk, "name": name, "nasname": addr})

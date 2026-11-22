@@ -12,10 +12,10 @@
       <details class="pick" id="ruPick">
         <summary aria-labelledby="ruPickLabel ruPickTx"><span id="ruPickTx">All devices</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
         <div class="devpick" id="ruPickBody">
-          <div class="pk-search"><input id="ruPickQ" type="search" autocomplete="off" placeholder="Search device types or devices" aria-label="Search device types or devices"></div>
+          <div class="pk-search"><input id="ruPickQ" type="search" autocomplete="off" placeholder="Search device groups or devices" aria-label="Search device groups or devices"></div>
           <div class="pk-body">
             <label class="ck all"><input type="checkbox" data-all> <span>All devices</span><small>no limit</small></label>
-            <div id="ruTypeSec"><div class="pk-h">Device Group <span>also covers devices of this type added later</span></div><div class="pk-list" id="ruTypeList"></div></div>
+            <div id="ruTypeSec"><div class="pk-h">Device Group <span>also covers devices of this group added later</span></div><div class="pk-list" id="ruTypeList"></div></div>
             <div id="ruDevSec"><div class="pk-h">Individual devices</div><div class="pk-list" id="ruDevList"></div></div>
             <p class="pk-none" id="ruPickNone" hidden>Nothing matches the search.</p>
           </div>
@@ -37,7 +37,7 @@
     <label>Device Group<input name="role" list="radRoleList" autocomplete="off" maxlength="50" placeholder="Core Router, Distribution Router, ... or type your own"></label>
     <label>Shared secret<input name="secret" autocomplete="off" maxlength="60" placeholder="Empty = generate a strong one"></label>
     <label class="w">Description<input name="description" autocomplete="off" maxlength="200" placeholder="Optional, the same for every device added now"></label>
-    <p class="hint">All devices added together use the same shared secret, vendor and device type. IPs that are already in NAS Clients are skipped and left unchanged. Single IPs work immediately; a network (CIDR) entry restarts FreeRADIUS once (about a second).</p>
+    <p class="hint">All devices added together use the same shared secret, vendor and Device Group. IPs that are already in NAS are skipped and left unchanged. Single IPs work immediately; a network (CIDR) entry restarts FreeRADIUS once (about a second).</p>
     <div class="act"><button class="b" type="button" data-close-dlg="rndlg">Cancel</button><button class="b p" type="submit" id="rnSubmit">Add device</button></div>
   </form>
 </dialog>

@@ -330,7 +330,7 @@ if [ -n "$(env_get RADIUS_DB_PASSWORD)" ] && [ "$(env_get RADIUS_DB_PASSWORD)" !
       rm -f /tmp/dbms-radius.$$
     fi
     if APP_DIR="$APP_DIR" ENV_FILE="$APP_DIR/.env" SVC_USER="$SVC_USER" bash "$APP_DIR/deploy/radius/enable_firewall_sync.sh" >/dev/null 2>&1; then
-      ok "firewall: RADIUS 1812-1813/udp open only for NAS Clients devices"
+      ok "firewall: RADIUS 1812-1813/udp open only for NAS devices"
     else warn "RADIUS firewall sync not enabled; run: sudo bash $APP_DIR/deploy/radius/enable_firewall_sync.sh"; fi
   fi
 fi
@@ -431,7 +431,7 @@ if command -v ufw >/dev/null 2>&1 && ! ufw status 2>/dev/null | grep -q "Status:
     if ufw --force enable >/dev/null 2>&1; then
       ok "firewall on (SSH and web stay open)"
       # open RADIUS 1812/1813 only for the devices on NAS Clients (none yet = closed until you add them)
-      [ -x /usr/local/sbin/vault-radius-firewall ] && { /usr/local/sbin/vault-radius-firewall >/dev/null 2>&1 || true; ok "RADIUS 1812-1813/udp opened for NAS Clients devices only"; }
+      [ -x /usr/local/sbin/vault-radius-firewall ] && { /usr/local/sbin/vault-radius-firewall >/dev/null 2>&1 || true; ok "RADIUS 1812-1813/udp opened for NAS devices only"; }
     else warn "could not turn on ufw; later run:  sudo ufw allow OpenSSH && sudo ufw enable"; fi
   fi
 fi

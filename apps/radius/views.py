@@ -82,14 +82,14 @@ def _types(data):
     """Validated device types from the form (free text, compared without case); [] = none picked."""
     raw = data.get("types", [])
     if not isinstance(raw, list) or not all(isinstance(t, str) for t in raw):
-        raise ApiError(400, "Choose the device types from the list")
+        raise ApiError(400, "Choose the Device Groups from the list")
     out, seen = [], set()
     for t in raw:
         t = t.strip()
         if not t or t.lower() in seen:
             continue
         if len(t) > s.ROLE_MAX_LEN:
-            raise ApiError(400, f"Device type can be at most {s.ROLE_MAX_LEN} characters")
+            raise ApiError(400, f"Device Group can be at most {s.ROLE_MAX_LEN} characters")
         seen.add(t.lower())
         out.append(t)
     return out
@@ -193,7 +193,7 @@ def nas_detail(request, pk):
         if "vendor" in data:
             vendor = data.get("vendor", "")
             if vendor not in VENDOR_KEYS:
-                raise ApiError(400, "Choose a valid device type")
+                raise ApiError(400, "Choose a valid vendor")
             old = device.type
             s.update_nas_type(device, vendor)
             changed.append(f"type {old} -> {vendor}")

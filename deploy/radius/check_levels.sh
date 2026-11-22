@@ -191,7 +191,7 @@ fi
 say "6. NAS clients (switches allowed to ask this server)"
 NAS="$(sql "SELECT nasname, shortname, type FROM nas ORDER BY shortname")"
 if [ -z "$NAS" ]; then
-  warn "no NAS clients: no switch can use RADIUS yet" "RADIUS / AAA -> NAS Clients -> Add"
+  warn "no NAS clients: no switch can use RADIUS yet" "RADIUS / AAA -> NAS -> Add"
 else
   printf '  %-18s %-28s %s\n' "IP" "NAME" "TYPE"
   while IFS=$'\t' read -r ip name type; do

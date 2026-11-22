@@ -40,7 +40,7 @@ client dbms_dynamic {
 }
 CONF
 fi
-ok "new switches are looked up in NAS Clients on their first request"
+ok "new switches are looked up in NAS on their first request"
 
 if ! freeradius -C >/tmp/dbms-dynamic-check.log 2>&1; then
   restore; die "FreeRADIUS rejected the configuration (see /tmp/dbms-dynamic-check.log). Nothing was changed."
@@ -62,4 +62,4 @@ fi
 if awk '/^authorize[ \t]*\{/{a=1} a&&/^[ \t]*-?cache([_a-z]*)?[ \t]*$/{f=1} a&&/^\}/{a=0} END{exit !f}' "$(readlink -f "$R/sites-enabled/default")"; then
   warn "a 'cache' module is used in authorize { } of sites-enabled/default: new users may need until it expires"
 fi
-printf '\nDone. Add a switch on NAS Clients: it can log users in at once.\n'
+printf '\nDone. Add a switch on NAS: it can log users in at once.\n'

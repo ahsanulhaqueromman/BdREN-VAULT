@@ -45,9 +45,9 @@ tmp="$(mktemp)"; chmod 600 "$tmp"
 printf '[client]\nuser="%s"\npassword="%s"\nhost="%s"\nport=%s\n' "$RUSER" "$RPASS" "$RHOST" "$RPORT" > "$tmp"
 install -m 600 -o root -g root "$tmp" "$CNF"; rm -f "$tmp"
 if mysql --defaults-extra-file="$CNF" -N -B -e "SELECT COUNT(*) FROM \`$RDB\`.nas" >/dev/null 2>&1; then
-  ok "the sync can read NAS Clients (database '$RDB' as '$RUSER')"
+  ok "the sync can read NAS (database '$RDB' as '$RUSER')"
 elif mysql -u root -N -B -e "SELECT COUNT(*) FROM \`$RDB\`.nas" >/dev/null 2>&1; then
-  rm -f "$CNF"; ok "the sync can read NAS Clients (database '$RDB' as the MariaDB root user)"
+  rm -f "$CNF"; ok "the sync can read NAS (database '$RDB' as the MariaDB root user)"
 else
   rm -f "$CNF"
   die "cannot read the nas table of database '$RDB' with the RADIUS_DB_* settings in $ENV_FILE (nothing was changed)"
@@ -59,7 +59,7 @@ install -m 755 -o root -g root "$tmp" "$DEST"; rm -f "$tmp"
 ok "installed $DEST"
 
 # 2. sudo permission for exactly that file, without arguments ("" = no arguments allowed)
-tmp="$(mktemp)"; printf '# BdREN VAULT: keep RADIUS open in ufw only for NAS Clients (deploy/radius/enable_firewall_sync.sh)\n%s ALL=(root) NOPASSWD: %s ""\n' "$SVC_USER" "$DEST" > "$tmp"
+tmp="$(mktemp)"; printf '# BdREN VAULT: keep RADIUS open in ufw only for NAS (deploy/radius/enable_firewall_sync.sh)\n%s ALL=(root) NOPASSWD: %s ""\n' "$SVC_USER" "$DEST" > "$tmp"
 visudo -cf "$tmp" >/dev/null || { rm -f "$tmp"; die "sudoers check failed; nothing changed"; }
 install -m 440 -o root -g root "$tmp" "$SUDOERS"; rm -f "$tmp"
 ok "the app ($SVC_USER) may run the sync after NAS changes"
@@ -70,7 +70,7 @@ if grep -qE '^RADIUS_FIREWALL_CMD=' "$ENV_FILE"; then
 else
   printf 'RADIUS_FIREWALL_CMD=sudo -n %s\n' "$DEST" >> "$ENV_FILE"
 fi
-ok "the app keeps the firewall in step with NAS Clients"
+ok "the app keeps the firewall in step with NAS"
 
 # 4. first sync now
 if ufw status 2>/dev/null | grep -q "Status: active"; then
@@ -81,4 +81,4 @@ else
   warn "(allow SSH first so you do not lock yourself out:  sudo ufw allow OpenSSH)"
 fi
 systemctl is-active --quiet vault && systemctl restart vault && ok "application restarted"
-printf '\nDone. Add or remove a device on NAS Clients: its RADIUS access in the firewall follows within seconds.\n'
+printf '\nDone. Add or remove a device on NAS: its RADIUS access in the firewall follows within seconds.\n'
