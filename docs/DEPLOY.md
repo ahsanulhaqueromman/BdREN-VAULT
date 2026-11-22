@@ -53,6 +53,9 @@ automatically) and keeps the IP address working.
 
 ## Checks
 
+For fixing problems, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+
 | What | Command |
 |---|---|
 | Service running | `systemctl status vault freeradius nginx --no-pager` |

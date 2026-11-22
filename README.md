@@ -276,6 +276,8 @@ To report a security problem, see [SECURITY.md](SECURITY.md).
 | FreeRADIUS capacity check | `sudo bash /opt/vault/deploy/radius/check_capacity.sh` |
 | FreeRADIUS configuration | `sudo freeradius -XC` |
 
+For problems, see **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
+
 ### Disaster-recovery backup
 
 ```bash
@@ -316,6 +318,7 @@ A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
 |---|---|
 | [docs/VAULT-Setup-and-Install-Guide.pdf](docs/VAULT-Setup-and-Install-Guide.pdf) | Step-by-step setup and installation guide |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Install, update, domain, checks, disaster-recovery backup |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Commands to find and fix common problems |
 | [docs/GIT-INSTALL.md](docs/GIT-INSTALL.md) | Install and update from Git, moving data from an old server |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the parts fit together |
 | [docs/BACKUP_RELIABILITY.md](docs/BACKUP_RELIABILITY.md) | SSH behaviour and the retry queue |
