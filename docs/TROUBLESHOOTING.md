@@ -141,7 +141,7 @@ sudo bash /opt/vault/deploy/radius/enable_login_log.sh
 
 If it still fails, it prints the reason and the post-auth block it found. To set it up by hand:
 
-**a) Add the three columns** (skip any that already exist; "Duplicate column name" means it is there):
+**a) Add the four columns** (skip any that already exist; "Duplicate column name" means it is there):
 
 ```bash
 sudo mysql radius
@@ -149,7 +149,8 @@ sudo mysql radius
 ```sql
 ALTER TABLE radpostauth ADD COLUMN nasipaddress    VARCHAR(45) NOT NULL DEFAULT '';
 ALTER TABLE radpostauth ADD COLUMN nasidentifier   VARCHAR(64) NOT NULL DEFAULT '';
-ALTER TABLE radpostauth ADD COLUMN calledstationid VARCHAR(50) NOT NULL DEFAULT '';
+ALTER TABLE radpostauth ADD COLUMN calledstationid  VARCHAR(50) NOT NULL DEFAULT '';
+ALTER TABLE radpostauth ADD COLUMN callingstationid VARCHAR(50) NOT NULL DEFAULT '';
 EXIT;
 ```
 
@@ -170,7 +171,7 @@ Edit the `query = "..."` directly inside the **top-level** `post-auth {` block (
 ```
 	query = "\
 		INSERT INTO ${..postauth_table} \
-			(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid ${..class.column_name}) \
+			(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid, callingstationid ${..class.column_name}) \
 		VALUES ( \
 			'%{SQL-User-Name}', \
 			'%{%{User-Password}:-%{Chap-Password}}', \
@@ -178,7 +179,8 @@ Edit the `query = "..."` directly inside the **top-level** `post-auth {` block (
 			'%S.%M', \
 			'%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', \
 			'%{NAS-Identifier}', \
-			'%{Called-Station-Id}' \
+			'%{Called-Station-Id}', \
+			'%{Calling-Station-Id}' \
 			${..class.reply_xlat})"
 ```
 
@@ -187,7 +189,7 @@ On FreeRADIUS **3.0** (authdate `'%S'`, no class column):
 ```
 	query = "\
 		INSERT INTO ${..postauth_table} \
-			(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid) \
+			(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid, callingstationid) \
 		VALUES ( \
 			'%{SQL-User-Name}', \
 			'%{%{User-Password}:-%{Chap-Password}}', \
@@ -195,7 +197,8 @@ On FreeRADIUS **3.0** (authdate `'%S'`, no class column):
 			'%S', \
 			'%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', \
 			'%{NAS-Identifier}', \
-			'%{Called-Station-Id}')"
+			'%{Called-Station-Id}', \
+			'%{Calling-Station-Id}')"
 ```
 
 **c) Check and restart:**

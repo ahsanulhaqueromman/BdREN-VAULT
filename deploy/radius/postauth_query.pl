@@ -5,7 +5,7 @@
 #   perl postauth_query.pl has COLUMN FILE   exit 0 when the top-level post-auth block mentions COLUMN
 #   perl postauth_query.pl show FILE         print the top-level post-auth block
 #   perl postauth_query.pl patch FILE        rewrite its first query so it also writes nasipaddress,
-#                                            nasidentifier and calledstationid; exit 3 = no such query
+#                                            nasidentifier, calledstationid and callingstationid; exit 3 = no such query
 #
 # The file can also have post-auth { } blocks nested inside accounting { type { ... } } (some FreeRADIUS
 # packages do): those write to the accounting tables and must not be touched. So the block is found by
@@ -128,7 +128,7 @@ my $ts  = $old =~ /'(%S(?:\.%M)?)'/ ? $1 : '%S';       # '%S' on 3.0, '%S.%M' on
 my $cls = $old =~ /\$\{\.\.class\.column_name\}/;      # optional Class column (3.2)
 my $q = "\"\\$nl"
     . "\t\tINSERT INTO \${..postauth_table} \\$nl"
-    . "\t\t\t(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid"
+    . "\t\t\t(username, pass, reply, authdate, nasipaddress, nasidentifier, calledstationid, callingstationid"
     . ($cls ? " \${..class.column_name}" : '') . ") \\$nl"
     . "\t\tVALUES ( \\$nl"
     . "\t\t\t'%{SQL-User-Name}', \\$nl"
@@ -137,7 +137,8 @@ my $q = "\"\\$nl"
     . "\t\t\t'$ts', \\$nl"
     . "\t\t\t'%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', \\$nl"
     . "\t\t\t'%{NAS-Identifier}', \\$nl"
-    . "\t\t\t'%{Called-Station-Id}'"
+    . "\t\t\t'%{Called-Station-Id}', \\$nl"
+    . "\t\t\t'%{Calling-Station-Id}'"
     . ($cls ? " \\$nl\t\t\t\${..class.reply_xlat})\"" : ')"');
 substr($text, $qstart, $qend - $qstart + 1) = $q;
 

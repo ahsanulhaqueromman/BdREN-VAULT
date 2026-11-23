@@ -214,6 +214,7 @@ def recent_logins(q="", limit=500):
     from apps.devices import selectors as devices
     cols = _login_columns()
     has_ip, has_id, has_st = "nasipaddress" in cols, "nasidentifier" in cols, "calledstationid" in cols
+    has_from = "callingstationid" in cols
     name_of = device_namer()
     names = dict(devices.names_by_ip())                         # device IP -> name, for searching by name
     for nasname, short in Nas.objects.values_list("nasname", "shortname"):
@@ -238,10 +239,14 @@ def recent_logins(q="", limit=500):
         if has_st:
             parts.append("calledstationid LIKE %s")
             params.append(like)
+        if has_from:
+            parts.append("callingstationid LIKE %s")
+            params.append(like)
         where.append("(" + " OR ".join(parts) + ")")
     sql = ("SELECT username, reply, authdate, " + ("nasipaddress" if has_ip else "''") + ", "
            + ("nasidentifier" if has_id else "''") + ", "
-           + ("calledstationid" if has_st else "''") + " FROM radpostauth"
+           + ("calledstationid" if has_st else "''") + ", "
+           + ("callingstationid" if has_from else "''") + " FROM radpostauth"
            + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT %s")
     params.append(max(1, min(int(limit), 2000)))
     with connections[DB].cursor() as cur:
@@ -252,7 +257,8 @@ def recent_logins(q="", limit=500):
     as_utc = lambda t: (t - shift).replace(tzinfo=dt_tz.utc) if t is not None and t.tzinfo is None else t
     # name: NAS Clients / Device Inventory first, then the name the device itself sent (NAS-Identifier)
     out = [{"username": u, "reply": r or "", "authdate": as_utc(t), "nas_ip": ip or "", "nas_id": nid or "",
-            "station": st or "", "device": name_of(ip) or (nid or "")} for u, r, t, ip, nid, st in rows]
+            "station": st or "", "from_ip": fr or "", "device": name_of(ip) or (nid or "")}
+           for u, r, t, ip, nid, st, fr in rows]
     return out, has_ip
 
 
@@ -291,9 +297,13 @@ def accepted_logins(since, nas_ips, username="", limit=20000):
 SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30)          # hours the Authentication Audit summary can cover
 
 
+FAILED_LOG_LIMIT = 1000      # newest failed logins listed on Authentication Audit
+
+
 def login_summary(hours=24):
     """What happened in the last `hours`: attempts, accepted / rejected, how many different users and
-    devices, and the user + device pairs that failed most often (with a likely cause).
+    devices, and every failed login of the period as a log, newest first (time, user, device, the address
+    it came from when recorded, and a likely cause).
 
     radpostauth.authdate is written in the database server's own clock, so the cutoff is computed in that
     clock (the offset found by _login_columns()). Uses the dbms_authdate index created by radius_init."""
@@ -301,7 +311,7 @@ def login_summary(hours=24):
     from django.db import connections
     hours = hours if hours in SUMMARY_WINDOWS else 24
     cols = _login_columns()
-    has_ip = "nasipaddress" in cols
+    has_ip, has_st, has_from = "nasipaddress" in cols, "calledstationid" in cols, "callingstationid" in cols
     shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
     db_now = datetime.now(dt_tz.utc).replace(tzinfo=None) + shift
     cutoff = db_now - timedelta(hours=hours)
@@ -311,10 +321,11 @@ def login_summary(hours=24):
                     "COUNT(DISTINCT username), " + device_count + " FROM radpostauth WHERE authdate >= %s",
                     [cutoff])
         total, accepted, users, devices_n = cur.fetchone()
-        cur.execute("SELECT username, " + ("nasipaddress" if has_ip else "''") + ", COUNT(*), MAX(authdate) "
+        cur.execute("SELECT username, " + ("nasipaddress" if has_ip else "''") + ", "
+                    + ("calledstationid" if has_st else "''") + ", "
+                    + ("callingstationid" if has_from else "''") + ", authdate "
                     "FROM radpostauth WHERE authdate >= %s AND reply <> 'Access-Accept' "
-                    "GROUP BY username" + (", nasipaddress" if has_ip else "") + " ORDER BY COUNT(*) DESC LIMIT 10",
-                    [cutoff])
+                    "ORDER BY authdate DESC LIMIT %s", [cutoff, FAILED_LOG_LIMIT])
         failures = cur.fetchall()
     total, accepted = int(total or 0), int(accepted or 0)
     known = set(RadCheck.objects.filter(username__in={u for u, *_ in failures})
@@ -331,11 +342,11 @@ def login_summary(hours=24):
             return t
         return (t - shift).replace(tzinfo=dt_tz.utc)
 
-    top =[{"username": u, "nas_ip": ip or "", "device": name_of(ip) if ip else "", "count": int(n),
-            "last": as_utc(t), "known": u in known} for u, ip, n, t in failures]
+    failed = [{"username": u, "nas_ip": ip or "", "device": name_of(ip) if ip else "", "station": st or "",
+               "from_ip": fr or "", "ts": as_utc(t), "known": u in known} for u, ip, st, fr, t in failures]
     return {"hours": hours, "total": total, "accepted": accepted, "rejected": total - accepted,
             "users": int(users or 0), "devices": int(devices_n or 0), "device_logging": has_ip,
-            "top_failures": top}
+            "source_logging": has_from, "failures": failed, "failures_capped": len(failed) >= FAILED_LOG_LIMIT}
 
 
 def limit_violations(hours=24):

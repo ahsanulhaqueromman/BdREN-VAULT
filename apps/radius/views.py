@@ -234,8 +234,8 @@ def audit(request):
     except ValueError:
         hours = 24
     summary = q.login_summary(hours)
-    for row in summary["top_failures"]:
-        row["last"] = _when(row["last"])
+    for row in summary["failures"]:
+        row["ts"] = _when(row["ts"])
     return JsonResponse({"logins": logins, "device_logging": logging_on,
                          "blocks": blocks or [], "blocking_on": blocks is not None, "summary": summary})
 

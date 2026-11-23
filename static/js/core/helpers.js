@@ -291,7 +291,7 @@ function paginate(key,items){
     <button type="button" class="b" data-go="${p+1}"${p>=pages?" disabled":""}>Next</button></div>`;
   return {rows:items.slice(from,from+size),bar};
 }
-const REDRAW={devices:()=>renderDevices(),backups:()=>renderBackups(),logs:()=>renderLogs(),audit:()=>renderAudit(),radUsers:()=>renderRadUsers(),radNas:()=>renderRadNas(),radLogins:()=>renderRadLogins(),radBlocks:()=>renderRadBlocks(),reports:()=>renderReport(),signins:()=>renderSignins(),jobs:()=>renderJobs(),retry:()=>renderRetryQueue()};
+const REDRAW={devices:()=>renderDevices(),backups:()=>renderBackups(),logs:()=>renderLogs(),audit:()=>renderAudit(),radUsers:()=>renderRadUsers(),radNas:()=>renderRadNas(),radLogins:()=>renderRadLogins(),radBlocks:()=>renderRadFb(),reports:()=>renderReport(),signins:()=>renderSignins(),jobs:()=>renderJobs(),retry:()=>renderRetryQueue()};
 document.addEventListener("click",e=>{
   const b=e.target.closest(".pager [data-go]");if(!b||b.disabled)return;
   const key=b.closest(".pager").dataset.pager;PAGES[key]=+b.dataset.go;REDRAW[key]();

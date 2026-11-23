@@ -3,8 +3,9 @@
 # "user X logged in on device Y".
 #
 # FreeRADIUS's standard radpostauth table stores only username, result and time. This script:
-#   1. adds three columns to radpostauth: nasipaddress (device IP), nasidentifier (device name it sends)
-#      and calledstationid (Called-Station-Id: port / AP / SSID the device reports)
+#   1. adds four columns to radpostauth: nasipaddress (device IP), nasidentifier (device name it sends),
+#      calledstationid (Called-Station-Id: port / AP / SSID the device reports) and callingstationid
+#      (Calling-Station-Id: the address the person logged in FROM, e.g. the SSH client's IP)
 #   2. changes ONLY the "post-auth" query of FreeRADIUS's SQL module so it fills those columns
 #      (device IP = NAS-IP-Address, or the packet's source address when the device does not send it)
 #   3. checks the FreeRADIUS configuration; if the check fails the original file is put back
@@ -50,6 +51,8 @@ if has_col nasidentifier; then ok "column nasidentifier already exists"
 else sql "ALTER TABLE radpostauth ADD COLUMN nasidentifier VARCHAR(64) NOT NULL DEFAULT ''"; ok "added column nasidentifier"; fi
 if has_col calledstationid; then ok "column calledstationid already exists"
 else sql "ALTER TABLE radpostauth ADD COLUMN calledstationid VARCHAR(50) NOT NULL DEFAULT ''"; ok "added column calledstationid"; fi
+if has_col callingstationid; then ok "column callingstationid already exists"
+else sql "ALTER TABLE radpostauth ADD COLUMN callingstationid VARCHAR(50) NOT NULL DEFAULT ''"; ok "added column callingstationid"; fi
 if [ "$(sql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='radpostauth' AND index_name='dbms_nasip'")" = "0" ]; then
   sql "CREATE INDEX dbms_nasip ON radpostauth (nasipaddress)"; ok "added an index for searching by device"
 fi
@@ -75,7 +78,7 @@ if grep -q "DBMS_PATCH_INCOMPLETE" "$QUERIES"; then
   cp -p "$QUERIES" "$QUERIES.dbms-before-cleanup-$(date +%Y%m%d-%H%M%S)"
   sed -i '/DBMS_PATCH_INCOMPLETE/d' "$QUERIES"; ok "removed a leftover marker from an earlier failed run"
 fi
-if postauth_has nasipaddress && postauth_has nasidentifier && postauth_has calledstationid; then
+if postauth_has nasipaddress && postauth_has nasidentifier && postauth_has calledstationid && postauth_has callingstationid; then
   ok "post-auth query already records the device"
   CHANGED=0
 else
@@ -90,17 +93,17 @@ else
   perl "$PA" patch "$QUERIES"
   rc=$?
   set -e
-  if [ "$rc" != "0" ] || ! postauth_has nasipaddress || ! postauth_has nasidentifier || ! postauth_has calledstationid; then
+  if [ "$rc" != "0" ] || ! postauth_has nasipaddress || ! postauth_has nasidentifier || ! postauth_has calledstationid || ! postauth_has callingstationid; then
     cp -p "$BACKUP" "$QUERIES"
     printf '\033[1;31mERROR:\033[0m %s\n' "The post-auth query in $QUERIES has a layout this script does not know; nothing was changed." >&2
     echo "       This is the post-auth block found in the file (send it to the VAULT maintainer):" >&2
     show_postauth "$BACKUP"
-    echo "       Or edit it by hand: add 'nasipaddress, nasidentifier, calledstationid' after 'authdate' in the" >&2
-    echo "       column list, and , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}', '%{Called-Station-Id}'" >&2
+    echo "       Or edit it by hand: add 'nasipaddress, nasidentifier, calledstationid, callingstationid' after 'authdate' in the" >&2
+    echo "       column list, and , '%{%{NAS-IP-Address}:-%{Packet-Src-IP-Address}}', '%{NAS-Identifier}', '%{Called-Station-Id}', '%{Calling-Station-Id}'" >&2
     echo "       right after the authdate value ('%S' or '%S.%M'), then run this script again." >&2
     exit 1
   fi
-  ok "post-auth query now records the device IP, identifier and Called-Station-Id"
+  ok "post-auth query now records the device IP, identifier, Called-Station-Id and Calling-Station-Id"
   CHANGED=1
 fi
 

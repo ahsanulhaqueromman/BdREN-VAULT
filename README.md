@@ -62,7 +62,7 @@ V-SOL · any other device through generic SSH
   per vendor (Cisco privilege, Huawei level, Juniper class, MikroTik group, Fortinet profile)
 - Limit a user to specific devices or to a device type; new devices of that type are covered automatically
 - New NAS devices work immediately, with no FreeRADIUS restart
-- **Authentication Audit:** every login attempt, with the device it came from
+- **Authentication Audit:** every login attempt, with the device it went to and the address it came from; failed logins and blocked addresses in one card
 - **Session Log:** every device login as a session (who, which device, from where, how long) and,
   by device or by user, each session from login through every command and configuration change to logout; read from the devices' own
   syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV
