@@ -305,8 +305,8 @@ if [ -n "$(env_get RADIUS_DB_PASSWORD)" ] && [ "$(env_get RADIUS_DB_PASSWORD)" !
   step "RADIUS / AAA"
   if py radius_init >/dev/null 2>&1; then ok "RADIUS tables ready"; else warn "RADIUS database not reachable: check RADIUS_DB_* in .env (the rest works)"; fi
   if command -v freeradius >/dev/null 2>&1 || command -v radiusd >/dev/null 2>&1; then
-    # radpostauth device columns (nasipaddress, nasidentifier, calledstationid) + the post-auth query
-    if ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_login_log.sh" >/tmp/dbms-login-log.$$ 2>&1; then ok "logins are recorded with their device"
+    # radpostauth columns (nasipaddress, nasidentifier, calledstationid, callingstationid = source IP) + the post-auth query
+    if ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_login_log.sh" >/tmp/dbms-login-log.$$ 2>&1; then ok "logins are recorded with their device and source IP"
     else
       warn "device logging for logins could not be enabled; the reason:"
       { grep -q "ERROR" /tmp/dbms-login-log.$$ && sed -n '/ERROR/,$p' /tmp/dbms-login-log.$$ || tail -n 8 /tmp/dbms-login-log.$$; } | sed 's/^/      /' >&2
