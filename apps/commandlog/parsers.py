@@ -38,6 +38,8 @@ def _event(vendor, kind, username, command="", source_ip="", result=""):
     username = _clean(username, 64).strip("'\"")
     if not username:
         return None
+    if set(source_ip or "") <= {"*", " "}:           # Huawei writes Ip=** when it hides the address
+        source_ip = ""
     return {"vendor": vendor, "kind": kind, "username": username, "source_ip": _clean(source_ip, 64),
             "command": _clean(command), "result": _clean(result, 32)}
 

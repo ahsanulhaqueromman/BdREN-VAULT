@@ -29,7 +29,7 @@ Every app has the same files: `views.py` + `urls.py` (HTTP), `services.py` (rule
 | Web users, roles, sign-in lockout | `apps/accounts/` |
 | RADIUS users, levels, NAS, audit | `apps/radius/services.py`, `apps/radius/views.py` |
 | FreeRADIUS policies and setup scripts | `deploy/radius/` |
-| Command History: syslog receiver, vendor message formats | `apps/commandlog/receiver.py`, `apps/commandlog/parsers.py` |
+| Session Log: syslog receiver, vendor message formats | `apps/commandlog/receiver.py`, `apps/commandlog/parsers.py` |
 | Server settings (environment) | `config/settings.py` and `.env` |
 
 ## Project layout
@@ -71,7 +71,7 @@ apps/                    Django apps, one folder per area
   radius/                RADIUS / AAA (FreeRADIUS database)
     views.py  services.py  selectors.py  models.py  urls.py
     router.py            Sends these tables to the second database (`radius`)
-  commandlog/            Command History (who ran which command on a device)
+  commandlog/            Session Log (who ran which command on a device)
     views.py  services.py  selectors.py  models.py  urls.py
     parsers.py           One syslog line -> user action (Huawei, Cisco, Juniper, MikroTik, Fortinet)
     receiver.py          UDP syslog receiver (manage.py syslog_receive, service vault-syslog)
@@ -103,7 +103,7 @@ deploy/
   install.sh             One command: install a new server or update an existing one
   set-domain.sh          Add a domain name with a Let's Encrypt certificate
   vault.service          systemd unit
-  vault-syslog.service   systemd unit of the Command History syslog receiver
+  vault-syslog.service   systemd unit of the Session Log syslog receiver
   enable_syslog.sh       Install / repair the syslog receiver (install.sh runs it)
   nginx-dbms.conf        nginx site (HTTPS)
   radius/                FreeRADIUS policies, enable_*.sh helpers, check_levels.sh (RADIUS health check)
@@ -129,7 +129,7 @@ docs/                    ARCHITECTURE, FILE_GUIDE (this file), CONTRIBUTING, DEP
 | `users.js` | User Management and sign-in history | `loadUsers` |
 | `settings.js` | System Settings and the capacity planner | `loadSettings` |
 | `radius.js` | AAA Users, NAS Clients, Authentication Audit, Device Setup | `loadRadUsers`, `loadRadNas`, `loadRadAudit`, `loadRadSetup` |
-| `commands.js` | Command History | `loadCommands` |
+| `commands.js` | Session Log | `loadCommands` |
 
 ## Things to know
 

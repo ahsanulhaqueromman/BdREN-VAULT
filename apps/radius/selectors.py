@@ -256,6 +256,38 @@ def recent_logins(q="", limit=500):
     return out, has_ip
 
 
+def accepted_logins(since, nas_ips, username="", limit=20000):
+    """Successful logins (Access-Accept) since `since` (an aware datetime) on the given device addresses,
+    oldest first: [(username, nas_ip, time in UTC)]. Used by Command History to know when a session began.
+    [] when radpostauth does not record the device (enable_login_log.sh not run) or no address is given."""
+    from datetime import timedelta, timezone as dt_tz
+    from django.db import connections
+    ips = sorted({ip for ip in nas_ips if ip})[:500]
+    if not ips or "nasipaddress" not in _login_columns():
+        return []
+    shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
+    cutoff = since.astimezone(dt_tz.utc).replace(tzinfo=None) + shift
+    sql = ("SELECT username, nasipaddress, authdate FROM radpostauth WHERE authdate >= %s AND reply = 'Access-Accept' "
+           "AND nasipaddress IN (" + ",".join(["%s"] * len(ips)) + ")" + (" AND username = %s" if username else "")
+           + " ORDER BY authdate DESC LIMIT %s")
+    params = [cutoff, *ips] + ([username] if username else []) + [max(1, int(limit))]
+    with connections[DB].cursor() as cur:
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+    out = []
+    for u, ip, t in reversed(rows):
+        if isinstance(t, str):                      # SQLite gives text
+            from datetime import datetime
+            try:
+                t = datetime.fromisoformat(t)
+            except ValueError:
+                continue
+        if t is not None and t.tzinfo is None:
+            t = (t - shift).replace(tzinfo=dt_tz.utc)
+        out.append((u, ip, t))
+    return out
+
+
 SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30)          # hours the Authentication Audit summary can cover
 
 

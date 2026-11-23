@@ -459,7 +459,7 @@ Login order:         RADIUS first, then local accounts`],
     ["Test","Log in with a VAULT RADIUS user, then check the result on Authentication Audit. Keep a local admin account in case the server cannot be reached.",""]]},
 ];
 /* Last step of every vendor: send who-did-what to VAULT's syslog receiver (Command History). */
-const SU_LOG_TITLE="Command logging (Command History)";
+const SU_LOG_TITLE="Command logging (Session Log)";
 const SU_LOG_FROM=v=>`VAULT accepts logs only from addresses on NAS Clients, so send them from ${v.ip}.`;
 const SU_LOG={
   cisco:v=>[SU_LOG_TITLE,`Logs every configuration command with the user's name, and every login. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlan1. Cisco logs configuration commands only, not show commands.`,
@@ -475,17 +475,14 @@ login on-failure log
 logging source-interface Vlan1
 logging trap notifications
 logging host ${v.server}`],
-  huawei:v=>[SU_LOG_TITLE,`Sends every command a user runs (SHELL/5/CMDRECORD) and SSH logins. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlanif1.`,
+  huawei:v=>[SU_LOG_TITLE,`Every command a user runs (SHELL/5/CMDRECORD) already goes to the log host; the SSH line adds logins and logouts. ${SU_LOG_FROM(v)} Only when the switch has several addresses, add: info-center loghost source <interface that holds it>.`,
 `info-center enable
-info-center loghost source Vlanif1
 info-center loghost ${v.server}
-info-center source SHELL channel loghost log level notification
-info-center source SSH channel loghost log level notification`],
-  huawei_ne:v=>[SU_LOG_TITLE,`Sends every command a user runs (SHELL/5/CMDRECORD) and SSH logins. ${SU_LOG_FROM(v)} Put the interface that holds it in place of LoopBack0.`,
-`info-center loghost source LoopBack0
+info-center source SSH channel loghost log level informational`],
+  huawei_ne:v=>[SU_LOG_TITLE,`Every command a user runs (SHELL/5/CMDRECORD) already goes to the log host; the SSH line adds logins and logouts. ${SU_LOG_FROM(v)} Only when the router has several addresses, add: info-center loghost source <interface that holds it>, for example LoopBack0.`,
+`info-center enable
 info-center loghost ${v.server}
-info-center source SHELL channel loghost log level notification
-info-center source SSH channel loghost log level notification
+info-center source SSH channel loghost log level informational
 commit`],
   mikrotik:v=>[SU_LOG_TITLE,`Sends logins and every change (with the command on RouterOS 7). RouterOS does not log print / show commands. ${SU_LOG_FROM(v)}`,
 `/system logging action add name=vault target=remote remote=${v.server} remote-port=514
@@ -513,10 +510,10 @@ set system syslog host ${v.server} authorization info
 set system syslog host ${v.server} change-log info
 set system syslog host ${v.server} source-address ${v.ip}
 commit`],
-  bdcom:v=>[SU_LOG_TITLE,`Sends the switch's logs to VAULT. Whether each command is logged depends on the firmware: Command History > Devices sending logs shows the last message from the switch, so you can see what it sends. ${SU_LOG_FROM(v)}`,
+  bdcom:v=>[SU_LOG_TITLE,`Sends the switch's logs to VAULT. Whether each command is logged depends on the firmware: Session Log > Devices sending logs shows the last message from the switch, so you can see what it sends. ${SU_LOG_FROM(v)}`,
 `logging on
 logging ${v.server}`],
-  vsol:v=>[SU_LOG_TITLE,`Set in the web interface (System / Syslog, the name differs per model). Whether logins and commands are included depends on the firmware: Command History > Devices sending logs shows what the OLT sends. ${SU_LOG_FROM(v)}`,
+  vsol:v=>[SU_LOG_TITLE,`Set in the web interface (System / Syslog, the name differs per model). Whether logins and commands are included depends on the firmware: Session Log > Devices sending logs shows what the OLT sends. ${SU_LOG_FROM(v)}`,
 `Syslog server: ${v.server}
 Port:          514 (UDP)
 Level:         informational`],

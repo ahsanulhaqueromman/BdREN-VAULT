@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Command History: install and start the syslog receiver (service vault-syslog) that keeps who ran which
+# Session Log: install and start the syslog receiver (service vault-syslog) that keeps who ran which
 # command on the network devices, and open its port in the firewall only for the devices on NAS Clients.
 #
 # Usage:  sudo bash /opt/vault/deploy/enable_syslog.sh        (safe to run again; install.sh runs it too)
@@ -63,4 +63,4 @@ else
   ok "ufw is not active: nothing to open (the receiver itself still ignores addresses that are not on NAS Clients)"
 fi
 printf '\nDone. Turn on command logging on each device: VAULT > RADIUS / AAA > Device Setup, step "Command logging".\n'
-printf 'What arrives is shown on RADIUS / AAA > Command History.\n'
+printf 'What arrives is shown on RADIUS / AAA > Session Log.\n'

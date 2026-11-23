@@ -22,7 +22,7 @@ curl -k https://127.0.0.1/healthz                               # {"status": "ok
 4. [Backups fail](#4-backups-fail)
 5. [Device login with a RADIUS user fails](#5-device-login-with-a-radius-user-fails)
 6. [Authentication Audit shows no device (login logging)](#6-authentication-audit-shows-no-device-login-logging)
-7. [Command History shows nothing (syslog)](#7-command-history-shows-nothing-syslog)
+7. [Session Log shows nothing (syslog)](#7-command-history-shows-nothing-syslog)
 8. [Database problems](#8-database-problems)
 9. [Disk full](#9-disk-full)
 10. [After an update](#10-after-an-update)
@@ -209,9 +209,9 @@ Then log in to a device once and look at **Authentication Audit**.
 
 ---
 
-## 7. Command History shows nothing (syslog)
+## 7. Session Log shows nothing (syslog)
 
-Command History is filled by the **vault-syslog** service, which receives the devices' syslog on UDP 514.
+Session Log is filled by the **vault-syslog** service, which receives the devices' syslog on UDP 514.
 The page itself says what is wrong at the top (receiver not installed, not running, or messages ignored).
 
 **a) Is the receiver running?**
@@ -239,7 +239,7 @@ sudo ufw status | grep 514                      # with the firewall on, the devi
 | Nothing in tcpdump | The device does not send: check its syslog settings (Device Setup, step "Command logging") and that it can reach the server (`ping` from the device) |
 | Packets arrive, page says "messages were ignored" | They come from an address that is not on NAS Clients (often a loopback or management address). Make the device send from its NAS address (`info-center loghost source`, `logging source-interface`, `source-address`), or add that address on NAS Clients |
 | Packets arrive, no ufw rule for the device | `sudo /usr/local/sbin/vault-radius-firewall` (adds UDP 514 for every NAS Clients address) |
-| Device listed under "Devices sending logs" but "No user actions yet" | The device sends other logs but not its commands. Open **Last message received** to see its format, then turn on command logging (Huawei: `info-center source SHELL channel loghost log level notification`; Cisco: `archive` / `log config` / `notify syslog`) |
+| Device listed under "Devices sending logs" but "No user actions yet" | The device sends other logs but not its commands. Open **Last message received** to see its format, then turn on command logging (Huawei: `info-center enable` and `info-center loghost <server>`; Cisco: `archive` / `log config` / `notify syslog`) |
 
 **c) Test the receiver from the server itself** (only works when 127.0.0.1 is on NAS Clients; remove it afterwards):
 
@@ -303,7 +303,7 @@ Press **Ctrl+F5** in the browser once after every update.
 | `/opt/vault/data/secret.key` | Key for saved device passwords: keep a copy off the server |
 | `/opt/vault/data/backups/` | Saved device configurations |
 | `/etc/systemd/system/vault.service` | Service definition (app on 127.0.0.1:8495) |
-| `/etc/systemd/system/vault-syslog.service` | Syslog receiver for Command History (UDP 514) |
+| `/etc/systemd/system/vault-syslog.service` | Syslog receiver for Session Log (UDP 514) |
 | `/etc/nginx/sites-available/dbms` | nginx site |
 | `/etc/freeradius/3.0/` | FreeRADIUS configuration |
 | `/var/backups/vault/` | Previous versions saved by updates |

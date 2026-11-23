@@ -28,6 +28,7 @@ FLUSH_EVENTS = 500
 REFRESH_SECONDS = 60
 RATE_PER_SECOND = 200
 MAX_PENDING = 20000                      # kept in memory while the database is down, then the oldest go
+SAME_MOMENT = 5                          # seconds: a second login / logout message for the same user is a repeat
 
 
 class Receiver:
@@ -37,6 +38,7 @@ class Receiver:
         self.events, self.stats = [], {}
         self.rejected, self.rejected_ip, self.dropped = 0, "", 0
         self.rate_second, self.rate = 0, {}
+        self.recent = {}                     # (device, user, login|logout) -> (monotonic time, event)
         self.sock = None
 
     # ---- setup -------------------------------------------------------------------------------------------
@@ -102,12 +104,31 @@ class Receiver:
         stat["received"] += 1
         event = parsers.parse(data[:MAX_DATAGRAM], vendor)
         if event:
+            stat["recognized"] += 1
+            if self.is_repeat(ip, event):
+                return
             event["device_ip"], event["at"] = ip, timezone.now()
             self.events.append(event)
-            stat["recognized"] += 1
         else:
             text = data.decode("utf-8", "replace") if isinstance(data, bytes) else data
             stat["sample"] = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()[:500]
+
+    def is_repeat(self, ip, event):
+        """Huawei (and others) report one login or logout in two messages (SHELL and SSH): keep one, with the
+        user's address and the protocol taken from whichever message has them."""
+        if event["kind"] not in ("login", "logout"):
+            return False
+        key, now = (ip, event["username"], event["kind"]), time.monotonic()
+        seen = self.recent.get(key)
+        if len(self.recent) > 10000:
+            self.recent = {k: v for k, v in self.recent.items() if now - v[0] <= SAME_MOMENT}
+        if seen and now - seen[0] <= SAME_MOMENT:
+            first = seen[1]
+            first["source_ip"] = first["source_ip"] or event["source_ip"]
+            first["command"] = first["command"] or event["command"]
+            return True
+        self.recent[key] = (now, event)
+        return False
 
     # ---- writing -----------------------------------------------------------------------------------------------
     def flush(self, beat=False):

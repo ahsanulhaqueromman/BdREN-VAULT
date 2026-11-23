@@ -79,10 +79,124 @@ def history(hours=24, q="", kind="", limit=500):
             match |= Q(device_ip__in=named)
         rows = rows.filter(match)
     events = [{"id": e.id, "ts": e.received_at, "device_ip": e.device_ip, "device": name_of(e.device_ip),
-               "username": e.username, "source_ip": e.source_ip, "kind": e.kind, "command": e.command,
+               "username": e.username, "source_ip": "" if set(e.source_ip) <= {"*", " "} else e.source_ip, "kind": e.kind, "command": e.command,
                "result": e.result, "vendor": e.vendor} for e in rows[:limit]]
     top_users = list(period.filter(kind="change").values("username").annotate(n=Count("id")).order_by("-n")[:5])
     return {"hours": hours, "totals": totals, "events": events, "limit": limit, "top_changers": top_users}
+
+
+# ---- sessions: one user's stay on one device, from login to logout ---------------------------------------------
+SESSION_GAP = timedelta(minutes=30)      # this long without activity (and no logout) = the next action is a new session
+SAME_MOMENT = timedelta(seconds=15)      # two login (or logout) messages this close are the same login (or logout)
+OPEN_FOR = timedelta(minutes=15)         # no logout and active this recently = shown as "Active"
+MAX_EVENTS = 20000                       # newest events read per request
+
+
+def _session(username, device_ip, start, login):
+    return {"username": username, "device_ip": device_ip, "start": start, "login_seen": login, "end": None,
+            "last": start, "source_ip": "", "events": [], "changes": 0, "commands": 0, "failed": False,
+            "closed": False}
+
+
+def _build(items):
+    """items of ONE user on ONE device, oldest first -> sessions. See SESSION_GAP / SAME_MOMENT."""
+    out, cur = [], None
+    for e in items:
+        t, kind = e["ts"], e["kind"]
+        if kind == "login-failed":
+            s = _session(e["username"], e["device_ip"], t, False)
+            s.update(failed=True, closed=True, end=t, source_ip=e["source_ip"], events=[e])
+            out.append(s)
+            continue
+        if kind == "login":
+            if cur and not cur["closed"] and not cur["events"] and t - cur["last"] <= SESSION_GAP:
+                cur["last"] = t                       # the same login reported twice (RADIUS + syslog, repeats)
+                cur["login_seen"] = True
+                cur["source_ip"] = cur["source_ip"] or e["source_ip"]
+                continue
+            cur = _session(e["username"], e["device_ip"], t, True)
+            cur["source_ip"] = e["source_ip"]
+            out.append(cur)
+            continue
+        if kind == "logout":
+            if cur and cur["closed"] and cur["end"] and t - cur["end"] <= SAME_MOMENT:
+                cur["source_ip"] = cur["source_ip"] or e["source_ip"]     # the same logout reported twice
+                continue
+            if not cur or cur["closed"] or t - cur["last"] > SESSION_GAP:
+                cur = _session(e["username"], e["device_ip"], None, False)   # began before the period / not seen
+                out.append(cur)
+            cur.update(end=t, last=t, closed=True)
+            cur["source_ip"] = cur["source_ip"] or e["source_ip"]
+            continue
+        if not cur or cur["closed"] or t - cur["last"] > SESSION_GAP:
+            cur = _session(e["username"], e["device_ip"], t, False)
+            out.append(cur)
+        cur["events"].append(e)
+        cur["last"] = t
+        cur["changes" if kind == "change" else "commands"] += 1
+        cur["source_ip"] = cur["source_ip"] or e["source_ip"]
+    return out
+
+
+def sessions(hours=24, q="", user="", with_events=False, limit=500):
+    """Sessions of the last `hours`, newest activity first: who was on which device, from where, from when to
+    when, and what they did. Built from the syslog events plus the RADIUS logins (Access-Accept) of the devices
+    that send syslog, so a session has its start time even when the device does not log logins.
+    q matches user, device address or name, the user's address or a command; user = exactly one user."""
+    hours = _period(hours)
+    now = timezone.now()
+    since = now - timedelta(hours=hours)
+    rows = CommandEvent.objects.filter(received_at__gte=since)
+    if user:
+        rows = rows.filter(username=user)
+    events = [{"id": r["id"], "ts": r["received_at"], "username": r["username"], "device_ip": r["device_ip"],
+               "kind": r["kind"], "command": r["command"], "result": r["result"],
+               "source_ip": "" if set(r["source_ip"]) <= {"*", " "} else r["source_ip"]}
+              for r in rows.order_by("-received_at", "-id").values(
+                  "id", "received_at", "username", "device_ip", "kind", "command", "source_ip", "result")[:MAX_EVENTS]]
+    events.reverse()
+    logging_devices = set(SyslogSource.objects.values_list("ip", flat=True))
+    try:
+        for username, ip, t in radius.accepted_logins(since, logging_devices, user):
+            events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "login",
+                           "command": "", "source_ip": "", "result": "", "radius": True})
+    except DatabaseError:
+        logger.warning("Command History: RADIUS logins could not be read; sessions start at the first command")
+    events.sort(key=lambda e: (e["ts"], e["id"]))
+    groups = {}
+    for e in events:
+        groups.setdefault((e["username"], e["device_ip"]), []).append(e)
+    found = [s for items in groups.values() for s in _build(items)]
+    name_of = _namer()
+    q = (q or "").strip().lower()[:100]
+    out = []
+    for s in found:
+        s["device"] = name_of(s["device_ip"])
+        if q and not (q in s["username"].lower() or q in s["device_ip"] or q in s["device"].lower()
+                      or q in s["source_ip"] or any(q in e["command"].lower() for e in s["events"])):
+            continue
+        last = s["end"] or s["last"]
+        if s["failed"]:
+            s["status"] = "failed"
+        elif s["closed"]:
+            s["status"] = "closed"
+        else:
+            s["status"] = "active" if now - last <= OPEN_FOR else "no-logout"
+        s["duration"] = int((last - s["start"]).total_seconds()) if s["start"] and last else None
+        s["key"] = f'{s["username"]}|{s["device_ip"]}|{(s["start"] or last).isoformat()}'
+        out.append(s)
+    out.sort(key=lambda s: s["end"] or s["last"], reverse=True)
+    totals = {"sessions": sum(1 for s in out if not s["failed"]), "failed": sum(1 for s in out if s["failed"]),
+              "users": len({s["username"] for s in out}), "devices": len({s["device_ip"] for s in out}),
+              "changes": sum(s["changes"] for s in out), "commands": sum(s["commands"] for s in out),
+              "active": sum(1 for s in out if s["status"] == "active")}
+    out = out[:limit]
+    for s in out:
+        s["event_count"] = len(s["events"])
+        if not with_events:
+            s["events"] = []
+        s.pop("closed", None)
+    return {"hours": hours, "sessions": out, "totals": totals, "truncated": len(events) >= MAX_EVENTS}
 
 
 def sources():

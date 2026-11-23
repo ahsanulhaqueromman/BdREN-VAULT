@@ -63,9 +63,9 @@ V-SOL · any other device through generic SSH
 - Limit a user to specific devices or to a device type; new devices of that type are covered automatically
 - New NAS devices work immediately, with no FreeRADIUS restart
 - **Authentication Audit:** every login attempt, with the device it came from
-- **Command History:** who ran which command on which device, every configuration change, and logins and
-  logouts, read from the devices' own syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet); search,
-  filter and export to CSV
+- **Session Log:** every device login as a session (who, which device, from where, how long) and,
+  per user, each session with every command and configuration change in order; read from the devices' own
+  syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV
 - A login with an unknown username blocks the source address for 2 days
 - Copy-ready configuration commands per vendor on the **Device Setup** page
 
@@ -117,7 +117,7 @@ that follow strict layers, **models → selectors → services → views**, chec
 | | |
 |---|---|
 | Server | Ubuntu or Debian (64-bit), with internet access during installation |
-| Network | The server reaches devices on **SSH (TCP 22)** and **ICMP**; devices reach the server on **UDP 1812 / 1813** for RADIUS and **UDP 514** for Command History (syslog) |
+| Network | The server reaches devices on **SSH (TCP 22)** and **ICMP**; devices reach the server on **UDP 1812 / 1813** for RADIUS and **UDP 514** for Session Log (syslog) |
 | Browser | Any current browser; users reach the server on **TCP 443** |
 
 Everything else (Python packages, MariaDB, FreeRADIUS, nginx, fping, fail2ban) is installed by the installer.
@@ -225,7 +225,7 @@ Settings live in `/opt/vault/.env`; [.env.example](.env.example) documents every
 | `DBMS_MAX_WORKERS` | `50` | Maximum parallel SSH sessions (up to 200) |
 | `DBMS_SESSION_MINUTES` | `15` | Idle sign-out time |
 | `DBMS_PING_SECONDS` | `300` in `.env.example` | Reachability monitor interval in seconds (`0` turns it off) |
-| `SYSLOG_PORT` | `514` | UDP port of the Command History syslog receiver (run `deploy/enable_syslog.sh` after a change) |
+| `SYSLOG_PORT` | `514` | UDP port of the Session Log syslog receiver (run `deploy/enable_syslog.sh` after a change) |
 
 Backup schedule, parallel sessions and retention are changed in the portal under **System Settings**.
 After editing `.env`, run `sudo systemctl restart vault`.
@@ -265,7 +265,7 @@ After editing `.env`, run `sudo systemctl restart vault`.
 - Logins with unknown usernames block the source address for 2 days
 - Every device login is recorded in Authentication Audit
 
-**Command History (syslog)**
+**Session Log (syslog)**
 - The receiver runs as the unprivileged `vault` user; systemd gives it only the right to use port 514
 - UDP 514 is open in the firewall only for NAS Clients, and the receiver also drops every message from any
   other address, so nobody else can write into the history
@@ -316,7 +316,7 @@ apps/
   scheduling/   backup schedule and settings
   monitoring/   ICMP reachability monitor
   radius/       RADIUS / AAA users, NAS clients, audit
-  commandlog/   Command History: syslog receiver, vendor parsers, history page
+  commandlog/   Session Log: syslog receiver, vendor parsers, history page
   core/         pages, API helpers, background tasks, architecture check
 config/         Django settings and URLs
 templates/      HTML pages
