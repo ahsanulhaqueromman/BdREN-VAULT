@@ -1429,6 +1429,16 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
   .cmd-card .rep-last .t{display:none}
   .cmd-card .rep-lines{gap:8px;font-size:12px}
   .cmd-log .l+.l{padding-top:4px}
+  /* one card per login on a phone: who/device | status | bar | counts + time, nothing squeezed */
+  .cmd-scard>summary{grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"dev dev chev" "badge badge badge" "bar bar bar" "lines last last";gap:8px 10px;padding:12px 14px}
+  .cmd-scard .cmd-badges{justify-content:flex-start;flex-wrap:wrap}
+  .cmd-scard .rep-dev b,.cmd-scard .rep-dev small{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+  .cmd-scard .rep-lines{align-self:center}
+  .cmd-scard .cmd-when br{display:inline}
+  .cmd-scard .cmd-when b{font-size:12.5px;white-space:nowrap}
+  /* by device / by user: the names line wraps instead of being cut, the date stays on one line */
+  .cmd-card .rep-dev small{white-space:normal;overflow:visible;text-overflow:clip}
+  .cmd-tl .rep-when{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0}.cmd-tl .rep-when b,.cmd-tl .rep-when span{white-space:nowrap}
 }
 /* links between pages instead of the same list twice (Session Log -> Authentication Audit, RADIUS changes -> Activity Logs) */
 .kpi a.kpi-go{display:inline-flex;align-items:center;gap:4px;color:var(--blue);font-weight:650;text-decoration:none}
