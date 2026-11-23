@@ -63,6 +63,9 @@ V-SOL · any other device through generic SSH
 - Limit a user to specific devices or to a device type; new devices of that type are covered automatically
 - New NAS devices work immediately, with no FreeRADIUS restart
 - **Authentication Audit:** every login attempt, with the device it came from
+- **Command History:** who ran which command on which device, every configuration change, and logins and
+  logouts, read from the devices' own syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet); search,
+  filter and export to CSV
 - A login with an unknown username blocks the source address for 2 days
 - Copy-ready configuration commands per vendor on the **Device Setup** page
 
@@ -86,12 +89,15 @@ flowchart LR
     App -- "SSH (read only)" --> Devices["Network devices"]
     Devices -- "RADIUS UDP 1812/1813" --> FR["FreeRADIUS"]
     FR --> RDB
+    Devices -- "syslog UDP 514" --> SL["Syslog receiver<br/>(vault-syslog)"]
+    SL --> DB
 ```
 
 | Layer | Technology |
 |---|---|
 | Language / framework | Python 3.10+, Django 5.2 LTS |
 | Application server | Waitress, run by systemd (`vault.service`) |
+| Syslog receiver | `manage.py syslog_receive`, run by systemd (`vault-syslog.service`) |
 | Web server | nginx (HTTPS, login rate limit) |
 | Database | MariaDB / MySQL: `dbms` for the application, `radius` for FreeRADIUS |
 | AAA | FreeRADIUS 3 with the rlm_sql module |
@@ -99,7 +105,8 @@ flowchart LR
 | Encryption | `cryptography` (Fernet) for device passwords, SHA-256 for backup integrity |
 | Front end | Django templates, plain JavaScript and CSS, no external CDN |
 
-The code has seven apps (`accounts`, `devices`, `backups`, `scheduling`, `monitoring`, `radius`, `core`)
+The code has eight apps (`accounts`, `devices`, `backups`, `scheduling`, `monitoring`, `radius`, `commandlog`,
+`core`)
 that follow strict layers, **models → selectors → services → views**, checked by
 `python manage.py check_architecture`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -110,7 +117,7 @@ that follow strict layers, **models → selectors → services → views**, chec
 | | |
 |---|---|
 | Server | Ubuntu or Debian (64-bit), with internet access during installation |
-| Network | The server reaches devices on **SSH (TCP 22)** and **ICMP**; devices reach the server on **UDP 1812 / 1813** for RADIUS |
+| Network | The server reaches devices on **SSH (TCP 22)** and **ICMP**; devices reach the server on **UDP 1812 / 1813** for RADIUS and **UDP 514** for Command History (syslog) |
 | Browser | Any current browser; users reach the server on **TCP 443** |
 
 Everything else (Python packages, MariaDB, FreeRADIUS, nginx, fping, fail2ban) is installed by the installer.
@@ -218,6 +225,7 @@ Settings live in `/opt/vault/.env`; [.env.example](.env.example) documents every
 | `DBMS_MAX_WORKERS` | `50` | Maximum parallel SSH sessions (up to 200) |
 | `DBMS_SESSION_MINUTES` | `15` | Idle sign-out time |
 | `DBMS_PING_SECONDS` | `300` in `.env.example` | Reachability monitor interval in seconds (`0` turns it off) |
+| `SYSLOG_PORT` | `514` | UDP port of the Command History syslog receiver (run `deploy/enable_syslog.sh` after a change) |
 
 Backup schedule, parallel sessions and retention are changed in the portal under **System Settings**.
 After editing `.env`, run `sudo systemctl restart vault`.
@@ -257,6 +265,13 @@ After editing `.env`, run `sudo systemctl restart vault`.
 - Logins with unknown usernames block the source address for 2 days
 - Every device login is recorded in Authentication Audit
 
+**Command History (syslog)**
+- The receiver runs as the unprivileged `vault` user; systemd gives it only the right to use port 514
+- UDP 514 is open in the firewall only for NAS Clients, and the receiver also drops every message from any
+  other address, so nobody else can write into the history
+- Each device may send at most 200 messages a second; the rest are dropped and counted
+- Kept for the same time as the other logs (**System Settings > Keep logs and backup files for**)
+
 **Server**
 - Runs as an unprivileged `vault` user; automatic security updates are enabled
 - `.env` and `data/` are excluded from Git, so a clone never contains secrets
@@ -269,7 +284,8 @@ To report a security problem, see [SECURITY.md](SECURITY.md).
 
 | Task | Command |
 |---|---|
-| Service status | `systemctl status vault freeradius nginx --no-pager` |
+| Service status | `systemctl status vault vault-syslog freeradius nginx --no-pager` |
+| Syslog receiver log | `sudo journalctl -u vault-syslog -n 50 --no-pager` |
 | Application log | `sudo journalctl -u vault -n 100 --no-pager` |
 | Health check | `curl -k https://127.0.0.1/healthz` |
 | RADIUS levels check | `sudo bash /opt/vault/deploy/radius/check_levels.sh` |
@@ -300,6 +316,7 @@ apps/
   scheduling/   backup schedule and settings
   monitoring/   ICMP reachability monitor
   radius/       RADIUS / AAA users, NAS clients, audit
+  commandlog/   Command History: syslog receiver, vendor parsers, history page
   core/         pages, API helpers, background tasks, architecture check
 config/         Django settings and URLs
 templates/      HTML pages

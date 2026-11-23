@@ -1327,3 +1327,16 @@ details.lvl-map[open]{padding-bottom:14px}
 /* Authentication Audit: repeated failures stand out; the period picker sits next to Refresh */
 #radFailList strong.r{color:var(--bad-ink)}
 #radius-audit .tacts select{min-height:38px;width:auto}
+/* ---- Command History (/radius/commands) ---- */
+.kpi strong.warn{color:var(--warn)}
+.pill.k-change{background:var(--warn-bg);color:var(--warn)}
+.pill.k-login{background:var(--ok-bg);color:var(--ok)}
+.pill.k-fail{background:var(--bad-bg);color:var(--bad-ink)}
+.pill.k-command,.pill.k-logout{min-width:84px}
+code.cmd{display:inline-block;max-width:560px;padding:2px 8px;border-radius:6px;background:var(--soft);color:var(--ink);font:12.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+td .sub.bad-t{color:var(--bad-ink)}
+.cmd-sample{margin-top:6px;font-size:12px}
+.cmd-sample summary{cursor:pointer;color:var(--mute)}
+.cmd-sample code{display:block;margin-top:6px;padding:8px 10px;border-radius:8px;background:#0b1222;color:#d4deec;font:12px var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;max-width:520px}
+#radius-commands .tacts select{min-height:38px;width:auto}
+#radius-commands .rad-note a{color:var(--blue);font-weight:650}

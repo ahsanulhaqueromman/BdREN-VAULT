@@ -54,7 +54,9 @@ else
 fi
 
 # 1. the sync script, root-owned
-tmp="$(mktemp)"; sed "s/@RADIUS_DB@/$RDB/" "$SRC" > "$tmp"
+SPORT="$(envv SYSLOG_PORT)"; SPORT="${SPORT:-514}"
+[[ "$SPORT" =~ ^[0-9]+$ ]] || die "SYSLOG_PORT in $ENV_FILE is not a number"
+tmp="$(mktemp)"; sed -e "s/@RADIUS_DB@/$RDB/" -e "s/@SYSLOG_PORT@/$SPORT/" "$SRC" > "$tmp"
 install -m 755 -o root -g root "$tmp" "$DEST"; rm -f "$tmp"
 ok "installed $DEST"
 

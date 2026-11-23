@@ -345,6 +345,11 @@ def nas_rows():
             for d in Nas.objects.order_by("shortname")]
 
 
+def nas_addresses():
+    """[(address or network, vendor type)] of every NAS Clients entry, for the syslog receiver's allow-list."""
+    return [((n or "").strip(), t or "") for n, t in Nas.objects.values_list("nasname", "type")]
+
+
 def get_nas(pk):
     device = Nas.objects.filter(pk=pk).first()
     if device is None:

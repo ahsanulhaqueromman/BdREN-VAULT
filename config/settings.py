@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     "apps.scheduling",
     "apps.monitoring",
     "apps.radius",          # RADIUS Admin: FreeRADIUS users, devices (NAS) and audit
+    "apps.commandlog",      # Command History: who ran which command on a device (device syslog)
 ]
 
 MIDDLEWARE = [

@@ -12,6 +12,7 @@
 #      plus any client listed by hand in FreeRADIUS clients.conf, so nothing that works today is cut off
 #   2. removes "dbms-nas" rules for devices that are no longer on NAS Clients
 #   3. only then removes the old "1812/udp, 1813/udp from anywhere" rules
+#   4. the same for syslog (UDP 514, Command History): open only for NAS Clients (rules tagged "vault-syslog")
 # It changes nothing when ufw is not active, and nothing at all when the database cannot be read.
 set -euo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -21,6 +22,8 @@ DB_CNF=/etc/vault/radius-firewall.cnf   # database login, root-only (written by 
 CLIENTS_CONF=/etc/freeradius/3.0/clients.conf
 TAG="dbms-nas"
 PORTS="1812,1813"
+SYSLOG_TAG="vault-syslog"
+SYSLOG_PORT="@SYSLOG_PORT@"            # filled in by enable_firewall_sync.sh (SYSLOG_PORT in .env, default 514)
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 [[ "$RDB" =~ ^[A-Za-z0-9_]+$ ]] || { echo "invalid RADIUS database name in $0" >&2; exit 1; }
@@ -85,3 +88,18 @@ else
        "RADIUS stays open to everyone until they are fixed on NAS" >&2
 fi
 echo "RADIUS firewall: ${#WANT[@]} device address(es) allowed on UDP $PORTS (added $added, removed $removed)"
+
+# ---- syslog (Command History): the same addresses on UDP 514, only while the receiver is installed ----------
+if [[ "$SYSLOG_PORT" =~ ^[0-9]+$ ]] && [ -f /etc/systemd/system/vault-syslog.service ]; then
+  mapfile -t HAVE_LOG < <(printf '%s\n' "$added_rules" | grep -F "comment '$SYSLOG_TAG'" | sed -nE 's/.* from ([^ ]+) to .*/\1/p' | sort -u)
+  added=0; removed=0
+  for a in "${WANT[@]}"; do
+    in_list "$a" "${HAVE_LOG[@]}" && continue
+    ufw allow proto udp from "$a" to any port "$SYSLOG_PORT" comment "$SYSLOG_TAG" >/dev/null && added=$((added + 1))
+  done
+  for a in "${HAVE_LOG[@]}"; do
+    in_list "$a" "${WANT[@]}" && continue
+    ufw --force delete allow proto udp from "$a" to any port "$SYSLOG_PORT" >/dev/null && removed=$((removed + 1))
+  done
+  echo "Syslog firewall: ${#WANT[@]} device address(es) allowed on UDP $SYSLOG_PORT (added $added, removed $removed)"
+fi

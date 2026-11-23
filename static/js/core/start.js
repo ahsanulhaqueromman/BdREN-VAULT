@@ -18,6 +18,7 @@ const PAGE_INIT={
   "radius-users":loadRadUsers,
   "radius-nas":loadRadNas,
   "radius-audit":loadRadAudit,
+  "radius-commands":loadCommands,
   "radius-setup":loadRadSetup,
 };
 /* load (or reload, from a "Try again" button) the data of the open screen */

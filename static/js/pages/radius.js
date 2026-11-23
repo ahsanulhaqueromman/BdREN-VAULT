@@ -458,6 +458,69 @@ Shared secret:       ${v.secret}
 Login order:         RADIUS first, then local accounts`],
     ["Test","Log in with a VAULT RADIUS user, then check the result on Authentication Audit. Keep a local admin account in case the server cannot be reached.",""]]},
 ];
+/* Last step of every vendor: send who-did-what to VAULT's syslog receiver (Command History). */
+const SU_LOG_TITLE="Command logging (Command History)";
+const SU_LOG_FROM=v=>`VAULT accepts logs only from addresses on NAS Clients, so send them from ${v.ip}.`;
+const SU_LOG={
+  cisco:v=>[SU_LOG_TITLE,`Logs every configuration command with the user's name, and every login. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlan1. Cisco logs configuration commands only, not show commands.`,
+`archive
+ log config
+  logging enable
+  notify syslog contenttype plaintext
+  hidekeys
+  exit
+ exit
+login on-success log
+login on-failure log
+logging source-interface Vlan1
+logging trap notifications
+logging host ${v.server}`],
+  huawei:v=>[SU_LOG_TITLE,`Sends every command a user runs (SHELL/5/CMDRECORD) and SSH logins. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlanif1.`,
+`info-center enable
+info-center loghost source Vlanif1
+info-center loghost ${v.server}
+info-center source SHELL channel loghost log level notification
+info-center source SSH channel loghost log level notification`],
+  huawei_ne:v=>[SU_LOG_TITLE,`Sends every command a user runs (SHELL/5/CMDRECORD) and SSH logins. ${SU_LOG_FROM(v)} Put the interface that holds it in place of LoopBack0.`,
+`info-center loghost source LoopBack0
+info-center loghost ${v.server}
+info-center source SHELL channel loghost log level notification
+info-center source SSH channel loghost log level notification
+commit`],
+  mikrotik:v=>[SU_LOG_TITLE,`Sends logins and every change (with the command on RouterOS 7). RouterOS does not log print / show commands. ${SU_LOG_FROM(v)}`,
+`/system logging action add name=vault target=remote remote=${v.server} remote-port=514
+/system logging add topics=system,info action=vault
+/system logging add topics=system,error action=vault`],
+  fortigate:v=>[SU_LOG_TITLE,`Sends administrator logins and every configuration change with the user's name. ${SU_LOG_FROM(v)}`,
+`config log syslogd setting
+    set status enable
+    set server "${v.server}"
+    set port 514
+    set source-ip "${v.ip}"
+end
+config log syslogd filter
+    set severity information
+end`],
+  fortiswitch:v=>[SU_LOG_TITLE,`Sends administrator logins and configuration changes. ${SU_LOG_FROM(v)}`,
+`config log syslogd setting
+    set status enable
+    set server "${v.server}"
+    set port 514
+end`],
+  juniper:v=>[SU_LOG_TITLE,`Sends every command (show commands too), commits and logins. ${SU_LOG_FROM(v)}`,
+`set system syslog host ${v.server} interactive-commands any
+set system syslog host ${v.server} authorization info
+set system syslog host ${v.server} change-log info
+set system syslog host ${v.server} source-address ${v.ip}
+commit`],
+  bdcom:v=>[SU_LOG_TITLE,`Sends the switch's logs to VAULT. Whether each command is logged depends on the firmware: Command History > Devices sending logs shows the last message from the switch, so you can see what it sends. ${SU_LOG_FROM(v)}`,
+`logging on
+logging ${v.server}`],
+  vsol:v=>[SU_LOG_TITLE,`Set in the web interface (System / Syslog, the name differs per model). Whether logins and commands are included depends on the firmware: Command History > Devices sending logs shows what the OLT sends. ${SU_LOG_FROM(v)}`,
+`Syslog server: ${v.server}
+Port:          514 (UDP)
+Level:         informational`],
+};
 function SU_FORTI_GROUPS(rw){
   const grp=(name,match)=>`    edit "${name}"
         set member "VAULT"
@@ -514,7 +577,8 @@ function suRender(){
     secret===SU_SECRET?`Press Insert to put ${SU.dev.name}'s shared secret into the commands, or leave ${SU_SECRET} and paste it yourself.`:"";
   SU.codes=[];
   const lang=vendor.key==="vsol"?"Values":`${vendor.label} CLI`;
-  const steps=vendor.steps({server,secret,ip}).map(([title,text,code])=>{
+  const log=SU_LOG[vendor.key];
+  const steps=[...vendor.steps({server,secret,ip}),...(log?[log({server,ip})]:[])].map(([title,text,code])=>{
     const i=code?SU.codes.push(code)-1:-1;
     return `<li class="su-step"><div class="su-h"><h4>${esc(title)}</h4></div>
       ${text?`<p>${esc(text)}</p>`:""}

@@ -29,8 +29,8 @@ if [ "$YES" != 1 ]; then
   [ "$a" = "REMOVE" ] || { echo "cancelled."; exit 0; }
 fi
 
-for s in vault dbms; do systemctl stop "$s" 2>/dev/null; systemctl disable "$s" 2>/dev/null; done
-rm -f /etc/systemd/system/vault.service /etc/systemd/system/dbms.service; systemctl daemon-reload 2>/dev/null; ok "service removed"
+for s in vault vault-syslog dbms; do systemctl stop "$s" 2>/dev/null; systemctl disable "$s" 2>/dev/null; done
+rm -f /etc/systemd/system/vault.service /etc/systemd/system/vault-syslog.service /etc/systemd/system/dbms.service; systemctl daemon-reload 2>/dev/null; ok "service removed"
 
 mysql -u root -e "DROP DATABASE IF EXISTS \`$DBN\`; DROP DATABASE IF EXISTS \`$RDB\`; DROP USER IF EXISTS '$DBU'@'localhost'; DROP USER IF EXISTS '$RUSER'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null \
   && ok "databases '$DBN' and '$RDB' dropped" || echo "  ! could not drop databases (try: sudo mysql)"

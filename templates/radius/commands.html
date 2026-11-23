@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{# Command History (/radius/commands): who ran which command on which device, read from the devices' syslog
+   (manage.py syslog_receive). Data: pages/commands.js (loadCommands) #}
+{% block content %}
+<section id="radius-commands">
+    <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="What each user did on the network devices: the commands they ran, the changes they made, and when they logged in and out." %}</div>
+      <div class="tacts"><select id="cmdHours" aria-label="Period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option></select><button class="b" id="cmdCsv" type="button">Export CSV</button><button class="b" id="cmdRefresh" type="button">Refresh</button></div></div>
+    <div id="cmdStatus"></div>
+    <div class="kpis" id="cmdKpis"><div class="loading-block" role="status"><span class="spin"></span>Loading summary…</div></div>
+    <div class="card"><h3>Activity</h3><p class="d">Newest first. A change is any command that is not a show / display, ping or a move between modes; review these first.</p>
+      <div class="bar flt"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="cmdQ" autocomplete="off" spellcheck="false" placeholder="Search user, device, address or command" aria-label="Search command history"></div>
+        <select id="cmdKind" aria-label="Filter by type"><option value="">Everything</option><option value="change">Changes</option><option value="command">Commands (view only)</option><option value="login">Logins</option><option value="logout">Logouts</option><option value="login-failed">Failed logins</option></select>
+        <span class="sp"></span><span class="d" id="cmdCount" aria-live="polite"></span></div>
+      <div id="cmdList"><div class="loading-block" role="status"><span class="spin"></span>Loading activity…</div></div></div>
+    <div class="card"><h3>Devices sending logs</h3><p class="d">Every device whose syslog reaches VAULT. A device that sends logs but has no user actions needs command logging turned on: see Device Setup, step "Command logging".</p>
+      <div id="cmdSources"></div></div>
+  </section>
+{% endblock %}

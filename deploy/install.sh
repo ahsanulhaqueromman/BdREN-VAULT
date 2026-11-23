@@ -14,7 +14,8 @@
 #  restarts. If the database migration fails, the previous version is put back automatically.
 #
 #  Also done automatically when it applies: RADIUS tables + "which device" login logging, the sudo rule
-#  that lets the app restart FreeRADIUS, and the nginx lines that pass the real visitor IP.
+#  that lets the app restart FreeRADIUS, the nginx lines that pass the real visitor IP, and the syslog
+#  receiver for Command History (vault-syslog, UDP 514 open only for NAS Clients).
 #  One command, one click: on a fresh install it asks its few questions once, all together at the
 #  start, then installs the whole project without stopping again.
 #  Safe to run again at any time.  Options:  --yes  (no questions; defaults everywhere)
@@ -448,6 +449,16 @@ systemctl restart vault
 for _ in $(seq 1 20); do curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1 && break; sleep 1; done
 if curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1; then ok "the website is answering"
 else rollback; die "The new version did not start (see: journalctl -u vault -n 50). The previous version was restored."; fi
+
+# ---- 9b. Command History: syslog receiver (who ran which command on the devices) ----------------------------
+if APP_DIR="$APP_DIR" ENV_FILE="$APP_DIR/.env" SVC_USER="$SVC_USER" bash "$APP_DIR/deploy/enable_syslog.sh" >/tmp/vault-syslog.$$ 2>&1; then
+  ok "Command History: syslog receiver running ($(grep -oE 'UDP [0-9]+' /tmp/vault-syslog.$$ | head -n1))"
+else
+  warn "the syslog receiver for Command History could not start; the reason:"
+  { grep -q "ERROR" /tmp/vault-syslog.$$ && sed -n '/ERROR/,$p' /tmp/vault-syslog.$$ || tail -n 8 /tmp/vault-syslog.$$; } | sed 's/^/      /' >&2
+  warn "fix it, then run: sudo bash $APP_DIR/deploy/enable_syslog.sh   (the rest of VAULT works without it)"
+fi
+rm -f /tmp/vault-syslog.$$
 
 if [ -n "${DOMAIN_REQ:-}" ]; then
   step "Domain $DOMAIN_REQ"

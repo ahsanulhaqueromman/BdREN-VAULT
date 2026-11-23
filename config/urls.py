@@ -24,6 +24,7 @@ urlpatterns = [
     path("", include("apps.scheduling.urls")),      # /api/settings
     path("", include("apps.monitoring.urls")),      # /api/ping /api/dashboard
     path("", include("apps.radius.urls")),          # /api/radius/users /api/radius/nas /api/radius/audit
+    path("", include("apps.commandlog.urls")),      # /api/radius/commands
 ]
 
 if settings.ENABLE_ADMIN_SITE:        # off by default: every login page on the internet gets attacked

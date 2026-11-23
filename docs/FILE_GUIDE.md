@@ -29,6 +29,7 @@ Every app has the same files: `views.py` + `urls.py` (HTTP), `services.py` (rule
 | Web users, roles, sign-in lockout | `apps/accounts/` |
 | RADIUS users, levels, NAS, audit | `apps/radius/services.py`, `apps/radius/views.py` |
 | FreeRADIUS policies and setup scripts | `deploy/radius/` |
+| Command History: syslog receiver, vendor message formats | `apps/commandlog/receiver.py`, `apps/commandlog/parsers.py` |
 | Server settings (environment) | `config/settings.py` and `.env` |
 
 ## Project layout
@@ -70,6 +71,10 @@ apps/                    Django apps, one folder per area
   radius/                RADIUS / AAA (FreeRADIUS database)
     views.py  services.py  selectors.py  models.py  urls.py
     router.py            Sends these tables to the second database (`radius`)
+  commandlog/            Command History (who ran which command on a device)
+    views.py  services.py  selectors.py  models.py  urls.py
+    parsers.py           One syslog line -> user action (Huawei, Cisco, Juniper, MikroTik, Fortinet)
+    receiver.py          UDP syslog receiver (manage.py syslog_receive, service vault-syslog)
 
 templates/
   base.html              Frame of every page: side menu, top bar, shared pop-ups, scripts
@@ -85,6 +90,7 @@ templates/
   settings/index.html    /settings
   radius/users.html      /radius/users     nas.html  /radius/nas   audit.html  /radius/audit
   radius/_dialogs.html   RADIUS pop-ups (Add / Edit user, Add device)
+  radius/commands.html   /radius/commands  setup.html  /radius/setup
 
 static/
   css/app.css            Application styles (design tokens first, then layout, components, pages, responsive)
@@ -97,6 +103,8 @@ deploy/
   install.sh             One command: install a new server or update an existing one
   set-domain.sh          Add a domain name with a Let's Encrypt certificate
   vault.service          systemd unit
+  vault-syslog.service   systemd unit of the Command History syslog receiver
+  enable_syslog.sh       Install / repair the syslog receiver (install.sh runs it)
   nginx-dbms.conf        nginx site (HTTPS)
   radius/                FreeRADIUS policies, enable_*.sh helpers, check_levels.sh (RADIUS health check)
 
@@ -107,7 +115,7 @@ docs/                    ARCHITECTURE, FILE_GUIDE (this file), CONTRIBUTING, DEP
 
 `templates/base.html` loads, in this order: `core/helpers.js`, `core/menu.js`, `core/account.js`,
 `pages/dashboard.js`, `pages/devices.js`, `core/backup-jobs.js`, `pages/backups.js`, `pages/logs.js`,
-`pages/users.js`, `pages/settings.js`, `pages/radius.js`, `pages/reports.js`, `pages/jobs.js`, `core/search.js`,
+`pages/users.js`, `pages/settings.js`, `pages/radius.js`, `pages/commands.js`, `pages/reports.js`, `pages/jobs.js`, `core/search.js`,
 `core/start.js` (must come after every page loader), `core/responsive.js`.
 
 | Page script | Page | Loader in `PAGE_INIT` |
@@ -120,7 +128,8 @@ docs/                    ARCHITECTURE, FILE_GUIDE (this file), CONTRIBUTING, DEP
 | `logs.js` | Activity Logs and the audit trail | `loadLogs` |
 | `users.js` | User Management and sign-in history | `loadUsers` |
 | `settings.js` | System Settings and the capacity planner | `loadSettings` |
-| `radius.js` | AAA Users, NAS Clients, Authentication Audit | `loadRadUsers`, `loadRadNas`, `loadRadAudit` |
+| `radius.js` | AAA Users, NAS Clients, Authentication Audit, Device Setup | `loadRadUsers`, `loadRadNas`, `loadRadAudit`, `loadRadSetup` |
+| `commands.js` | Command History | `loadCommands` |
 
 ## Things to know
 

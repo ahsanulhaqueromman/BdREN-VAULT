@@ -38,6 +38,8 @@ PAGES = [
          role="admin", submenu="RADIUS / AAA"),
     Page("radius-audit", "radius/audit", "Authentication Audit", "Access Control", "radius/audit.html", "audit",
          role="admin", submenu="RADIUS / AAA"),
+    Page("radius-commands", "radius/commands", "Command History", "Access Control", "radius/commands.html",
+         "commands", role="admin", submenu="RADIUS / AAA"),
     Page("radius-setup", "radius/setup", "Device Setup", "Access Control", "radius/setup.html", "setup",
          role="admin", submenu="RADIUS / AAA"),
     Page("users", "users", "User Management", "Administration", "accounts/users.html", "users", role="admin"),

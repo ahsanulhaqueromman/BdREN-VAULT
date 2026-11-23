@@ -22,10 +22,11 @@ curl -k https://127.0.0.1/healthz                               # {"status": "ok
 4. [Backups fail](#4-backups-fail)
 5. [Device login with a RADIUS user fails](#5-device-login-with-a-radius-user-fails)
 6. [Authentication Audit shows no device (login logging)](#6-authentication-audit-shows-no-device-login-logging)
-7. [Database problems](#7-database-problems)
-8. [Disk full](#8-disk-full)
-9. [After an update](#9-after-an-update)
-10. [Useful file locations](#10-useful-file-locations)
+7. [Command History shows nothing (syslog)](#7-command-history-shows-nothing-syslog)
+8. [Database problems](#8-database-problems)
+9. [Disk full](#9-disk-full)
+10. [After an update](#10-after-an-update)
+11. [Useful file locations](#11-useful-file-locations)
 
 ---
 
@@ -208,7 +209,47 @@ Then log in to a device once and look at **Authentication Audit**.
 
 ---
 
-## 7. Database problems
+## 7. Command History shows nothing (syslog)
+
+Command History is filled by the **vault-syslog** service, which receives the devices' syslog on UDP 514.
+The page itself says what is wrong at the top (receiver not installed, not running, or messages ignored).
+
+**a) Is the receiver running?**
+
+```bash
+systemctl status vault-syslog --no-pager
+sudo journalctl -u vault-syslog -n 50 --no-pager
+sudo ss -ulnp | grep ':514 '                    # must show python (the receiver)
+```
+
+Not installed or not running: `sudo bash /opt/vault/deploy/enable_syslog.sh`. If it says the port is used
+by another program (usually rsyslog with network input), comment out the `imudp` lines in
+`/etc/rsyslog.conf` and `sudo systemctl restart rsyslog`, or set `SYSLOG_PORT=5514` in `.env`, run the
+script again and send the device logs to that port.
+
+**b) Do the logs reach the server?**
+
+```bash
+sudo tcpdump -ni any udp port 514 -c 10        # run, then log in to the device and type a command
+sudo ufw status | grep 514                      # with the firewall on, the device needs its own rule
+```
+
+| What you see | Cause and fix |
+|---|---|
+| Nothing in tcpdump | The device does not send: check its syslog settings (Device Setup, step "Command logging") and that it can reach the server (`ping` from the device) |
+| Packets arrive, page says "messages were ignored" | They come from an address that is not on NAS Clients (often a loopback or management address). Make the device send from its NAS address (`info-center loghost source`, `logging source-interface`, `source-address`), or add that address on NAS Clients |
+| Packets arrive, no ufw rule for the device | `sudo /usr/local/sbin/vault-radius-firewall` (adds UDP 514 for every NAS Clients address) |
+| Device listed under "Devices sending logs" but "No user actions yet" | The device sends other logs but not its commands. Open **Last message received** to see its format, then turn on command logging (Huawei: `info-center source SHELL channel loghost log level notification`; Cisco: `archive` / `log config` / `notify syslog`) |
+
+**c) Test the receiver from the server itself** (only works when 127.0.0.1 is on NAS Clients; remove it afterwards):
+
+```bash
+logger -n 127.0.0.1 -P 514 -d '%%01SHELL/5/CMDRECORD(s)[1]:Recorded command information. (Task=VT0, Ip=10.0.0.5, VpnName=, User=test, AuthenticationMethod="RADIUS", Command="display version")'
+```
+
+---
+
+## 8. Database problems
 
 ```bash
 systemctl status mariadb --no-pager
@@ -225,7 +266,7 @@ grep -E "^(DBMS_DB_|RADIUS_DB_)" /opt/vault/.env      # connection settings the 
 
 ---
 
-## 8. Disk full
+## 9. Disk full
 
 Backups and logs stop when the disk is full.
 
@@ -241,7 +282,7 @@ Free space: set a retention period in **System Settings → Data retention**, re
 
 ---
 
-## 9. After an update
+## 10. After an update
 
 ```bash
 sudo journalctl -u vault -n 100 --no-pager       # errors after the restart?
@@ -253,7 +294,7 @@ Press **Ctrl+F5** in the browser once after every update.
 
 ---
 
-## 10. Useful file locations
+## 11. Useful file locations
 
 | Path | Contents |
 |---|---|
@@ -262,6 +303,7 @@ Press **Ctrl+F5** in the browser once after every update.
 | `/opt/vault/data/secret.key` | Key for saved device passwords: keep a copy off the server |
 | `/opt/vault/data/backups/` | Saved device configurations |
 | `/etc/systemd/system/vault.service` | Service definition (app on 127.0.0.1:8495) |
+| `/etc/systemd/system/vault-syslog.service` | Syslog receiver for Command History (UDP 514) |
 | `/etc/nginx/sites-available/dbms` | nginx site |
 | `/etc/freeradius/3.0/` | FreeRADIUS configuration |
 | `/var/backups/vault/` | Previous versions saved by updates |
