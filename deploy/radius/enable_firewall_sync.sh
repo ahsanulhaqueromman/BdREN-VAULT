@@ -27,7 +27,7 @@ id "$SVC_USER" >/dev/null 2>&1 || die "user $SVC_USER not found"
 
 # RADIUS database login from .env (read as text, never executed), copied into a root-only file so the
 # sync script never depends on a file the app's own user can change
-envv() { grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r' | sed -E "s/^[\"'](.*)[\"']$/\1/"; }
+envv() { { grep -E "^$1=" "$ENV_FILE" || true; } | tail -n1 | cut -d= -f2- | tr -d '\r' | sed -E "s/^[\"'](.*)[\"']$/\1/"; }
 RDB="$(envv RADIUS_DB_NAME)";      RDB="${RDB:-radius}"
 RUSER="$(envv RADIUS_DB_USER)";    RUSER="${RUSER:-radius}"
 RPASS="$(envv RADIUS_DB_PASSWORD)"

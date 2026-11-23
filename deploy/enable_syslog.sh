@@ -22,7 +22,7 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 [ -x "$APP_DIR/.venv/bin/python" ] || die "$APP_DIR/.venv not found (run install.sh first)"
 SVC_USER="${SVC_USER:-$(stat -c %U "$ENV_FILE")}"
 id "$SVC_USER" >/dev/null 2>&1 || die "user $SVC_USER not found"
-envv() { grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r' | sed -E "s/^[\"'](.*)[\"']$/\1/"; }
+envv() { { grep -E "^$1=" "$ENV_FILE" || true; } | tail -n1 | cut -d= -f2- | tr -d '\r' | sed -E "s/^[\"'](.*)[\"']$/\1/"; }
 PORT="$(envv SYSLOG_PORT)"; PORT="${PORT:-514}"
 [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ] || die "SYSLOG_PORT in $ENV_FILE is not a port number"
 
