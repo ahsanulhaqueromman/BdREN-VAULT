@@ -23,6 +23,7 @@ class Command(BaseCommand):
                     editor.create_model(model)
                 self.stdout.write(self.style.SUCCESS(f"{table}: created."))
         self.widen_role_column(connection)
+        self.index_login_time(connection, existing)
         fixed = normalize_roles()
         if fixed:
             self.stdout.write(self.style.SUCCESS(f"Device types: {fixed} row(s) set to one spelling."))
@@ -32,6 +33,18 @@ class Command(BaseCommand):
                 "Per-switch limits moved out of radcheck for: " + ", ".join(sorted(set(converted)))))
         seed_groups()
         self.stdout.write(self.style.SUCCESS("Access-level groups seeded."))
+
+    def index_login_time(self, connection, existing):
+        """radpostauth (written by FreeRADIUS) has no index on authdate; the Authentication Audit summary
+        counts the logins of the last 24 hours / 7 / 30 days, which would read the whole table without it."""
+        if "radpostauth" not in existing:
+            return
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(cursor, "radpostauth")
+            if any(c.get("index") and (c.get("columns") or [None])[0] == "authdate" for c in constraints.values()):
+                return
+            cursor.execute("CREATE INDEX dbms_authdate ON radpostauth (authdate)")
+        self.stdout.write(self.style.SUCCESS("radpostauth: added an index on authdate."))
 
     def widen_role_column(self, connection):
         """dbms_nas_role.role was created 30 characters wide by the first build that had it; it is 50 now."""

@@ -543,13 +543,35 @@ $o("#suBody").addEventListener("click",async e=>{
 });
 
 /* ---- RADIUS audit: panel actions + recent device logins ---- */
-let radLoggingOn=true,radBlocks=[],radBlockingOn=true;
+let radLoggingOn=true,radBlocks=[],radBlockingOn=true,radSummary=null;
 async function loadRadAudit(){
-  const q=($("#radLoginQ")?.value||"").trim();
-  try{const d=await api("/api/radius/audit"+(q?"?q="+encodeURIComponent(q):""));radEvents=d.events;radLogins=d.logins;radLoggingOn=d.device_logging!==false;
-    radBlocks=d.blocks||[];radBlockingOn=d.blocking_on!==false;renderRadEvents();renderRadLogins();renderRadBlocks()}
-  catch(e){radFail("#radEventList","the RADIUS audit log",e);$("#radLoginList").innerHTML="";$("#radAuditKpis").innerHTML="";$("#radBlockList").innerHTML=""}
+  const q=($("#radLoginQ")?.value||"").trim(),hours=$("#radAuditHours")?.value||"24";
+  try{const d=await api("/api/radius/audit?hours="+hours+(q?"&q="+encodeURIComponent(q):""));radEvents=d.events;radLogins=d.logins;radLoggingOn=d.device_logging!==false;
+    radBlocks=d.blocks||[];radBlockingOn=d.blocking_on!==false;radSummary=d.summary||null;
+    renderRadSummary();renderRadEvents();renderRadLogins();renderRadBlocks()}
+  catch(e){radFail("#radEventList","the RADIUS audit log",e);["#radLoginList","#radAuditKpis","#radBlockList","#radFailList"].forEach(s=>{const el=$(s);if(el)el.innerHTML=""})}
 }
+/* ---- summary of the chosen period: figures + the user/device pairs that keep failing ---- */
+const RAD_PERIOD={24:"in the last 24 hours",168:"in the last 7 days",720:"in the last 30 days"};
+function renderRadSummary(){
+  const s=radSummary;if(!s||!$("#radAuditKpis"))return;
+  const per=RAD_PERIOD[s.hours]||"",rate=s.total?Math.round(s.accepted*100/s.total):0;
+  radKpis("#radAuditKpis",[
+    ["Login attempts",s.total,`All device logins ${per}`],
+    ["Successful",s.accepted,s.total?`${rate}% of attempts`:"No attempts","g"],
+    ["Failed",s.rejected,s.rejected?"Wrong password, not allowed or unknown user":"No failed logins",s.rejected?"bad":""],
+    ["Users",s.users,"Different usernames that tried"],
+    ["Devices",s.device_logging?s.devices:"-",s.device_logging?"Different devices logged in to":"Device not recorded yet"]]);
+  const box=$("#radFailList");
+  if(!s.top_failures.length){box.innerHTML=`<div class="empty"><b>No failed logins ${esc(per)}</b>Every device login in this period succeeded.</div>`;return}
+  const cause=f=>f.known?"Wrong password, or not allowed on this device":"Username does not exist in RADIUS";
+  box.innerHTML=`<div class="tbl"><table><thead><tr><th>User</th><th>Device</th><th>Failed tries</th><th>Last try</th><th>Likely cause</th></tr></thead><tbody>`+
+    s.top_failures.map(f=>`<tr><td><strong>${esc(f.username||"-")}</strong></td>
+      <td>${f.nas_ip?`<span class="dn">${esc(f.device||f.nas_ip)}</span>${f.device?`<span class="sub m">${esc(f.nas_ip)}</span>`:""}`:'<span class="none">Not recorded</span>'}</td>
+      <td><strong class="${f.count>=10?"r":""}">${fmtNum(f.count)}</strong></td><td class="when">${fmtWhen(f.last)}</td>
+      <td class="d">${cause(f)}</td></tr>`).join("")+`</tbody></table></div>`;
+}
+$("#radAuditHours")?.addEventListener("change",loadRadAudit);
 /* ---- Blocked IPs (FreeRADIUS dbms_ip_block policy) ---- */
 const radDur=s=>s>=86400?`${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h`:s>=3600?`${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m`:`${Math.max(1,Math.floor(s/60))}m`;
 function renderRadBlocks(){
@@ -575,9 +597,7 @@ $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT
 $("#radLoginRes")?.addEventListener("change",()=>{PAGES.radLogins=1;renderRadLogins()});
 const radAccepted=r=>/accept/i.test(r.reply||"");
 function renderRadEvents(){
-  const ok=radLogins.filter(radAccepted).length,bad=radLogins.length-ok;
-  radKpis("#radAuditKpis",[["Panel actions",radEvents.length,"Most recent changes"],["Recent logins",radLogins.length,"Latest requests"],["Accepted",ok,"Access-Accept","g"],["Rejected",bad,"Access-Reject",bad?"bad":""]]);
-  if(!radEvents.length){$("#radEventList").innerHTML=`<div class="empty">No panel actions recorded yet.</div>`;return}
+  if(!radEvents.length){$("#radEventList").innerHTML=`<div class="empty">No changes recorded yet.</div>`;return}
   const {rows,bar}=paginate("radEvents",radEvents);
   $("#radEventList").innerHTML=`<div class="tbl"><table><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Detail</th><th>Source IP</th></tr></thead><tbody>`+
     rows.map(r=>`<tr><td class="when">${esc(r.ts||"-")}</td><td><strong>${esc(r.actor||"-")}</strong></td><td><span class="tag">${esc(r.action||"-")}</span></td><td>${esc(r.target||"-")}</td><td class="log-message">${esc(r.detail||"-")}</td><td class="m">${esc(r.ip||"-")}</td></tr>`).join("")+`</tbody></table></div>`+bar;
@@ -588,7 +608,7 @@ function renderRadLogins(){
   const res=$("#radLoginRes")?.value||"ALL";
   const list=radLogins.filter(r=>res==="ALL"||(res==="accept")===radAccepted(r));
   const q=($("#radLoginQ")?.value||"").trim();
-  $("#radLoginCount").textContent=radLogins.length?`${list.length} login${list.length===1?"":"s"}${radLogins.length>=500?" (newest 500)":""}`:"";
+  $("#radLoginCount").textContent=radLogins.length?`${fmtNum(list.length)} attempt${list.length===1?"":"s"}${radLogins.length>=500?" shown (newest 500)":""}`:"";
   if(!list.length){$("#radLoginList").innerHTML=`<div class="empty"><b>${q||res!=="ALL"?"No matching logins":"No device logins recorded yet"}</b>${q||res!=="ALL"?"Try another user, device name or IP.":"Logins appear here when users sign in to the network devices."}</div>`;return}
   const {rows,bar}=paginate("radLogins",list);
   morph($("#radLoginList"),`<div class="tbl"><table><thead><tr><th>Time</th><th>User</th><th>Device</th><th>Result</th></tr></thead><tbody>`+

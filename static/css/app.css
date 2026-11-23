@@ -1324,3 +1324,6 @@ details.lvl-map[open]>summary::before{transform:rotate(90deg)}
 details.lvl-map>summary h4{margin:0}
 details.lvl-map[open]{padding-bottom:14px}
 .retention-field+.retention-field{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+/* Authentication Audit: repeated failures stand out; the period picker sits next to Refresh */
+#radFailList strong.r{color:var(--bad-ink)}
+#radius-audit .tacts select{min-height:38px;width:auto}

@@ -256,6 +256,56 @@ def recent_logins(q="", limit=500):
     return out, has_ip
 
 
+SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30)          # hours the Authentication Audit summary can cover
+
+
+def login_summary(hours=24):
+    """What happened in the last `hours`: attempts, accepted / rejected, how many different users and
+    devices, and the user + device pairs that failed most often (with a likely cause).
+
+    radpostauth.authdate is written in the database server's own clock, so the cutoff is computed in that
+    clock (the offset found by _login_columns()). Uses the dbms_authdate index created by radius_init."""
+    from datetime import datetime, timedelta, timezone as dt_tz
+    from django.db import connections
+    hours = hours if hours in SUMMARY_WINDOWS else 24
+    cols = _login_columns()
+    has_ip = "nasipaddress" in cols
+    shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
+    db_now = datetime.now(dt_tz.utc).replace(tzinfo=None) + shift
+    cutoff = db_now - timedelta(hours=hours)
+    device_count = ("COUNT(DISTINCT CASE WHEN nasipaddress <> '' THEN nasipaddress END)" if has_ip else "0")
+    with connections[DB].cursor() as cur:
+        cur.execute("SELECT COUNT(*), SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END), "
+                    "COUNT(DISTINCT username), " + device_count + " FROM radpostauth WHERE authdate >= %s",
+                    [cutoff])
+        total, accepted, users, devices_n = cur.fetchone()
+        cur.execute("SELECT username, " + ("nasipaddress" if has_ip else "''") + ", COUNT(*), MAX(authdate) "
+                    "FROM radpostauth WHERE authdate >= %s AND reply <> 'Access-Accept' "
+                    "GROUP BY username" + (", nasipaddress" if has_ip else "") + " ORDER BY COUNT(*) DESC LIMIT 10",
+                    [cutoff])
+        failures = cur.fetchall()
+    total, accepted = int(total or 0), int(accepted or 0)
+    known = set(RadCheck.objects.filter(username__in={u for u, *_ in failures})
+                .values_list("username", flat=True).distinct())
+    name_of = device_namer()
+
+    def as_utc(t):
+        if isinstance(t, str):              # MAX() comes back as text on some backends (SQLite)
+            try:
+                t = datetime.fromisoformat(t)
+            except ValueError:
+                return None
+        if t is None or t.tzinfo is not None:
+            return t
+        return (t - shift).replace(tzinfo=dt_tz.utc)
+
+    top =[{"username": u, "nas_ip": ip or "", "device": name_of(ip) if ip else "", "count": int(n),
+            "last": as_utc(t), "known": u in known} for u, ip, n, t in failures]
+    return {"hours": hours, "total": total, "accepted": accepted, "rejected": total - accepted,
+            "users": int(users or 0), "devices": int(devices_n or 0), "device_logging": has_ip,
+            "top_failures": top}
+
+
 def limit_violations(hours=24):
     """Logins FreeRADIUS ACCEPTED on a device outside the user's allowed list, in the last `hours`.
     Any row means the per-device limit is not enforced (dbms_device_limit policy missing from

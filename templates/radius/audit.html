@@ -1,16 +1,19 @@
 {% extends "base.html" %}
-{# Authentication Audit (/radius/audit): every RADIUS login and admin change. Data: pages/radius.js #}
+{# Authentication Audit (/radius/audit): what happened with device logins in a period, the logins that keep
+   failing, blocked addresses, every login and every admin change. Data: pages/radius.js (loadRadAudit) #}
 {% block content %}
 <section id="radius-audit">
-    <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Every device login answered by FreeRADIUS, and every change made on the RADIUS pages." %}</div>
-      <div class="tacts"><button class="b" id="radAuditRefresh" type="button">Refresh</button></div></div>
-    <div class="kpis" id="radAuditKpis"></div>
-    <div class="card"><h3>Blocked IPs</h3><p class="d">Addresses that tried a username not in the RADIUS database. FreeRADIUS rejects every login from them for 2 days; their later tries are counted here instead of filling Device logins.</p><div id="radBlockList"></div></div>
-    <div class="card"><h3>Panel audit log</h3><p class="d">Who created, changed or removed RADIUS users and devices</p><div id="radEventList"><div class="loading-block" role="status"><span class="spin"></span>Loading admin events…</div></div></div>
-    <div class="card"><h3>Device logins</h3><p class="d">Which user logged in on which device, newest first, as recorded by FreeRADIUS</p>
+    <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Who logged in to which network device, what failed and why, and every change made on the RADIUS pages." %}</div>
+      <div class="tacts"><select id="radAuditHours" aria-label="Summary period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option></select><button class="b" id="radAuditRefresh" type="button">Refresh</button></div></div>
+    <div class="kpis" id="radAuditKpis"><div class="loading-block" role="status"><span class="spin"></span>Loading summary…</div></div>
+    <div class="card"><h3>Failed logins to check</h3><p class="d" id="radFailHelp">The user and device pairs that failed most often in this period. Many failures from one pair usually means a saved password that is out of date (a script, a monitoring tool or a person), or a user who is not allowed on that device.</p>
+      <div id="radFailList"></div></div>
+    <div class="card"><h3>Blocked addresses</h3><p class="d">Addresses that tried a username that does not exist in RADIUS. FreeRADIUS rejects every login from them for 2 days; their later tries are counted here instead of filling Device logins.</p><div id="radBlockList"></div></div>
+    <div class="card"><h3>Device logins</h3><p class="d">Every login attempt, newest first, as recorded by FreeRADIUS. Search covers the newest 500 attempts that match.</p>
       <div class="bar flt rad-login-bar"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="radLoginQ" autocomplete="off" spellcheck="false" placeholder="Search user, device name or device IP" aria-label="Search device logins"></div>
         <select id="radLoginRes" aria-label="Filter by result"><option value="ALL">All results</option><option value="accept">Accepted</option><option value="reject">Rejected</option></select>
         <span class="sp"></span><span class="d" id="radLoginCount" aria-live="polite"></span></div>
       <div id="radLoginNote"></div><div id="radLoginList"><div class="loading-block" role="status"><span class="spin"></span>Loading logins…</div></div></div>
+    <div class="card"><h3>Panel changes</h3><p class="d">Who created, changed or removed RADIUS users and devices on these pages, newest first.</p><div id="radEventList"><div class="loading-block" role="status"><span class="spin"></span>Loading changes…</div></div></div>
   </section>
 {% endblock %}

@@ -229,8 +229,15 @@ def audit(request):
     for row in logins:
         row["ts"] = _when(row.pop("authdate"))
     blocks = q.blocked_ips()
+    try:
+        hours = int(request.GET.get("hours", 24))
+    except ValueError:
+        hours = 24
+    summary = q.login_summary(hours)
+    for row in summary["top_failures"]:
+        row["last"] = _when(row["last"])
     return JsonResponse({"events": events, "logins": logins, "device_logging": logging_on,
-                         "blocks": blocks or [], "blocking_on": blocks is not None})
+                         "blocks": blocks or [], "blocking_on": blocks is not None, "summary": summary})
 
 
 @api(DELETE="admin")
