@@ -104,10 +104,7 @@ def _build(items):
     for e in items:
         t, kind = e["ts"], e["kind"]
         if kind == "login-failed":
-            s = _session(e["username"], e["device_ip"], t, False)
-            s.update(failed=True, closed=True, end=t, source_ip=e["source_ip"], events=[e])
-            out.append(s)
-            continue
+            continue                    # refused logins are not sessions (they are on Authentication Audit)
         if kind == "login":
             if cur and not cur["closed"] and not cur["events"] and t - cur["last"] <= SESSION_GAP:
                 cur["last"] = t                       # the same login reported twice (RADIUS + syslog, repeats)
@@ -181,9 +178,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
                       or q in s["source_ip"] or any(q in e["command"].lower() for e in s["events"])):
             continue
         last = s["end"] or s["last"]
-        if s["failed"]:
-            s["status"] = "failed"
-        elif s["closed"]:
+        if s["closed"]:
             s["status"] = "closed"
         else:
             s["status"] = "active" if now - last <= OPEN_FOR else "no-logout"
@@ -191,7 +186,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
         s["key"] = f'{s["username"]}|{s["device_ip"]}|{(s["start"] or last).isoformat()}'
         out.append(s)
     out.sort(key=lambda s: s["end"] or s["last"], reverse=True)
-    totals = {"sessions": sum(1 for s in out if not s["failed"]), "failed": sum(1 for s in out if s["failed"]),
+    totals = {"sessions": len(out),
               "users": len({s["username"] for s in out}), "devices": len({s["device_ip"] for s in out}),
               "changes": sum(s["changes"] for s in out), "commands": sum(s["commands"] for s in out),
               "active": sum(1 for s in out if s["status"] == "active")}

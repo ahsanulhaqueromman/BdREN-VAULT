@@ -40,7 +40,7 @@ def device_detail(request, pk):
         services.delete_device(pk)
         return JsonResponse({"ok": True})
     data = parse_json(request)
-    device = services.update_device(pk, services.clean_payload(data), data.get("credential_id"))
+    device = services.update_device(pk, services.clean_payload(data), data.get("credential_id"), user=request.user)
     record_audit(request, "device.update", _label(device), "Device inventory/settings updated")
     return JsonResponse({"ok": True})
 
@@ -88,9 +88,10 @@ def export_inventory(request):
     return response
 
 
-@api(GET="operator")
+@api(GET="admin")
 def credentials(request):
-    """List saved credential profile metadata (passwords are not included)."""
+    """List saved credential profile metadata (passwords are not included). Admin only: only an administrator
+    can reuse a saved login (see services._check_saved_login)."""
     response = JsonResponse(selectors.credential_groups(), safe=False)
     response["Cache-Control"] = "no-store, private"
     return response
@@ -117,6 +118,7 @@ def apply_credentials(request):
     data = parse_json(request)
     ids = [i for i in (data.get("ids") or []) if isinstance(i, int)]
     updated, username = services.apply_credentials(ids, (data.get("username") or "").strip(),
-                                                   data.get("password") or "", data.get("credential_id"))
+                                                   data.get("password") or "", data.get("credential_id"),
+                                                   user=request.user)
     record_audit(request, "credentials.apply", f"{updated} device(s)", f"username={username}")
     return JsonResponse({"updated": updated})

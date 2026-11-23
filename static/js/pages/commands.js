@@ -84,18 +84,13 @@ function renderCmdKpis(){
     ["Sessions",t.sessions||0,t.active?`${fmtNum(t.active)} active now`:`Device logins ${per}`,"g"],
     ["Changes",t.changes||0,top?`Most by ${top[0]} (${fmtNum(top[1])})`:"No configuration changed",t.changes?"warn":""],
     ["Commands",t.commands||0,"Show / display and other view-only commands"],
-    ["Failed logins",t.failed||0,t.failed?"Reported by the devices":"None reported",t.failed?"bad":""],
     ["Users",t.users||0,`On ${fmtNum(t.devices||0)} device${t.devices===1?"":"s"}`]]);
-  /* every failed login of every device (not only those that send syslog), with the likely cause, is on
-     Authentication Audit: link there instead of repeating it here */
-  const fail=$("#cmdKpis").children[3]?.querySelector("small");
-  if(fail)fail.innerHTML=`<a class="kpi-go" href="${esc(PAGE_URL["radius-audit"]||"/radius/audit")}">${t.failed?"Why they failed":"All device logins"} <span aria-hidden="true">→</span></a>`;
 }
 
 /* ---- the list: one card per device (or per user) ---- */
 function cmdKeep(s){
   const f=$("#cmdSFilter").value;
-  return f==="changes"?s.changes>0:f==="active"?s.status==="active":f==="failed"?s.failed:true;
+  return f==="changes"?s.changes>0:f==="active"?s.status==="active":true;
 }
 function cmdGroups(){
   const by=new Map(),key=CMD_VIEW[cmdTab].key;

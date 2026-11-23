@@ -75,6 +75,22 @@ def apply_payload(device, cleaned):
     return device
 
 
+SAVED_LOGIN_ADMIN_ONLY = "Only an administrator can use a saved login. Type the username and password instead."
+NEW_ADDRESS_NEEDS_PASSWORD = ("To change the address or SSH port, type the device's password again{secret} "
+                              "(or ask an administrator). The saved one is only sent to the address it was saved for.")
+
+
+def _is_admin(user):
+    return user is None or user.has_role("admin")
+
+
+def _check_saved_login(credential_id, user):
+    """Saved passwords are Admin-only (revealing one is audited). An Operator could otherwise point a saved
+    login at a host of their own and let the backup send it there, so only an Admin may reuse one."""
+    if credential_id not in (None, "") and not _is_admin(user):
+        raise ApiError(403, SAVED_LOGIN_ADMIN_ONLY)
+
+
 def apply_saved_credential(device, credential_id):
     """Copy a saved encrypted credential server-side; the plaintext never reaches the browser."""
     if credential_id in (None, ""):
@@ -87,8 +103,11 @@ def apply_saved_credential(device, credential_id):
 
 # ---------- add / edit / delete ----------
 def create_device(cleaned, credential_id=None, created_by=None):
-    """Add one device (the IP must be unique). Returns the saved device."""
+    """Add one device (the IP must be unique). Returns the saved device. A saved login (credential_id) is
+    only applied for an administrator; `created_by` is the person adding it."""
     _require_basics(cleaned)
+    if not cleaned.get("password"):
+        _check_saved_login(credential_id, created_by)
     if selectors.ip_in_use(cleaned["ip"]):
         raise ApiError(409, "A device with this IP already exists")
     device = apply_payload(Device(), cleaned)
@@ -99,12 +118,23 @@ def create_device(cleaned, credential_id=None, created_by=None):
     return device
 
 
-def update_device(pk, cleaned, credential_id=None):
-    """Change one device; an empty password keeps the saved one. Returns the saved device."""
+def update_device(pk, cleaned, credential_id=None, user=None):
+    """Change one device; an empty password keeps the saved one. Returns the saved device.
+    For someone who is not an administrator, a new address or SSH port keeps the saved password only when it
+    is typed again (with the enable secret, when one is saved): otherwise the backup would send the saved
+    password to whatever host the new address points at."""
     _require_basics(cleaned)
     if selectors.ip_in_use(cleaned["ip"], exclude_pk=pk):
         raise ApiError(409, "A device with this IP already exists")
     device = selectors.get_device(pk)
+    if not cleaned.get("password"):
+        _check_saved_login(credential_id, user)
+    moved = cleaned["ip"] != device.ip or cleaned["port"] != device.port
+    if moved and not _is_admin(user):
+        need_secret = bool(device.secret) and "secret" not in cleaned
+        if (device.password and "password" not in cleaned) or need_secret:
+            raise ApiError(403, NEW_ADDRESS_NEEDS_PASSWORD.format(
+                secret=" and its enable secret" if need_secret else ""))
     apply_payload(device, cleaned)
     if not cleaned.get("password"):
         apply_saved_credential(device, credential_id)
@@ -140,6 +170,8 @@ def parse_lines(text):
 def import_devices(base, lines, credential_id=None, created_by=None, skipped_detail=None):
     """Create one device per pasted line using shared settings. Returns (created_devices, skipped).
     When `skipped_detail` is a list, one {"ip", "reason"} entry is appended per skipped address."""
+    if not base.get("password"):
+        _check_saved_login(credential_id, created_by)
     created_devices = []
     skipped = 0
     existing = selectors.existing_ips()
@@ -186,11 +218,13 @@ def reveal_saved_password(credential_id):
     return source, password
 
 
-def apply_credentials(ids, username, password, credential_id=None):
-    """Set one username and password on several devices. Returns (updated count, username used)."""
+def apply_credentials(ids, username, password, credential_id=None, user=None):
+    """Set one username and password on several devices. Returns (updated count, username used).
+    A saved login (credential_id) can only be applied by an administrator."""
     if not ids:
         raise ApiError(400, "Select at least one device")
     if credential_id not in (None, ""):
+        _check_saved_login(credential_id, user)
         source = selectors.saved_credential(credential_id)
         username, encrypted_password = source.username, source.password
     elif username and password:

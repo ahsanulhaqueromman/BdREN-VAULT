@@ -236,7 +236,7 @@ After editing `.env`, run `sudo systemctl restart vault`.
 | Role | Can do |
 |---|---|
 | **Viewer** | See everything except administration pages |
-| **Operator** | Viewer rights, plus add and edit devices and run backups |
+| **Operator** | Viewer rights, plus add and edit devices and run backups (typing the device password; saved logins are for administrators) |
 | **Administrator** | Everything, including deleting, RADIUS / AAA, users and settings |
 
 ---
