@@ -297,13 +297,8 @@ def accepted_logins(since, nas_ips, username="", limit=20000):
 SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30)          # hours the Authentication Audit summary can cover
 
 
-FAILED_LOG_LIMIT = 1000      # newest failed logins listed on Authentication Audit
-
-
 def login_summary(hours=24):
-    """What happened in the last `hours`: attempts, accepted / rejected, how many different users and
-    devices, and every failed login of the period as a log, newest first (time, user, device, the address
-    it came from when recorded, and a likely cause).
+    """What happened in the last `hours`: attempts, accepted / rejected, how many different users and devices.
 
     radpostauth.authdate is written in the database server's own clock, so the cutoff is computed in that
     clock (the offset found by _login_columns()). Uses the dbms_authdate index created by radius_init."""
@@ -311,42 +306,18 @@ def login_summary(hours=24):
     from django.db import connections
     hours = hours if hours in SUMMARY_WINDOWS else 24
     cols = _login_columns()
-    has_ip, has_st, has_from = "nasipaddress" in cols, "calledstationid" in cols, "callingstationid" in cols
+    has_ip = "nasipaddress" in cols
     shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
-    db_now = datetime.now(dt_tz.utc).replace(tzinfo=None) + shift
-    cutoff = db_now - timedelta(hours=hours)
+    cutoff = datetime.now(dt_tz.utc).replace(tzinfo=None) + shift - timedelta(hours=hours)
     device_count = ("COUNT(DISTINCT CASE WHEN nasipaddress <> '' THEN nasipaddress END)" if has_ip else "0")
     with connections[DB].cursor() as cur:
         cur.execute("SELECT COUNT(*), SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END), "
                     "COUNT(DISTINCT username), " + device_count + " FROM radpostauth WHERE authdate >= %s",
                     [cutoff])
         total, accepted, users, devices_n = cur.fetchone()
-        cur.execute("SELECT username, " + ("nasipaddress" if has_ip else "''") + ", "
-                    + ("calledstationid" if has_st else "''") + ", "
-                    + ("callingstationid" if has_from else "''") + ", authdate "
-                    "FROM radpostauth WHERE authdate >= %s AND reply <> 'Access-Accept' "
-                    "ORDER BY authdate DESC LIMIT %s", [cutoff, FAILED_LOG_LIMIT])
-        failures = cur.fetchall()
     total, accepted = int(total or 0), int(accepted or 0)
-    known = set(RadCheck.objects.filter(username__in={u for u, *_ in failures})
-                .values_list("username", flat=True).distinct())
-    name_of = device_namer()
-
-    def as_utc(t):
-        if isinstance(t, str):              # MAX() comes back as text on some backends (SQLite)
-            try:
-                t = datetime.fromisoformat(t)
-            except ValueError:
-                return None
-        if t is None or t.tzinfo is not None:
-            return t
-        return (t - shift).replace(tzinfo=dt_tz.utc)
-
-    failed = [{"username": u, "nas_ip": ip or "", "device": name_of(ip) if ip else "", "station": st or "",
-               "from_ip": fr or "", "ts": as_utc(t), "known": u in known} for u, ip, st, fr, t in failures]
     return {"hours": hours, "total": total, "accepted": accepted, "rejected": total - accepted,
-            "users": int(users or 0), "devices": int(devices_n or 0), "device_logging": has_ip,
-            "source_logging": has_from, "failures": failed, "failures_capped": len(failed) >= FAILED_LOG_LIMIT}
+            "users": int(users or 0), "devices": int(devices_n or 0), "device_logging": has_ip}
 
 
 def limit_violations(hours=24):
@@ -402,25 +373,6 @@ def get_nas(pk):
 
 def nas_exists(nasname):
     return Nas.objects.filter(nasname=nasname).exists()
-
-
-def blocked_ips(limit=500):
-    """Addresses FreeRADIUS is blocking now (deploy/radius/dbms_ip_block), newest first, or None when the
-    table does not exist yet. Times are compared in SQL (NOW()) because FreeRADIUS writes them in the
-    database server's clock; "seconds_left" / "seconds_ago" avoid any time-zone guessing."""
-    from django.db import connections
-    conn = connections[DB]
-    if "dbms_ip_block" not in conn.introspection.table_names():
-        return None
-    name_of = device_namer()
-    with conn.cursor() as cur:
-        cur.execute("SELECT id, ip, first_username, last_username, nasname, hits, "
-                    "TIMESTAMPDIFF(SECOND, NOW(), blocked_until), TIMESTAMPDIFF(SECOND, last_seen, NOW()) "
-                    "FROM dbms_ip_block WHERE blocked_until > NOW() ORDER BY last_seen DESC LIMIT %s", [int(limit)])
-        rows = cur.fetchall()
-    return [{"id": i, "ip": ip, "first_username": fu or "", "last_username": lu or "", "nas_ip": nas or "",
-             "device": name_of(nas), "hits": hits or 0, "seconds_left": max(0, left or 0),
-             "seconds_ago": max(0, ago or 0)} for i, ip, fu, lu, nas, hits, left, ago in rows]
 
 
 def admin_events(limit=500):

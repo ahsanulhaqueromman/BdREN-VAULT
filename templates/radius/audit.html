@@ -1,23 +1,17 @@
 {% extends "base.html" %}
-{# Authentication Audit (/radius/audit): what happened with device logins in a period, the logins that keep
-   failing (one card: every failed login, with where it came from, and the addresses FreeRADIUS blocks) and every login (admin changes: Activity Logs). Data: pages/radius.js (loadRadAudit) #}
+{# Authentication Audit (/radius/audit): a summary of the device logins in a period and every login, with the
+   device and the address it came from (admin changes: Activity Logs). Data: pages/radius.js (loadRadAudit) #}
 {% block content %}
 <section id="radius-audit">
-    <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Who logged in to which network device, what failed and why, and which addresses are blocked." %}</div>
+    <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Who logged in to which network device, from where, and which logins failed." %}</div>
       <div class="tacts"><select id="radAuditHours" aria-label="Summary period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option></select><button class="b" id="radAuditRefresh" type="button">Refresh</button></div></div>
     <div class="kpis" id="radAuditKpis"><div class="loading-block" role="status"><span class="spin"></span>Loading summary…</div></div>
-    <div class="card rad-fb"><div class="rad-card-h"><div><h3>Failed logins &amp; blocked addresses</h3><p class="d" id="radFbHelp"></p></div><span class="d" id="radFbCount" aria-live="polite"></span></div>
-      <div class="su-tabs rad-fb-tabs" role="tablist" aria-label="Show" id="radFbTabs">
-        <button type="button" class="chip on" role="tab" aria-selected="true" data-fb-tab="fails">Failed logins <span class="n" id="radFbNFails"></span></button>
-        <button type="button" class="chip" role="tab" aria-selected="false" data-fb-tab="blocks">Blocked addresses <span class="n" id="radFbNBlocks"></span></button>
-      </div>
-      <div id="radFbNote"></div><div id="radFbList"><div class="loading-block" role="status"><span class="spin"></span>Loading…</div></div></div>
     <div class="card"><h3>Device logins</h3><p class="d">Every login attempt, newest first, as recorded by FreeRADIUS. Search covers the newest 500 attempts that match.</p>
       <div class="bar flt rad-login-bar"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="radLoginQ" autocomplete="off" spellcheck="false" placeholder="Search user, device, device IP or source IP" aria-label="Search device logins"></div>
         <select id="radLoginRes" aria-label="Filter by result"><option value="ALL">All results</option><option value="accept">Accepted</option><option value="reject">Rejected</option></select>
         <span class="sp"></span><span class="d" id="radLoginCount" aria-live="polite"></span></div>
       <div id="radLoginNote"></div><div id="radLoginList"><div class="loading-block" role="status"><span class="spin"></span>Loading logins…</div></div></div>
-    <div class="rad-moved"><span><b>Looking for changes made on the RADIUS pages?</b> Added, changed or removed users and NAS, and unblocked addresses, are listed with every other administrative action in Activity Logs.</span>
+    <div class="rad-moved"><span><b>Looking for changes made on the RADIUS pages?</b> Added, changed or removed users and NAS are listed with every other administrative action in Activity Logs.</span>
       <a class="b" href="/logs#auditPanel">Open audit trail <span aria-hidden="true">→</span></a></div>
   </section>
 {% endblock %}

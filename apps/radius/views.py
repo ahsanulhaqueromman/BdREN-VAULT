@@ -4,8 +4,7 @@
     /api/radius/users/<name>     PUT change level / password, DELETE
     /api/radius/nas              GET list, POST add one or several (comma-separated IPs and names)
     /api/radius/nas/<id>         DELETE (restarts FreeRADIUS)
-    /api/radius/audit            GET panel audit log + recent device logins + blocked IPs
-    /api/radius/blocks/<id>      DELETE unblock an address (FreeRADIUS dbms_ip_block policy)
+    /api/radius/audit            GET period summary + recent device logins
 """
 import logging
 import re
@@ -223,30 +222,13 @@ def nas_secret(request, pk):
 @api(GET="admin")
 @radius_db
 def audit(request):
-    """Authentication Audit: device logins, the pairs that keep failing and blocked addresses. The changes made
+    """Authentication Audit: a summary of the chosen period and every device login. The changes made
     on the RADIUS pages are shown in Activity Logs (apps/backups/views.py audit_events)."""
     logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500)
     for row in logins:
         row["ts"] = _when(row.pop("authdate"))
-    blocks = q.blocked_ips()
     try:
         hours = int(request.GET.get("hours", 24))
     except ValueError:
         hours = 24
-    summary = q.login_summary(hours)
-    for row in summary["failures"]:
-        row["ts"] = _when(row["ts"])
-    return JsonResponse({"logins": logins, "device_logging": logging_on,
-                         "blocks": blocks or [], "blocking_on": blocks is not None, "summary": summary})
-
-
-@api(DELETE="admin")
-@radius_db
-def block_detail(request, pk):
-    """Unblock one address that FreeRADIUS blocked after an unknown-username login."""
-    ip = s.unblock_ip(pk)
-    if ip is None:
-        raise ApiError(404, "This address is not blocked any more")
-    actor, source = _actor(request)
-    s.audit(actor, "ip.unblock", ip, "", source)
-    return JsonResponse({"ok": True})
+    return JsonResponse({"logins": logins, "device_logging": logging_on, "summary": q.login_summary(hours)})

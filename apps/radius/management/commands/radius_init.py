@@ -1,20 +1,20 @@
 from django.core.management.base import BaseCommand
 from django.db import connections, models
 
-from apps.radius.models import AuditLog, IpBlock, NasRole, UserDevice, UserGrant
+from apps.radius.models import AuditLog, NasRole, UserDevice, UserGrant
 from apps.radius.router import DB
 from apps.radius.services import convert_legacy_limits, normalize_roles, seed_groups
 
 
 class Command(BaseCommand):
     help = ("Prepare an existing FreeRADIUS database for the RADIUS Admin pages: create the panel's "
-            "tables when they are missing (audit log, per-switch login limits, device types, blocked IPs), convert "
+            "tables when they are missing (audit log, per-switch login limits, device types), convert "
             "old per-switch limits and seed the access-level groups. Safe to run again.")
 
     def handle(self, *args, **opts):
         connection = connections[DB]
         existing = connection.introspection.table_names()
-        for model in (AuditLog, UserDevice, NasRole, UserGrant, IpBlock):
+        for model in (AuditLog, UserDevice, NasRole, UserGrant):
             table = model._meta.db_table
             if table in existing:
                 self.stdout.write(f"{table}: already there.")

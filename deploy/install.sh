@@ -313,15 +313,17 @@ if [ -n "$(env_get RADIUS_DB_PASSWORD)" ] && [ "$(env_get RADIUS_DB_PASSWORD)" !
       warn "fix it, then run: sudo bash $APP_DIR/deploy/radius/enable_login_log.sh"
     fi
     rm -f /tmp/dbms-login-log.$$
-    # block an attacker's IP for 2 days after a login with an unknown username (needs radius_init above)
-    if APP_DIR="$APP_DIR" ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_ip_block.sh" >/tmp/dbms-ip-block.$$ 2>&1; then
-      ok "unknown-username logins block the source IP for 2 days"
-    else
-      warn "IP blocking could not be enabled; the reason:"
-      tail -n 8 /tmp/dbms-ip-block.$$ | sed 's/^/      /' >&2
-      warn "fix it, then run: sudo bash $APP_DIR/deploy/radius/enable_ip_block.sh"
+    # earlier versions blocked an address for 2 days after an unknown username; that policy is removed
+    if grep -qs "dbms_ip_block" /etc/freeradius/3.0/sites-enabled/default || [ -e /etc/freeradius/3.0/policy.d/dbms_ip_block ]; then
+      if APP_DIR="$APP_DIR" ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/disable_ip_block.sh" >/tmp/dbms-ip-block.$$ 2>&1; then
+        ok "old IP blocking removed; no address is blocked any more"
+      else
+        warn "the old IP blocking could not be removed; the reason:"
+        tail -n 8 /tmp/dbms-ip-block.$$ | sed 's/^/      /' >&2
+        warn "fix it, then run: sudo bash $APP_DIR/deploy/radius/disable_ip_block.sh"
+      fi
+      rm -f /tmp/dbms-ip-block.$$
     fi
-    rm -f /tmp/dbms-ip-block.$$
     if [ "$(env_get RADIUS_DYNAMIC_CLIENTS)" = 1 ] && grep -qs "dbms_dynamic_clients" /etc/freeradius/3.0/clients.conf; then ok "new switches work at once (no FreeRADIUS restart)"
     elif ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_dynamic_clients.sh" >/dev/null 2>&1; then ok "new switches work at once (no FreeRADIUS restart)"
     else warn "could not enable instant switch adding; run: sudo bash $APP_DIR/deploy/radius/enable_dynamic_clients.sh"; fi

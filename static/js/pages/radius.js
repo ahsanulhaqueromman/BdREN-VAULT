@@ -603,17 +603,17 @@ $o("#suBody").addEventListener("click",async e=>{
   else toast("Copy is not available here. Select the text and press Ctrl+C.",{type:"warning",title:"Copy failed"});
 });
 
-/* ---- Authentication Audit: device logins, failures and blocked addresses in one card (changes on the RADIUS pages
+/* ---- Authentication Audit: the period summary and every device login (changes on the RADIUS pages
    are in Activity Logs > Administrative audit trail) ---- */
-let radLoggingOn=true,radBlocks=[],radBlockingOn=true,radSummary=null;
+let radLoggingOn=true,radSummary=null;
 async function loadRadAudit(){
   const q=($("#radLoginQ")?.value||"").trim(),hours=$("#radAuditHours")?.value||"24";
   try{const d=await api("/api/radius/audit?hours="+hours+(q?"&q="+encodeURIComponent(q):""));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
-    radBlocks=d.blocks||[];radBlockingOn=d.blocking_on!==false;radSummary=d.summary||null;
+    radSummary=d.summary||null;
     renderRadSummary();renderRadLogins()}
-  catch(e){radFail("#radLoginList","the RADIUS audit log",e);["#radAuditKpis","#radFbList","#radFbNote"].forEach(s=>{const el=$(s);if(el)el.innerHTML=""})}
+  catch(e){radFail("#radLoginList","the RADIUS audit log",e);{const el=$("#radAuditKpis");if(el)el.innerHTML=""}}
 }
-/* ---- summary of the chosen period: figures + the user/device pairs that keep failing ---- */
+/* ---- summary of the chosen period ---- */
 const RAD_PERIOD={24:"in the last 24 hours",168:"in the last 7 days",720:"in the last 30 days"};
 function renderRadSummary(){
   const s=radSummary;if(!s||!$("#radAuditKpis"))return;
@@ -624,69 +624,8 @@ function renderRadSummary(){
     ["Failed",s.rejected,s.rejected?"Wrong password, not allowed or unknown user":"No failed logins",s.rejected?"bad":""],
     ["Users",s.users,"Different usernames that tried"],
     ["Devices",s.device_logging?s.devices:"-",s.device_logging?"Different devices logged in to":"Device not recorded yet"]]);
-  renderRadFb();
 }
-/* ---- one card, two tabs: every failed login of the period (a log, newest first) and the addresses FreeRADIUS
-   blocks (deploy/radius/dbms_ip_block). A failed login shows where it came FROM (Calling-Station-Id, recorded
-   by enable_login_log.sh) and whether that address is blocked now, so it is clear why one is blocked and
-   another (a private address, or one never recorded) is not. ---- */
-let radFbTab="fails";
-const RAD_FB_HELP={
-  fails:"Every failed login to a network device in this period, newest first. The same user failing again and again usually means a saved password that is out of date or a user not allowed on that device (fix it on Users); unknown names such as root or admin from outside addresses are password guessing.",
-  blocks:"Addresses that tried a username that does not exist in RADIUS. FreeRADIUS rejects every login from them for 2 days. Only public addresses are blocked: a private or management address never is, so a mistyped name cannot lock out your own network."};
-const radPrivate=ip=>/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|f[cd]|fe80:|::1$)/i.test(ip||"");
-const radBlockedSet=()=>new Set(radBlocks.map(b=>b.ip));
-function renderRadFb(){
-  const box=$("#radFbList");if(!box)return;
-  const s=radSummary||{},fails=s.failures||[],nf=fails.length,nb=radBlocks.length;
-  $("#radFbTabs").querySelectorAll("[data-fb-tab]").forEach(b=>{const on=b.dataset.fbTab===radFbTab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
-  $("#radFbNFails").textContent=nf?fmtNum(nf)+(s.failures_capped?"+":""):"";
-  $("#radFbNBlocks").textContent=radBlockingOn&&nb?fmtNum(nb):"";
-  $("#radFbHelp").textContent=RAD_FB_HELP[radFbTab];
-  $("#radFbCount").textContent=[nf?`${fmtNum(nf)} failed login${nf===1?"":"s"}${s.failures_capped?` (newest ${fmtNum(nf)})`:""}`:"",
-    radBlockingOn&&nb?`${fmtNum(nb)} blocked`:""].filter(Boolean).join(" · ");
-  radFbTab==="blocks"?renderRadBlocks(box):renderRadFails(box);
-}
-function renderRadFails(box){
-  const s=radSummary;if(!s)return;
-  const list=s.failures||[],per=RAD_PERIOD[s.hours]||"",blocked=radBlockedSet();
-  $("#radFbNote").innerHTML=s.source_logging===false?`<div class="rad-note"><b>Where failed logins come from is not recorded yet.</b> Run this once on the server so every new login also keeps the address it came from (the From column), which is also what IP blocking needs:<code>sudo bash /opt/vault/deploy/radius/enable_login_log.sh</code></div>`:"";
-  if(!list.length){box.innerHTML=`<div class="empty"><b>No failed logins ${esc(per)}</b>Every device login in this period succeeded.</div>`;return}
-  const cause=f=>f.known?["Wrong password, or not allowed on this device","k-change"]:["Username does not exist in RADIUS","k-fail"];
-  const from=f=>{
-    if(!f.from_ip)return s.source_logging===false?'<span class="none">Not recorded</span>':'<span class="none">-</span>';
-    const tag=blocked.has(f.from_ip)?'<span class="pill k-fail rad-tag">Blocked</span>':radPrivate(f.from_ip)?'<span class="sub">Private, never blocked</span>':"";
-    return `<span class="m">${esc(f.from_ip)}</span>${tag}`};
-  const {rows,bar}=paginate("radFails",list);
-  morph(box,`<div class="tbl"><table class="rad-fail-log"><thead><tr><th>Time</th><th>User</th><th>Device</th><th>From</th><th>Likely cause</th></tr></thead><tbody>`+
-    rows.map(f=>{const [c,cls]=cause(f),sub=[f.device?f.nas_ip:"",f.station].filter(Boolean).join(" · ");
-      return `<tr data-key="${esc([f.ts,f.username,f.nas_ip,f.from_ip].join("|"))}"><td class="when">${fmtWhen(f.ts)}</td><td><strong>${esc(f.username||"-")}</strong></td>
-      <td>${f.nas_ip?`<span class="dn">${esc(f.device||f.nas_ip)}</span>${sub?`<span class="sub m">${esc(sub)}</span>`:""}`:'<span class="none">Not recorded</span>'}</td>
-      <td class="rad-from">${from(f)}</td>
-      <td><span class="pill ${cls}">${esc(c)}</span></td></tr>`}).join("")+`</tbody></table></div>`+bar);
-}
-PAGES.radFails=1;{const v=+localStorage.getItem("dbms_page_size_radFails");SIZES.radFails=PAGE_SIZES.includes(v)?v:10}
-REDRAW.radFails=renderRadFb;
-$("#radAuditHours")?.addEventListener("change",()=>{PAGES.radFails=1;loadRadAudit()});
-$("#radFbTabs")?.addEventListener("click",e=>{const b=e.target.closest("[data-fb-tab]");if(b&&b.dataset.fbTab!==radFbTab){radFbTab=b.dataset.fbTab;renderRadFb()}});
-const radDur=s=>s>=86400?`${Math.floor(s/86400)}d ${Math.floor(s%86400/3600)}h`:s>=3600?`${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m`:`${Math.max(1,Math.floor(s/60))}m`;
-function renderRadBlocks(box){
-  $("#radFbNote").innerHTML="";
-  if(!radBlockingOn){box.innerHTML=`<div class="rad-note"><b>IP blocking is not turned on.</b> Run this once on the server (after enable_login_log.sh); public addresses that try an unknown username are then rejected for 2 days:<code>sudo bash /opt/vault/deploy/radius/enable_ip_block.sh</code></div>`;return}
-  if(!radBlocks.length){box.innerHTML=`<div class="empty"><b>No blocked addresses</b>A public address is blocked for 2 days when it tries a username that is not in the RADIUS database.</div>`;return}
-  const {rows,bar}=paginate("radBlocks",radBlocks);
-  box.innerHTML=`<div class="tbl"><table><thead><tr><th>IP address</th><th>Usernames tried</th><th>Device</th><th>Tries</th><th>Last try</th><th>Unblocks in</th><th></th></tr></thead><tbody>`+
-    rows.map(b=>`<tr><td><strong class="m">${esc(b.ip)}</strong></td>
-      <td>${esc(b.first_username||"-")}${b.last_username&&b.last_username!==b.first_username?` <span class="sub m">last: ${esc(b.last_username)}</span>`:""}</td>
-      <td>${b.nas_ip?`<span class="dn">${esc(b.device||b.nas_ip)}</span>${b.device?`<span class="sub m">${esc(b.nas_ip)}</span>`:""}`:"-"}</td>
-      <td>${Number(b.hits||0).toLocaleString("en-US")}</td><td>${radDur(b.seconds_ago)} ago</td><td>${radDur(b.seconds_left)}</td>
-      <td><button type="button" class="b" data-unblock="${b.id}" data-ip="${esc(b.ip)}">Unblock</button></td></tr>`).join("")+`</tbody></table></div>`+bar;
-}
-$("#radFbList")?.addEventListener("click",async e=>{
-  const b=e.target.closest("[data-unblock]");if(!b)return;
-  if(await confirmAction({title:"Unblock this address?",message:"Logins from it are accepted again. If it tries an unknown username again it is blocked again for 2 days.",detail:b.dataset.ip,confirm:"Unblock",danger:false,run:()=>api("/api/radius/blocks/"+b.dataset.unblock,{method:"DELETE"})})){
-    toast("Logins from this address are allowed again.",{title:"Address unblocked"});loadRadAudit()}
-});
+$("#radAuditHours")?.addEventListener("change",loadRadAudit);
 /* search runs on the server (user, device IP, or a device name from NAS Clients / Device Inventory) */
 let radLoginT=0;
 $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT=setTimeout(()=>{PAGES.radLogins=1;loadRadAudit()},350)});
@@ -700,11 +639,11 @@ function renderRadLogins(){
   const q=($("#radLoginQ")?.value||"").trim();
   $("#radLoginCount").textContent=radLogins.length?`${fmtNum(list.length)} attempt${list.length===1?"":"s"}${radLogins.length>=500?" shown (newest 500)":""}`:"";
   if(!list.length){$("#radLoginList").innerHTML=`<div class="empty"><b>${q||res!=="ALL"?"No matching logins":"No device logins recorded yet"}</b>${q||res!=="ALL"?"Try another user, device name or IP.":"Logins appear here when users sign in to the network devices."}</div>`;return}
-  const {rows,bar}=paginate("radLogins",list),blocked=radBlockedSet();
+  const {rows,bar}=paginate("radLogins",list);
   morph($("#radLoginList"),`<div class="tbl"><table><thead><tr><th>Time</th><th>User</th><th>Device</th><th>From</th><th>Result</th></tr></thead><tbody>`+
     rows.map(r=>`<tr data-key="${esc([r.ts,r.username,r.nas_ip,r.reply].join("|"))}"><td class="when">${fmtWhen(r.ts)}</td><td><strong>${esc(r.username||"-")}</strong></td>
       <td>${r.nas_ip||r.device?`<span class="dn">${esc(r.device||r.nas_ip)}</span>${[r.device&&r.device!==r.nas_ip?r.nas_ip:"",r.station].filter(Boolean).length?`<span class="sub m">${esc([r.device&&r.device!==r.nas_ip?r.nas_ip:"",r.station].filter(Boolean).join(" · "))}</span>`:""}`:'<span class="none">Not recorded</span>'}</td>
-      <td>${r.from_ip?`<span class="m">${esc(r.from_ip)}</span>${blocked.has(r.from_ip)?'<span class="pill k-fail rad-tag">Blocked</span>':""}`:'<span class="none">-</span>'}</td>
+      <td>${r.from_ip?`<span class="m">${esc(r.from_ip)}</span>`:'<span class="none">-</span>'}</td>
       <td><span class="pill ${radAccepted(r)?"UP":"DOWN"}">${radAccepted(r)?"Accepted":"Rejected"}</span></td></tr>`).join("")+`</tbody></table></div>`+bar);
 }
 $o("#radAuditRefresh").onclick=loadRadAudit;

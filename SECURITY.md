@@ -23,7 +23,7 @@ You will get an answer as soon as possible, and a fix will be released through t
 | Device passwords | Encrypted with Fernet; the key is `data/secret.key` on the server only; hidden in the portal until **Show** is pressed |
 | RADIUS secrets | Hidden until **Show** or **Copy**; revealing one is logged |
 | Saved configurations | SHA-256 checksum per version; files owned by the `vault` service user |
-| RADIUS service | UDP 1812 / 1813 open only to NAS clients; firewall changed by a root-owned script without arguments; unknown-username logins block the source address for 2 days |
+| RADIUS service | UDP 1812 / 1813 open only to NAS clients; firewall changed by a root-owned script without arguments; to stop password guessing, limit SSH/Telnet on the devices to management addresses with an ACL |
 | Audit | Every portal sign-in, every change and every device login is recorded with time, user and source address |
 | Secrets in Git | `.env`, `data/` and `*.key` are git-ignored; the installer creates them on the server |
 | Server | Runs as an unprivileged `vault` user; unattended security updates; device access is read-only |

@@ -15,7 +15,7 @@ from django.conf import settings
 from django.db import transaction
 
 from . import selectors
-from .models import (NO_DEVICE, ROLE_MAX_LEN, ROLE_SUGGESTIONS, AuditLog, IpBlock, Nas, NasRole, RadCheck, RadGroupReply, RadUserGroup,
+from .models import (NO_DEVICE, ROLE_MAX_LEN, ROLE_SUGGESTIONS, AuditLog, Nas, NasRole, RadCheck, RadGroupReply, RadUserGroup,
                      UserDevice, UserGrant, clean_role)
 from .router import DB
 from .selectors import LEGACY_ATTR, LEGACY_OP, PASSWORD_ATTRS, is_single_ip, pattern_devices
@@ -82,16 +82,6 @@ def audit(actor, action, target="", detail="", ip=None):
                                 detail=detail[:300], ip=ip or None)
     except Exception:
         logger.exception("Could not write the RADIUS audit line %s %s", action, target)
-
-
-def unblock_ip(pk):
-    """Lift one FreeRADIUS IP block now (the row is deleted; the next unknown-username login blocks it again).
-    Returns the address, or None when there was no such row."""
-    block = IpBlock.objects.filter(pk=pk).first()
-    if not block:
-        return None
-    block.delete()
-    return block.ip
 
 
 def hash_password(password):

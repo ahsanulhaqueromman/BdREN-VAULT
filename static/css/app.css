@@ -1324,8 +1324,7 @@ details.lvl-map[open]>summary::before{transform:rotate(90deg)}
 details.lvl-map>summary h4{margin:0}
 details.lvl-map[open]{padding-bottom:14px}
 .retention-field+.retention-field{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-/* Authentication Audit: repeated failures stand out; the period picker sits next to Refresh */
-#radFailList strong.r{color:var(--bad-ink)}
+/* Authentication Audit: the period picker sits next to Refresh */
 #radius-audit .tacts select{min-height:38px;width:auto}
 /* ---- Command History (/radius/commands) ---- */
 .kpi strong.warn{color:var(--warn)}
@@ -1444,13 +1443,3 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 .pill.area-panel{background:var(--idle-bg);color:var(--idle)}
 #auditPanel p a{text-decoration:none}#auditPanel p a:hover{text-decoration:underline}
 /* Authentication Audit: card heading with a count on the right; failed-login log */
-.rad-card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-.rad-card-h>.d{flex:none;padding-top:4px;white-space:nowrap}
-.rad-fail-log .pill{min-width:0;white-space:normal}
-.rad-fb .rad-fb-tabs{margin:14px 0 12px}
-.rad-fb-tabs .chip .n{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--line);color:var(--ink);font-size:11.5px;font-weight:700}
-.rad-fb-tabs .chip .n:empty{display:none}
-.rad-fb-tabs .chip.on .n{background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
-.pill.rad-tag{margin-left:8px;min-width:0;padding:2px 8px;font-size:11px;vertical-align:1px}
-.rad-from .sub{display:block}
-@media (max-width:760px){.rad-card-h{flex-direction:column;gap:4px}}

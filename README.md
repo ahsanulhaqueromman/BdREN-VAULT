@@ -62,11 +62,10 @@ V-SOL · any other device through generic SSH
   per vendor (Cisco privilege, Huawei level, Juniper class, MikroTik group, Fortinet profile)
 - Limit a user to specific devices or to a device type; new devices of that type are covered automatically
 - New NAS devices work immediately, with no FreeRADIUS restart
-- **Authentication Audit:** every login attempt, with the device it went to and the address it came from; failed logins and blocked addresses in one card
+- **Authentication Audit:** every login attempt, with the device it went to and the address it came from
 - **Session Log:** every device login as a session (who, which device, from where, how long) and,
   by device or by user, each session from login through every command and configuration change to logout; read from the devices' own
   syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV
-- A login with an unknown username blocks the source address for 2 days
 - Copy-ready configuration commands per vendor on the **Device Setup** page
 
 ### Monitoring and operations
@@ -158,7 +157,7 @@ It then does the rest on its own:
 2. Python virtual environment and dependencies
 3. MariaDB with the `dbms` database, migrations and the first administrator
 4. FreeRADIUS with its own `radius` database, the SQL module and VAULT's policies
-5. RADIUS extras: device logging for logins, unknown-username IP blocking, instant new NAS devices and a
+5. RADIUS extras: device and source-address logging for logins, instant new NAS devices and a
    firewall that opens UDP 1812/1813 only for NAS clients
 6. nginx on HTTPS (self-signed certificate until a domain is set), the `vault` systemd service
 7. Hardening: login rate limit, fail2ban, automatic security updates
@@ -262,7 +261,6 @@ After editing `.env`, run `sudo systemctl restart vault`.
 **RADIUS**
 - UDP 1812 / 1813 is open only to devices on the NAS Clients list; the firewall is updated by a root-owned
   script that takes no arguments, so the website cannot choose a firewall rule
-- Logins with unknown usernames block the source address for 2 days
 - Every device login is recorded in Authentication Audit
 
 **Session Log (syslog)**

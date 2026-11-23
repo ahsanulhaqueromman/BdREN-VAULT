@@ -274,7 +274,7 @@ const ofTotal=(n,total)=>`${fmtNum(n)}<span class="of"> / ${fmtNum(total)}</span
 
 /* ---- pagination for the Devices, Backups and Logs lists ----
    Each list has its own current page AND its own rows-per-page choice (10, 20 or 50), remembered in this browser. */
-const PAGE_SIZES=[10,50,100],PAGES={devices:1,backups:1,logs:1,audit:1,radUsers:1,radNas:1,radLogins:1,radBlocks:1,reports:1,signins:1,jobs:1,retry:1},SIZES={};
+const PAGE_SIZES=[10,50,100],PAGES={devices:1,backups:1,logs:1,audit:1,radUsers:1,radNas:1,radLogins:1,reports:1,signins:1,jobs:1,retry:1},SIZES={};
 for(const k of Object.keys(PAGES)){const v=+localStorage.getItem("dbms_page_size_"+k);SIZES[k]=PAGE_SIZES.includes(v)?v:10}
 /* the slice of items to show for list `key`, plus the pager bar HTML (empty when everything fits on one page) */
 function paginate(key,items){
@@ -291,7 +291,7 @@ function paginate(key,items){
     <button type="button" class="b" data-go="${p+1}"${p>=pages?" disabled":""}>Next</button></div>`;
   return {rows:items.slice(from,from+size),bar};
 }
-const REDRAW={devices:()=>renderDevices(),backups:()=>renderBackups(),logs:()=>renderLogs(),audit:()=>renderAudit(),radUsers:()=>renderRadUsers(),radNas:()=>renderRadNas(),radLogins:()=>renderRadLogins(),radBlocks:()=>renderRadFb(),reports:()=>renderReport(),signins:()=>renderSignins(),jobs:()=>renderJobs(),retry:()=>renderRetryQueue()};
+const REDRAW={devices:()=>renderDevices(),backups:()=>renderBackups(),logs:()=>renderLogs(),audit:()=>renderAudit(),radUsers:()=>renderRadUsers(),radNas:()=>renderRadNas(),radLogins:()=>renderRadLogins(),reports:()=>renderReport(),signins:()=>renderSignins(),jobs:()=>renderJobs(),retry:()=>renderRetryQueue()};
 document.addEventListener("click",e=>{
   const b=e.target.closest(".pager [data-go]");if(!b||b.disabled)return;
   const key=b.closest(".pager").dataset.pager;PAGES[key]=+b.dataset.go;REDRAW[key]();

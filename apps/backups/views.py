@@ -86,7 +86,7 @@ def logs_summary(request):
 @api(GET="admin")
 def audit_events(request):
     """Admin-only audit trail: every administrative action in one list, the panel's own (devices, backups,
-    settings, panel users) and the changes made on the RADIUS pages (users, NAS, unblocks), newest first.
+    settings, panel users) and the changes made on the RADIUS pages (users, NAS), newest first.
     Sign-ins are not here (User Management -> Sign-in history). Secrets and raw configurations are never
     recorded."""
     limit = _limit(request, 200, 1000)
