@@ -21,12 +21,15 @@ READ_ONLY = re.compile(
     r"undo\s+terminal|monitor|top|super|clock\s+show|dir|more|less|cd|pwd|help|\?|history|"
     r"/?\s*(?:print|export|monitor)|request\s+system\s+(?:storage|information)|file\s+show)\b",
     re.I)
+# Commands that only enter a mode when typed on their own (Huawei "diagnose" opens the diagnostic view);
+# with more words after them they can do something, so only the bare command is read-only.
+MODE_ONLY = re.compile(r"^diag(?:n(?:o(?:s(?:e)?)?)?)?$", re.I)
 
 
 def is_change(command):
     """True when a CLI command may change the device (anything that is not a show / ping / mode switch)."""
     text = (command or "").strip()
-    return bool(text) and not READ_ONLY.match(text)
+    return bool(text) and not READ_ONLY.match(text) and not MODE_ONLY.match(text)
 
 
 def _clean(value, limit=MAX_COMMAND):
