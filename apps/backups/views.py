@@ -6,14 +6,18 @@ Database queries, file handling and rules live in selectors.py, services.py, sto
 import csv
 import logging
 
+from django.db import DatabaseError
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.utils import timezone
 
 from apps.core.api import ApiError, api
 from apps.core.utils import csv_safe, fmt_dt, fmt_dt_ampm, parse_json
+from apps.radius import selectors as radius
 
 from . import audit, selectors, services
 from .audit import record_audit
+
+logger = logging.getLogger(__name__)
 
 
 def _limit(request, default, maximum):
@@ -81,11 +85,23 @@ def logs_summary(request):
 
 @api(GET="admin")
 def audit_events(request):
-    """Admin-only audit trail. Secrets and raw configurations are never recorded here."""
-    rows = audit.recent_events(_limit(request, 200, 1000))
-    return JsonResponse([{"id": r.id, "ts": fmt_dt(r.ts), "username": r.username,
-                          "action": r.action, "target": r.target, "detail": r.detail,
-                          "remote_addr": r.remote_addr} for r in rows], safe=False)
+    """Admin-only audit trail: every administrative action in one list, the panel's own (devices, backups,
+    settings, panel users) and the changes made on the RADIUS pages (users, NAS, unblocks), newest first.
+    Sign-ins are not here (User Management -> Sign-in history). Secrets and raw configurations are never
+    recorded."""
+    limit = _limit(request, 200, 1000)
+    rows = [{"when": r.ts, "id": f"p{r.id}", "username": r.username, "action": r.action, "target": r.target,
+             "detail": r.detail, "remote_addr": r.remote_addr, "area": "Panel"} for r in audit.recent_events(limit)]
+    try:
+        rows += [{"when": r.created_at, "id": f"r{r.id}", "username": r.actor, "action": "radius." + r.action,
+                  "target": r.target, "detail": r.detail, "remote_addr": r.ip, "area": "RADIUS"}
+                 for r in radius.admin_events(limit)]
+    except DatabaseError:
+        logger.warning("Audit trail: the RADIUS changes could not be read; showing the panel's own only")
+    rows.sort(key=lambda r: r["when"], reverse=True)
+    for r in rows:
+        r["ts"] = fmt_dt(r.pop("when"))
+    return JsonResponse(rows[:limit], safe=False)
 
 
 @api(GET="viewer")

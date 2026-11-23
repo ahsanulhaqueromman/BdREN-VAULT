@@ -223,8 +223,8 @@ def nas_secret(request, pk):
 @api(GET="admin")
 @radius_db
 def audit(request):
-    events = [{"ts": _when(e.created_at), "actor": e.actor, "action": e.action, "target": e.target,
-               "detail": e.detail, "ip": e.ip or ""} for e in q.admin_events(500)]
+    """Authentication Audit: device logins, the pairs that keep failing and blocked addresses. The changes made
+    on the RADIUS pages are shown in Activity Logs (apps/backups/views.py audit_events)."""
     logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500)
     for row in logins:
         row["ts"] = _when(row.pop("authdate"))
@@ -236,7 +236,7 @@ def audit(request):
     summary = q.login_summary(hours)
     for row in summary["top_failures"]:
         row["last"] = _when(row["last"])
-    return JsonResponse({"events": events, "logins": logins, "device_logging": logging_on,
+    return JsonResponse({"logins": logins, "device_logging": logging_on,
                          "blocks": blocks or [], "blocking_on": blocks is not None, "summary": summary})
 
 

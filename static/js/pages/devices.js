@@ -352,7 +352,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
 addEventListener("resize",closeMenu);
 addEventListener("scroll",()=>{if(Date.now()-menuAt>250)closeMenu()},true);   /* a scroll right after opening (button scrolled into view) is ignored */
 
-/* ---- "More" menu in the page header: Export CSV and Delete all (and, on phones, Add device / Retry failed). ---- */
+/* ---- "More" menu in the page header: Export CSV and Delete all (and, on phones, Add device / Retry failed devices). ---- */
 const moreBtn=$o("#moreBtn"),moreMenu=$o("#moreMenu");
 const setMore=open=>{moreMenu.hidden=!open;moreBtn.setAttribute("aria-expanded",open)};
 moreBtn.addEventListener("click",e=>{e.stopPropagation();setMore(moreMenu.hidden)});

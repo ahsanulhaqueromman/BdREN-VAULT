@@ -7,7 +7,7 @@
    Pages: templates/radius/index.html. Data: /api/radius/* (apps/radius/views.py), administrators only.
    Buttons inside the tables use data-rad-* attributes because inline onclick is blocked by the Content-Security-Policy.
    ============================================================================ */
-let radUsers=[],radLevels=[],radNas=[],radVendors=[],radRoles=[],radEvents=[],radLogins=[];
+let radUsers=[],radLevels=[],radNas=[],radVendors=[],radRoles=[],radLogins=[];
 let radDevices=[];          /* RADIUS devices a user can be limited to: [{name, ip, single, role}] */
 /* "Device type" suggestions (Core router, ... + any custom label already in use) shared by every such
    field: typing still accepts anything, the list is only a convenience (see <datalist id="radRoleList">). */
@@ -603,14 +603,15 @@ $o("#suBody").addEventListener("click",async e=>{
   else toast("Copy is not available here. Select the text and press Ctrl+C.",{type:"warning",title:"Copy failed"});
 });
 
-/* ---- RADIUS audit: panel actions + recent device logins ---- */
+/* ---- Authentication Audit: device logins, failures and blocked addresses (changes on the RADIUS pages
+   are in Activity Logs > Administrative audit trail) ---- */
 let radLoggingOn=true,radBlocks=[],radBlockingOn=true,radSummary=null;
 async function loadRadAudit(){
   const q=($("#radLoginQ")?.value||"").trim(),hours=$("#radAuditHours")?.value||"24";
-  try{const d=await api("/api/radius/audit?hours="+hours+(q?"&q="+encodeURIComponent(q):""));radEvents=d.events;radLogins=d.logins;radLoggingOn=d.device_logging!==false;
+  try{const d=await api("/api/radius/audit?hours="+hours+(q?"&q="+encodeURIComponent(q):""));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
     radBlocks=d.blocks||[];radBlockingOn=d.blocking_on!==false;radSummary=d.summary||null;
-    renderRadSummary();renderRadEvents();renderRadLogins();renderRadBlocks()}
-  catch(e){radFail("#radEventList","the RADIUS audit log",e);["#radLoginList","#radAuditKpis","#radBlockList","#radFailList"].forEach(s=>{const el=$(s);if(el)el.innerHTML=""})}
+    renderRadSummary();renderRadLogins();renderRadBlocks()}
+  catch(e){radFail("#radLoginList","the RADIUS audit log",e);["#radAuditKpis","#radBlockList","#radFailList"].forEach(s=>{const el=$(s);if(el)el.innerHTML=""})}
 }
 /* ---- summary of the chosen period: figures + the user/device pairs that keep failing ---- */
 const RAD_PERIOD={24:"in the last 24 hours",168:"in the last 7 days",720:"in the last 30 days"};
@@ -657,12 +658,6 @@ let radLoginT=0;
 $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT=setTimeout(()=>{PAGES.radLogins=1;loadRadAudit()},350)});
 $("#radLoginRes")?.addEventListener("change",()=>{PAGES.radLogins=1;renderRadLogins()});
 const radAccepted=r=>/accept/i.test(r.reply||"");
-function renderRadEvents(){
-  if(!radEvents.length){$("#radEventList").innerHTML=`<div class="empty">No changes recorded yet.</div>`;return}
-  const {rows,bar}=paginate("radEvents",radEvents);
-  $("#radEventList").innerHTML=`<div class="tbl"><table><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Detail</th><th>Source IP</th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td class="when">${esc(r.ts||"-")}</td><td><strong>${esc(r.actor||"-")}</strong></td><td><span class="tag">${esc(r.action||"-")}</span></td><td>${esc(r.target||"-")}</td><td class="log-message">${esc(r.detail||"-")}</td><td class="m">${esc(r.ip||"-")}</td></tr>`).join("")+`</tbody></table></div>`+bar;
-}
 function renderRadLogins(){
   $("#radLoginNote").innerHTML=radLoggingOn?"":`<div class="rad-note"><b>The device is not recorded yet.</b> FreeRADIUS's standard login table stores only the user, result and time.
     Run this once on the server to record the device of every new login:<code>sudo bash /opt/vault/deploy/radius/enable_login_log.sh</code>Logins before that keep an empty Device column.</div>`;

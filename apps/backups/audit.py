@@ -28,8 +28,9 @@ def record_audit(request, action, target="", detail=""):
 
 # ---------- reads ----------
 def recent_events(limit):
-    """Newest audit entries (Activity Logs -> administrative audit trail)."""
-    return AuditEvent.objects.all()[:limit]
+    """Newest audit entries (Activity Logs -> administrative audit trail). Sign-ins, failed sign-ins and
+    sign-outs are left out: they have their own list (User Management -> Sign-in history)."""
+    return AuditEvent.objects.exclude(action__in=SIGNIN_ACTIONS)[:limit]
 
 
 def last_signin(username):

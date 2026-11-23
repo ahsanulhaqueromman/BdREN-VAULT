@@ -413,5 +413,5 @@ def blocked_ips(limit=500):
 
 
 def admin_events(limit=500):
-    """Changes made on the RADIUS pages, newest first."""
+    """Changes made on the RADIUS pages, newest first (shown in Activity Logs > Administrative audit trail)."""
     return AuditLog.objects.all()[:limit]

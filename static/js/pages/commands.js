@@ -77,6 +77,10 @@ function renderCmdKpis(){
     ["Commands",t.commands||0,"Show / display and other view-only commands"],
     ["Failed logins",t.failed||0,t.failed?"Reported by the devices":"None reported",t.failed?"bad":""],
     ["Users",t.users||0,`On ${fmtNum(t.devices||0)} device${t.devices===1?"":"s"}`]]);
+  /* every failed login of every device (not only those that send syslog), with the likely cause, is on
+     Authentication Audit: link there instead of repeating it here */
+  const fail=$("#cmdKpis").children[3]?.querySelector("small");
+  if(fail)fail.innerHTML=`<a class="kpi-go" href="${esc(PAGE_URL["radius-audit"]||"/radius/audit")}">${t.failed?"Why they failed":"All device logins"} <span aria-hidden="true">→</span></a>`;
 }
 
 /* ---- Session log: one card per user ---- */

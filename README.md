@@ -71,7 +71,7 @@ V-SOL · any other device through generic SSH
 
 ### Monitoring and operations
 - Continuous ICMP reachability monitoring (fping for large inventories) with an uptime dashboard
-- Backup Jobs page with live progress, Activity Logs and a full audit trail
+- Backup Jobs page with live progress, Activity Logs and one audit trail of every administrative action (panel and RADIUS)
 - Notification bell for failed backups and other problems
 - Responsive interface for desktop, tablet and phone, with light and dark themes
 

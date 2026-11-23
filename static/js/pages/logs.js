@@ -28,7 +28,7 @@ function renderAudit(){
   if(!auditRows.length){host.innerHTML=`<div class="empty">No audit events recorded yet.</div>`;return}
   const {rows,bar}=paginate("audit",auditRows);
   host.innerHTML=`<div class="tbl"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Device / target</th><th>Details</th><th>Source IP</th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td class="when">${esc(r.ts||"-")}</td><td><strong>${esc(r.username||"System")}</strong></td><td>${esc(r.action||"-")}</td><td>${esc(r.target||"-")}</td><td class="log-message">${esc(r.detail||"-")}</td><td class="m">${esc(r.remote_addr||"-")}</td></tr>`).join("")+
+    rows.map(r=>`<tr><td class="when">${esc(r.ts||"-")}</td><td><strong>${esc(r.username||"System")}</strong></td><td>${r.area==="RADIUS"?'<span class="pill area-tag area-radius">RADIUS</span>':'<span class="pill area-tag area-panel">VAULT</span>'}${esc((r.action||"-").replace(/^radius\./,""))}</td><td>${esc(r.target||"-")}</td><td class="log-message">${esc(r.detail||"-")}</td><td class="m">${esc(r.remote_addr||"-")}</td></tr>`).join("")+
     `</tbody></table></div>`+bar;
 }
 $("#auditRefresh")?.addEventListener("click",loadAudit);

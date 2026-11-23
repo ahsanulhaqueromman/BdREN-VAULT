@@ -1389,3 +1389,17 @@ table.cmd-sess tr.cmd-row{cursor:pointer}
   .cmd-card .rep-lines{gap:8px;font-size:12px}
   .cmd-log .l+.l{padding-top:4px}
 }
+/* links between pages instead of the same list twice (Session Log -> Authentication Audit, RADIUS changes -> Activity Logs) */
+.kpi a.kpi-go{display:inline-flex;align-items:center;gap:4px;color:var(--blue);font-weight:650;text-decoration:none}
+.kpi a.kpi-go span{transition:transform .2s var(--ease)}
+.kpi a.kpi-go:hover{text-decoration:underline;text-underline-offset:3px}
+.kpi a.kpi-go:hover span{transform:translateX(3px)}
+.rad-moved{display:flex;align-items:center;gap:14px;margin:4px 0 0;padding:14px 16px;border:1px dashed color-mix(in srgb,var(--info) 40%,var(--line));border-radius:var(--r);background:color-mix(in srgb,var(--info-bg) 45%,var(--panel));font-size:13px;color:var(--mute)}
+.rad-moved>span{flex:1;min-width:0}.rad-moved b{color:var(--ink)}
+.rad-moved .b{flex:none;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+#auditPanel p a{color:var(--blue);font-weight:650}
+@media (max-width:760px){.rad-moved{flex-direction:column;align-items:stretch}.rad-moved .b{justify-content:center}}
+.pill.area-tag{min-width:64px;margin-right:8px;justify-content:center}
+.pill.area-radius{background:var(--info-bg);color:var(--info)}
+.pill.area-panel{background:var(--idle-bg);color:var(--idle)}
+#auditPanel p a{text-decoration:none}#auditPanel p a:hover{text-decoration:underline}
