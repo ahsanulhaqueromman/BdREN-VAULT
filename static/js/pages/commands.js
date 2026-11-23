@@ -218,6 +218,10 @@ function cmdNumber(list){
   return list;
 }
 /* one session's log: logged in -> every command in order -> logged out */
+/* a configuration change that takes something away: undo (Huawei), no (Cisco), delete / deactivate (Juniper),
+   unset (FortiGate), remove (MikroTik). Shown as "- remove" in red; every other change as "+ add" in green. */
+const CMD_REMOVE=/^(undo|no|delete|deactivate|unset|purge)\b|(^\/|\s)remove\b/i;
+const cmdMark=e=>e.kind!=="change"?["cmd","view"]:CMD_REMOVE.test((e.command||"").trim())?["chg del","− remove"]:["chg add","+ add"];
 function cmdLog(s){
   const line=(t,cls,text)=>`<span class="l ${cls}"><time>${t?esc(bdClock(t,true)):""}</time><span>${text}</span></span>`;
   let log;
@@ -225,7 +229,8 @@ function cmdLog(s){
   else{
     const steps=s.events.filter(e=>e.kind==="change"||e.kind==="command").map(e=>{
       const bad=e.result&&!/^succ/i.test(e.result);
-      return line(e.ts,e.kind==="change"?"chg":"cmd",`<i>${e.kind==="change"?"change":"view"}</i>${esc(e.command)}${bad?` <em>(${esc(e.result)})</em>`:""}`)}).join("");
+      const [cls,tag]=cmdMark(e);
+      return line(e.ts,cls,`<i>${tag}</i>${esc(e.command)}${bad?` <em>(${esc(e.result)})</em>`:""}`)}).join("");
     log=(s.start?line(s.start,"in",`▶ Logged in${s.source_ip?" from "+esc(s.source_ip):""}`):line(null,"in","▶ Logged in before this period"))+
       (steps||`<span class="l none"><time></time><span>No commands in this session</span></span>`)+
       (s.status==="closed"?line(s.end,"out",`◀ Logged out · ${cmdDur(s.duration)} on the device`):
