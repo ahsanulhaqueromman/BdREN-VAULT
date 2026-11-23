@@ -2,8 +2,8 @@
 
     /api/radius/commands              GET  ?hours=24|168|720 &q= &kind=  events + totals + receiver state
     /api/radius/commands?format=csv   GET  the same filter as a CSV file (up to 50,000 rows)
-    /api/radius/commands/sessions     GET  ?hours= &q= &user=   sessions (login to logout); with user= each
-                                           session also carries its commands
+    /api/radius/commands/sessions     GET  ?hours= &q= &user= &device=   sessions (login to logout); with user=
+                                           or device= each session also carries its commands
 """
 import csv
 
@@ -52,13 +52,14 @@ def commands(request):
 @api(GET="admin")
 def sessions(request):
     user = request.GET.get("user", "").strip()[:64]
-    data = q.sessions(_hours(request), request.GET.get("q", ""), user, with_events=bool(user))
+    device = request.GET.get("device", "").strip()[:45]
+    data = q.sessions(_hours(request), request.GET.get("q", ""), user, device, with_events=bool(user or device))
     for s in data["sessions"]:
         for key in ("start", "end", "last"):
             s[key] = _when(s[key])
         for e in s["events"]:
             e["ts"] = _when(e["ts"])
-    return JsonResponse({**data, "user": user})
+    return JsonResponse({**data, "user": user, "device": device})
 
 
 def _csv(data):

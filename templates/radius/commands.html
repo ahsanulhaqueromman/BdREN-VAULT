@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{# Command History (/radius/commands): who ran which command on which device, read from the devices' syslog
-   (manage.py syslog_receive), grouped into sessions (login to logout). Data: pages/commands.js (loadCommands) #}
+{# Session Log (/radius/commands): who logged in to which device and what they did, read from the devices' syslog
+   (manage.py syslog_receive), grouped into sessions (login to logout), by device or by user.
+   Data: pages/commands.js (loadCommands) #}
 {% block content %}
 <section id="radius-commands">
     <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Every login to a network device as a session: who, on which device, from where, for how long, and each command they ran." %}</div>
@@ -8,21 +9,16 @@
     <div id="cmdStatus"></div>
     <div class="kpis" id="cmdKpis"><div class="loading-block" role="status"><span class="spin"></span>Loading summary…</div></div>
     <div class="su-tabs" role="tablist" aria-label="View" id="cmdTabs">
-      <button type="button" class="chip on" role="tab" aria-selected="true" data-cmd-tab="sessions">Sessions</button>
-      <button type="button" class="chip" role="tab" aria-selected="false" data-cmd-tab="activity">All activity</button>
+      <button type="button" class="chip on" role="tab" aria-selected="true" data-cmd-tab="session">Sessions</button>
+      <button type="button" class="chip" role="tab" aria-selected="false" data-cmd-tab="device">By device</button>
+      <button type="button" class="chip" role="tab" aria-selected="false" data-cmd-tab="user">By user</button>
     </div>
 
-    <div class="card" id="cmdSessCard"><h3>Sessions by user</h3><p class="d">One card per user. Open it to see each session in order: when they logged in, every command they ran and when they logged out.</p>
+    <div class="card" id="cmdSessCard"><h3 id="cmdSessTitle">Session log</h3><p class="d" id="cmdSessHelp">One card per login, newest first: who, on which device, from when to when and what they did. A new login after a logout is a new card. Open a card to see every command.</p>
       <div class="bar flt"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="cmdSQ" autocomplete="off" spellcheck="false" placeholder="Search user, device, address or command" aria-label="Search sessions"></div>
         <select id="cmdSFilter" aria-label="Filter sessions"><option value="">All sessions</option><option value="changes">With changes</option><option value="active">Active now</option><option value="failed">Failed logins</option></select>
         <span class="sp"></span><span class="d" id="cmdSCount" aria-live="polite"></span></div>
       <div id="cmdSessList"><div class="loading-block" role="status"><span class="spin"></span>Loading sessions…</div></div></div>
-
-    <div class="card" id="cmdActCard" hidden><h3>All activity</h3><p class="d">Every recorded action, newest first. A change is any command that is not a show / display, ping or a move between modes.</p>
-      <div class="bar flt"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="cmdQ" autocomplete="off" spellcheck="false" placeholder="Search user, device, address or command" aria-label="Search command history"></div>
-        <select id="cmdKind" aria-label="Filter by type"><option value="">Everything</option><option value="change">Changes</option><option value="command">Commands (view only)</option><option value="login">Logins</option><option value="logout">Logouts</option><option value="login-failed">Failed logins</option></select>
-        <span class="sp"></span><span class="d" id="cmdCount" aria-live="polite"></span></div>
-      <div id="cmdList"><div class="loading-block" role="status"><span class="spin"></span>Loading activity…</div></div></div>
 
     <div class="card"><h3>Devices sending logs</h3><p class="d">Every device whose syslog reaches VAULT. A device that sends logs but has no user actions needs command logging turned on: see Device Setup, step "Command logging".</p>
       <div id="cmdSources"></div></div>

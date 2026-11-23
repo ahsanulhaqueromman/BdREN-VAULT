@@ -64,7 +64,7 @@ V-SOL · any other device through generic SSH
 - New NAS devices work immediately, with no FreeRADIUS restart
 - **Authentication Audit:** every login attempt, with the device it came from
 - **Session Log:** every device login as a session (who, which device, from where, how long) and,
-  per user, each session with every command and configuration change in order; read from the devices' own
+  by device or by user, each session from login through every command and configuration change to logout; read from the devices' own
   syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV
 - A login with an unknown username blocks the source address for 2 days
 - Copy-ready configuration commands per vendor on the **Device Setup** page

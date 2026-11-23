@@ -138,17 +138,20 @@ def _build(items):
     return out
 
 
-def sessions(hours=24, q="", user="", with_events=False, limit=500):
+def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
     """Sessions of the last `hours`, newest activity first: who was on which device, from where, from when to
     when, and what they did. Built from the syslog events plus the RADIUS logins (Access-Accept) of the devices
     that send syslog, so a session has its start time even when the device does not log logins.
-    q matches user, device address or name, the user's address or a command; user = exactly one user."""
+    q matches user, device address or name, the user's address or a command; user = exactly one user,
+    device = exactly one device address."""
     hours = _period(hours)
     now = timezone.now()
     since = now - timedelta(hours=hours)
     rows = CommandEvent.objects.filter(received_at__gte=since)
     if user:
         rows = rows.filter(username=user)
+    if device:
+        rows = rows.filter(device_ip=device)
     events = [{"id": r["id"], "ts": r["received_at"], "username": r["username"], "device_ip": r["device_ip"],
                "kind": r["kind"], "command": r["command"], "result": r["result"],
                "source_ip": "" if set(r["source_ip"]) <= {"*", " "} else r["source_ip"]}
@@ -156,6 +159,8 @@ def sessions(hours=24, q="", user="", with_events=False, limit=500):
                   "id", "received_at", "username", "device_ip", "kind", "command", "source_ip", "result")[:MAX_EVENTS]]
     events.reverse()
     logging_devices = set(SyslogSource.objects.values_list("ip", flat=True))
+    if device:
+        logging_devices &= {device}
     try:
         for username, ip, t in radius.accepted_logins(since, logging_devices, user):
             events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "login",

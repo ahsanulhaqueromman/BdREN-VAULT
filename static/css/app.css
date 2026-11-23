@@ -1344,7 +1344,6 @@ td .sub.bad-t{color:var(--bad-ink)}
 button.cmd-user{padding:0;border:0;background:none;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;text-align:left}
 button.cmd-user:hover{text-decoration:underline;text-underline-offset:3px}
 button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
-table.cmd-sess tr.cmd-row{cursor:pointer}
 .cmd-n{white-space:nowrap}.cmd-n.warn{color:var(--warn)}
 #cmdTabs[hidden],#radius-commands .card[hidden]{display:none}
 /* session log: one card per user (built on the Reports page cards), sessions as login -> commands -> logout */
@@ -1377,9 +1376,50 @@ table.cmd-sess tr.cmd-row{cursor:pointer}
 .cmd-log .l.fail{color:#ff9aa2;background:rgba(239,68,68,.12)}
 .cmd-log .l.none{color:#7f8ea8;font-style:italic}
 .cmd-log em{color:#ff9aa2;font-style:normal}
+.cmd-head-r{display:flex;align-items:center;gap:12px;text-transform:none;letter-spacing:0;font-weight:600}
+.cmd-sum{font-size:12.5px;color:var(--mute)}.cmd-sum b{font-weight:700}
+.cmd-only{min-height:32px;padding:0 12px;font-size:12.5px}
+.cmd-only.on{background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 45%,var(--line));color:var(--warn)}
+.cmd-tl.only-chg li:not(.has-chg),.cmd-tl.only-chg .l.cmd,.cmd-tl.only-chg .l.none{display:none}
+.cmd-sline button.cmd-user{font-size:13.5px}
+.cmd-card .rep-dev small{display:flex;align-items:center;gap:4px;font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-who-ic{display:inline-flex;color:var(--mute)}
+.cmd-who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 0 4px}
+.cmd-who-t{width:100%;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.cmd-chip{display:inline-flex;align-items:center;gap:9px;padding:7px 12px 7px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s var(--ease)}
+.cmd-chip:hover{border-color:color-mix(in srgb,var(--blue) 45%,var(--line));box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+.cmd-chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.cmd-chip.has-chg{border-color:color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn-bg) 40%,var(--panel))}
+.cmd-chip b{display:block;font-size:13px;line-height:1.2}
+.cmd-chip small{display:block;font-size:11.5px;color:var(--mute);line-height:1.3}
+.cmd-chip .bad-t{color:var(--bad-ink)}
+.cmd-av-s{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;border-radius:50%;background:var(--info-bg);color:var(--info);font-size:12px;font-weight:800}
+.cmd-av-s.dev{background:var(--soft);color:var(--mute)}
+.cmd-sline{align-items:center}
+.cmd-tl .rep-when{gap:2px}
+.cmd-range{white-space:nowrap}.cmd-range i{font-style:normal;color:var(--mute);margin:0 2px}
+.cmd-no{justify-self:start;margin-top:4px;padding:2px 8px;border-radius:999px;background:var(--info-bg);color:var(--info);font-size:11px;font-weight:700;white-space:nowrap}
+.cmd-tl li{grid-template-columns:150px minmax(0,1fr) auto;padding-top:14px;padding-bottom:16px}
+@media (max-width:760px){.cmd-tl li{grid-template-columns:minmax(0,1fr) auto}.cmd-tl .rep-when{grid-template-columns:auto auto auto;align-items:center;gap:8px}.cmd-no{margin-top:0}}
+/* Sessions view: one card per login */
+.cmd-scard>summary{grid-template-columns:minmax(190px,1.5fr) auto minmax(70px,.8fr) auto minmax(150px,auto) 18px}
+.cmd-sid{display:flex;align-items:center;gap:10px;min-width:0}
+.cmd-sid .cmd-av-s{width:32px;height:32px;font-size:13px}
+.cmd-on{color:var(--mute);font-weight:500}
+.cmd-scard .rep-dev small{font-family:inherit}
+.cmd-scard .cmd-badges{align-items:center}
+.cmd-scard .cmd-no{margin-top:0}
+.cmd-when{text-align:right}.cmd-when b{font-size:13px}.cmd-when span{font-size:11.5px}
+.cmd-scard.st-failed{border-left:4px solid var(--bad)}
+.cmd-scard .rep-lines .bad-t{color:var(--bad-ink);font-family:inherit;font-weight:650}
+.cmd-one{padding:4px 0 2px}
+.cmd-links{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0;font-size:13px}
+.cmd-tl.only-chg .l.in,.cmd-tl.only-chg .l.out{opacity:.75}
 @media (max-width:1024px){
   .cmd-card>summary{grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"dev badge chev" "bar bar bar" "lines last last"}
   .cmd-badges{grid-area:badge;justify-content:flex-end}
+  .cmd-scard>summary{grid-template-columns:minmax(0,1fr) auto 18px}
+  .cmd-sid{grid-area:dev}.cmd-when{text-align:right}
 }
 @media (max-width:760px){
   .cmd-log .l{grid-template-columns:1fr;gap:0}
