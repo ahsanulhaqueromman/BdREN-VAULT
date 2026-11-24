@@ -304,6 +304,9 @@ chown "$SVC_USER:$SVC_USER" "$APP_DIR/.env"; chmod 600 "$APP_DIR/.env"
 if [ -n "$(env_get RADIUS_DB_PASSWORD)" ] && [ "$(env_get RADIUS_DB_PASSWORD)" != "change-me" ]; then
   step "RADIUS / AAA"
   if py radius_init >/dev/null 2>&1; then ok "RADIUS tables ready"; else warn "RADIUS database not reachable: check RADIUS_DB_* in .env (the rest works)"; fi
+  # passwords from older versions were stored in clear text: store them as salted SHA-256 (same passwords)
+  if hashed="$(py radius_hash_passwords --yes 2>&1)"; then ok "RADIUS passwords: ${hashed##*$'\n'}"
+  else warn "RADIUS passwords could not be converted: ${hashed##*$'\n'}"; fi
   if command -v freeradius >/dev/null 2>&1 || command -v radiusd >/dev/null 2>&1; then
     # radpostauth columns (nasipaddress, nasidentifier, calledstationid, callingstationid = source IP) + the post-auth query
     if ENV_FILE="$APP_DIR/.env" bash "$APP_DIR/deploy/radius/enable_login_log.sh" >/tmp/dbms-login-log.$$ 2>&1; then ok "logins are recorded with their device and source IP"

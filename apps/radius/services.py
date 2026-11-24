@@ -124,17 +124,13 @@ def prune_old_logins(now=None):
     return removed
 
 
-def hash_password(password, mode=None):
-    """(attribute, value) to store for a password, according to RADIUS_PASSWORD_MODE (or `mode`).
-
-    "cleartext" (default, unchanged from the original RADIUS Admin) or "ssha2": salted SHA-256 in the
-    form FreeRADIUS expects for SSHA2-256-Password, base64(digest + salt).
-    """
-    if (mode or settings.RADIUS_PASSWORD_MODE) == "ssha2":
-        salt = os.urandom(16)
-        digest = hashlib.sha256(password.encode("utf-8") + salt).digest()
-        return "SSHA2-256-Password", base64.b64encode(digest + salt).decode("ascii")
-    return "Cleartext-Password", password
+def hash_password(password):
+    """(attribute, value) to store for a password: always salted SHA-256, in the form FreeRADIUS expects for
+    SSHA2-256-Password, base64(digest + salt). The password itself is never stored (PAP logins only, which is
+    what SSH / Telnet logins on network devices use)."""
+    salt = os.urandom(16)
+    digest = hashlib.sha256(password.encode("utf-8") + salt).digest()
+    return "SSHA2-256-Password", base64.b64encode(digest + salt).decode("ascii")
 
 
 def seed_groups():
@@ -171,7 +167,7 @@ def hash_cleartext_passwords(usernames=None, actor="system"):
                    .order_by("id").first())
             if row is None:
                 continue
-            attr, value = hash_password(row.value, mode="ssha2")
+            attr, value = hash_password(row.value)
             RadCheck.objects.filter(username=username, attribute__in=PASSWORD_ATTRS).delete()
             RadCheck.objects.create(username=username, attribute=attr, op=":=", value=value)
         done.append(username)
