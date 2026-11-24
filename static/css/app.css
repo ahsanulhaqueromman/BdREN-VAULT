@@ -1529,3 +1529,23 @@ button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:transla
   .kpis>.kpi::after{right:16px;top:16px;width:16px;height:16px}
   .kpis>.kpi>small:first-child,.kpis>.kpi .kpi-top{padding-right:32px;min-height:28px}}
 @media (prefers-reduced-motion:reduce){.dash-status{animation:none}}
+
+/* about card (core/start.js, Ctrl+Alt+Shift+A) */
+.abt-ov{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:rgba(6,12,26,.55);
+  -webkit-backdrop-filter:blur(14px) saturate(120%);backdrop-filter:blur(14px) saturate(120%);animation:abtIn .22s var(--ease)}
+.abt-ov.out{opacity:0;transition:opacity .18s}
+.abt-card{position:relative;width:min(440px,100%);padding:34px 30px 26px;border:1px solid var(--line);border-radius:22px;background:var(--panel);
+  box-shadow:0 30px 80px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.04) inset;text-align:center;color:var(--ink);overflow:hidden;
+  animation:abtCard .32s var(--ease)}
+.abt-card::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--grad)}
+.abt-mark{width:58px;height:58px;margin:0 auto 14px;display:grid;place-items:center;border-radius:16px;background:var(--grad);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--blue) 35%,transparent)}
+.abt-app{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.abt-rule{width:44px;height:2px;margin:18px auto;border-radius:2px;background:var(--line)}
+.abt-by{font-size:13px;color:var(--mute)}
+.abt-name{margin:6px 0 4px;font-size:26px;font-weight:750;letter-spacing:-.01em;line-height:1.2}
+.abt-org{font-size:14px;line-height:1.5;color:var(--mute)}
+.abt-close{margin-top:24px;min-width:120px}
+@keyframes abtIn{from{opacity:0}to{opacity:1}}
+@keyframes abtCard{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.abt-ov,.abt-card{animation:none}.abt-ov.out{transition:none}}

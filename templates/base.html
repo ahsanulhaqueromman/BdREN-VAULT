@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#f3f6fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#080e1c" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" href="{% static 'img/bdren-logo.png' %}">
-<link rel="stylesheet" href="{% static 'css/app.css' %}?v=157">
+<link rel="stylesheet" href="{% static 'css/app.css' %}?v=158">
 <script src="{% static 'js/core/transition.js' %}?v=125"></script>
 </head>
 <body class="r-{{ request.user.role }}" data-page="{% if denied %}denied{% else %}{{ page.key }}{% endif %}" data-idle-timeout-ms="{{ session_idle_ms|default:900000 }}"{% if device_id %} data-device-id="{{ device_id }}"{% endif %}{% if denied %} data-denied="1"{% endif %}>
@@ -106,7 +106,7 @@
 <script src="{% static 'js/pages/reports.js' %}?v=125"></script>
 <script src="{% static 'js/pages/jobs.js' %}?v=125"></script>
 <script src="{% static 'js/core/search.js' %}?v=124"></script>
-<script src="{% static 'js/core/start.js' %}?v=126"></script>
+<script src="{% static 'js/core/start.js' %}?v=127"></script>
 <script src="{% static 'js/core/responsive.js' %}?v=124"></script>
 </body>
 </html>

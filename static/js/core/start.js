@@ -59,5 +59,25 @@ setInterval(()=>{if(navigator.onLine!==false)fetch("/api/me",{credentials:"same-
 /* Close buttons of the pop-ups (inline onclick is blocked by the Content-Security-Policy). */
 document.addEventListener("click",e=>{const b=e.target.closest("[data-close-dlg]");if(b)document.getElementById(b.dataset.closeDlg).close()});
 
-/* about this build (Ctrl+Alt+Shift+A) */
-document.addEventListener("keydown",e=>{if(e.ctrlKey&&e.altKey&&e.shiftKey&&e.code==="KeyA"){e.preventDefault();const d=t=>new TextDecoder().decode(Uint8Array.from(atob(t),c=>c.charCodeAt(0)));toast(d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieSBNZCBBaHNhbnVsIEhhcXVl"),{type:"info",title:d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")})}});
+/* about this build (Ctrl+Alt+Shift+A): a card over the blurred page; Esc, a click outside or Close shuts it */
+document.addEventListener("keydown",e=>{
+  if(!(e.ctrlKey&&e.altKey&&e.shiftKey&&e.code==="KeyA"))return;
+  e.preventDefault();
+  if(document.querySelector(".abt-ov"))return;
+  const d=t=>new TextDecoder().decode(Uint8Array.from(atob(t),c=>c.charCodeAt(0)));
+  const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text)n.textContent=text;return n};
+  const ov=el("div","abt-ov"),card=el("div","abt-card");
+  card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-label","About");
+  const mark=el("div","abt-mark");
+  mark.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01M12 10v4"/></svg>';
+  const close=el("button","b abt-close","Close");close.type="button";
+  card.append(mark,el("div","abt-app","BdREN VAULT"),el("div","abt-rule"),el("div","abt-by",d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieQ==")),
+              el("div","abt-name",d("TWQgQWhzYW51bCBIYXF1ZQ==")),el("div","abt-org",d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")),close);
+  ov.append(card);document.body.append(ov);
+  const prev=document.activeElement;
+  const shut=()=>{ov.classList.add("out");document.removeEventListener("keydown",onKey,true);setTimeout(()=>ov.remove(),180);prev&&prev.focus&&prev.focus()};
+  const onKey=k=>{if(k.key==="Escape"){k.stopPropagation();shut()}};
+  document.addEventListener("keydown",onKey,true);
+  ov.addEventListener("click",k=>{if(k.target===ov)shut()});
+  close.onclick=shut;close.focus();
+});
