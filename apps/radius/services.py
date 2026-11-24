@@ -124,13 +124,13 @@ def prune_old_logins(now=None):
     return removed
 
 
-def hash_password(password):
-    """(attribute, value) to store for a password, according to RADIUS_PASSWORD_MODE.
+def hash_password(password, mode=None):
+    """(attribute, value) to store for a password, according to RADIUS_PASSWORD_MODE (or `mode`).
 
     "cleartext" (default, unchanged from the original RADIUS Admin) or "ssha2": salted SHA-256 in the
     form FreeRADIUS expects for SSHA2-256-Password, base64(digest + salt).
     """
-    if settings.RADIUS_PASSWORD_MODE == "ssha2":
+    if (mode or settings.RADIUS_PASSWORD_MODE) == "ssha2":
         salt = os.urandom(16)
         digest = hashlib.sha256(password.encode("utf-8") + salt).digest()
         return "SSHA2-256-Password", base64.b64encode(digest + salt).decode("ascii")
@@ -150,6 +150,34 @@ def _set_password(username, password):
     RadCheck.objects.filter(username=username, attribute__in=PASSWORD_ATTRS).delete()
     attr, val = hash_password(password)
     RadCheck.objects.create(username=username, attribute=attr, op=":=", value=val)
+
+
+def cleartext_users(usernames=None):
+    """Usernames whose RADIUS password is still stored in clear text (all, or those of `usernames`)."""
+    rows = RadCheck.objects.filter(attribute="Cleartext-Password")
+    if usernames:
+        rows = rows.filter(username__in=usernames)
+    return sorted(set(rows.values_list("username", flat=True)))
+
+
+def hash_cleartext_passwords(usernames=None, actor="system"):
+    """Replace clear-text RADIUS passwords with salted SHA-256 (SSHA2-256-Password), keeping the same
+    password: nobody has to set a new one. Cannot be undone (the clear text is gone), and FreeRADIUS then
+    accepts PAP logins only for these users (CHAP / MS-CHAP need the clear text). Returns the usernames done."""
+    done = []
+    for username in cleartext_users(usernames):
+        with transaction.atomic(using=DB):
+            row = (RadCheck.objects.select_for_update().filter(username=username, attribute="Cleartext-Password")
+                   .order_by("id").first())
+            if row is None:
+                continue
+            attr, value = hash_password(row.value, mode="ssha2")
+            RadCheck.objects.filter(username=username, attribute__in=PASSWORD_ATTRS).delete()
+            RadCheck.objects.create(username=username, attribute=attr, op=":=", value=value)
+        done.append(username)
+    if done:
+        audit(actor, "user.hash", ", ".join(done)[:200], f"{len(done)} password(s) now stored as salted SHA-256")
+    return done
 
 
 def _effective_ips(devices, types, by_role):
