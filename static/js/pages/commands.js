@@ -293,7 +293,7 @@ function renderCmdSources(){
   box.innerHTML=`<div class="tbl"><table><thead><tr><th>Device</th><th>Last message</th><th>Messages</th><th>User actions</th><th>Status</th></tr></thead><tbody>`+
     rows.map(s=>`<tr><td>${cmdDevice(s.device,s.ip)}</td>
       <td class="when">${fmtWhen(s.last_seen)}</td><td>${fmtNum(s.received)}</td><td>${fmtNum(s.recognized)}</td>
-      <td>${s.recognized?'<span class="pill UP">Working</span>':`<span class="pill k-change">No user actions yet</span>`}
+      <td>${s.recognized?'<span class="pill UP">Running</span>':`<span class="pill k-change">No user actions yet</span>`}
         ${!s.recognized&&s.sample?`<details class="cmd-sample"><summary>Last message received</summary><code>${esc(s.sample)}</code></details>`:""}</td></tr>`).join("")+`</tbody></table></div>`+bar;
 }
 
