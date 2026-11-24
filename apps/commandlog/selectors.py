@@ -241,6 +241,44 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     return {"hours": hours, "sessions": out, "totals": totals, "truncated": len(events) >= MAX_EVENTS}
 
 
+FROM_BEFORE = timedelta(minutes=2)    # a device's syslog login line may arrive a little before the RADIUS row
+FROM_AFTER = timedelta(minutes=10)    # ... or only its first command, some minutes after the login
+
+
+def fill_login_sources(logins):
+    """Authentication Audit rows whose device sent no Calling-Station-Id (Huawei, for one) get the address the
+    user came from out of that device's syslog: the same user on the same device, closest in time (a login
+    line, else a command line with Ip=...). Rows: dicts with username, nas_ip, authdate (aware) and from_ip;
+    changed in place, "from_syslog" set on the rows filled."""
+    need = [r for r in logins if not r.get("from_ip") and r.get("authdate") and r.get("nas_ip") and r.get("username")]
+    if not need:
+        return
+    times = [r["authdate"] for r in need]
+    try:
+        rows = (CommandEvent.objects
+                .filter(device_ip__in={r["nas_ip"] for r in need}, username__in={r["username"] for r in need},
+                        received_at__gte=min(times) - FROM_BEFORE, received_at__lte=max(times) + FROM_AFTER)
+                .exclude(source_ip="").values_list("username", "device_ip", "received_at", "source_ip", "kind")[:20000])
+        found = {}
+        for user, ip, t, src, kind in rows:
+            if set(src) <= {"*", " "}:
+                continue
+            found.setdefault((user, ip), []).append((t, src, kind == "login"))
+    except DatabaseError:
+        logger.warning("Authentication Audit: Session Log could not be read for the From column")
+        return
+    for r in need:
+        best = None
+        for t, src, is_login in found.get((r["username"], r["nas_ip"]), ()):
+            if not (r["authdate"] - FROM_BEFORE <= t <= r["authdate"] + FROM_AFTER):
+                continue
+            rank = (not is_login, abs((t - r["authdate"]).total_seconds()))   # a login line first, then the closest
+            if best is None or rank < best[0]:
+                best = (rank, src)
+        if best:
+            r["from_ip"], r["from_syslog"] = best[1], True
+
+
 def sources():
     """Devices that send syslog, newest first, with how many of their messages were user actions.
 

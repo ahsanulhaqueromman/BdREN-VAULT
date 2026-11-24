@@ -228,6 +228,8 @@ def audit(request):
     period = periods.from_request(request)
     logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500, since=period["since"],
                                          until=period["until"])
+    from apps.commandlog.selectors import fill_login_sources   # From: the device's syslog when RADIUS has none
+    fill_login_sources(logins)
     for row in logins:
         row["ts"] = _when(row.pop("authdate"))
     summary = q.login_summary(period["hours"] or 24, since=period["since"], until=period["until"])
