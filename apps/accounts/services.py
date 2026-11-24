@@ -86,6 +86,8 @@ def update_user(target, acting_user, data):
         raise ApiError(400, "Invalid role")
     if target.pk == acting_user.pk and (role != target.role or not active):
         raise ApiError(400, "You cannot change your own role or disable your own account")
+    if target.pk == selectors.first_user_id() and (role != target.role or not active):
+        raise ApiError(400, "The first account cannot be demoted or disabled")
     if target.role == Role.ADMIN and target.is_active and (role != Role.ADMIN or not active) \
             and selectors.other_admins(target.pk) == 0:
         raise ApiError(400, "At least one active administrator is required")
@@ -101,6 +103,8 @@ def update_user(target, acting_user, data):
 def delete_user(target, acting_user):
     if target.pk == acting_user.pk:
         raise ApiError(400, "You cannot delete your own account")
+    if target.pk == selectors.first_user_id():
+        raise ApiError(400, "The first account cannot be deleted")
     if target.role == Role.ADMIN and target.is_active and selectors.other_admins(target.pk) == 0:
         raise ApiError(400, "At least one active administrator is required")
     target.delete()

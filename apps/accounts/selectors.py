@@ -28,6 +28,11 @@ def other_admins(user_id):
     return User.objects.filter(role=Role.ADMIN, is_active=True).exclude(pk=user_id).count()
 
 
+def first_user_id():
+    """The first account (the one made at install, lowest id): it cannot be deleted, demoted or disabled."""
+    return User.objects.order_by("pk").values_list("pk", flat=True).first()
+
+
 ONLINE_SECONDS = 5 * 60      # a signed-in browser asks the server more often than this (live refresh)
 
 
@@ -53,20 +58,22 @@ def online_user_ids():
     return online
 
 
-def user_row(user, online=None):
+def user_row(user, online=None, first=None):
     """User as sent to the browser (never the password), including last sign-in metadata.
-    `active` = the account is enabled; `online` = signed in right now."""
+    `active` = the account is enabled; `online` = signed in right now; `first` = the protected first account."""
     last_event = audit.last_signin(user.username)
     online = online_user_ids() if online is None else online
+    first = first_user_id() if first is None else first
     return {"id": user.id, "username": user.username, "role": user.role, "active": user.is_active,
+            "first": user.pk == first,
             "online": user.is_active and str(user.pk) in online,
             "created": fmt_dt(user.date_joined), "last_login": fmt_dt(user.last_login),
             "last_login_ip": last_event.remote_addr if last_event else ""}
 
 
 def user_rows():
-    online = online_user_ids()
-    return [user_row(u, online) for u in User.objects.order_by("username")]
+    online, first = online_user_ids(), first_user_id()
+    return [user_row(u, online, first) for u in User.objects.order_by("username")]
 
 
 def signin_history(account="", result="", q="", limit=500):

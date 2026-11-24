@@ -1530,6 +1530,9 @@ button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:transla
   .kpis>.kpi>small:first-child,.kpis>.kpi .kpi-top{padding-right:32px;min-height:28px}}
 @media (prefers-reduced-motion:reduce){.dash-status{animation:none}}
 
+/* User Management: the protected first account */
+.u-main{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;vertical-align:1px;font-size:11px;font-weight:700;
+  color:var(--blue);background:var(--info-bg);border:1px solid color-mix(in srgb,var(--blue) 25%,transparent)}
 /* Dashboard: Active Sessions (pages/dashboard.js sshHTML) */
 .ssh-live{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:2px 9px 2px 7px;border-radius:999px;vertical-align:middle;
   font-size:11.5px;font-weight:700;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent)}
