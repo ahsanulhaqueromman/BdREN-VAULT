@@ -322,6 +322,30 @@ document.addEventListener("change",e=>{
 const LABEL={SUCCESS:"Saved",UNCHANGED:"Unchanged",FAILED:"Failed"};
 const pill=s=>`<span class="pill ${s||""}">${LABEL[s]||"Not run"}</span>`;
 
+/* Period picker of the log pages (Authentication Audit, Session Log): a <select> of recent windows plus
+   "Custom dates…", which shows a From and a To date. periodQuery() gives the query for the API
+   (?hours= or ?from=&to=, apps/core/period.py). */
+const isoDay=d=>{const z=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`};
+function periodQuery(sel){
+  const s=$(sel);if(!s||s.value!=="custom")return {hours:(s&&s.value)||"24"};
+  const w=s.parentElement.querySelector(".period-dates"),f=w.querySelector("[data-from]").value,t=w.querySelector("[data-to]").value;
+  return f||t?{from:f||t,to:t||f}:{hours:"720"};
+}
+function periodPicker(sel,onChange){
+  const s=$(sel);if(!s)return;
+  const w=document.createElement("span");w.className="period-dates";w.hidden=true;
+  w.innerHTML=`<label><span>From</span><input type="date" data-from aria-label="From date"></label><label><span>To</span><input type="date" data-to aria-label="To date"></label>`;
+  s.after(w);
+  const from=w.querySelector("[data-from]"),to=w.querySelector("[data-to]");
+  s.addEventListener("change",()=>{
+    const custom=s.value==="custom";w.hidden=!custom;
+    if(custom){const today=new Date(),start=new Date();start.setDate(today.getDate()-30);
+      from.max=to.max=isoDay(today);if(!to.value)to.value=isoDay(today);if(!from.value)from.value=isoDay(start);from.focus()}
+    onChange();
+  });
+  for(const i of [from,to])i.addEventListener("change",()=>{if(from.value&&to.value&&from.value>to.value)[from.value,to.value]=[to.value,from.value];onChange()});
+}
+
 const SND_ON='<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',SND_OFF='<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>';
 function paintSnd(){const on=sfx.on,b=$("#sndBtn");$("#sndIc").innerHTML=on?SND_ON:SND_OFF;$("#sndTx").textContent=on?"Sound on":"Sound off";b.setAttribute("aria-pressed",on);b.title=on?"Notification sound is on (click to mute)":"Notification sound is off (click to turn on)"}
 $("#sndBtn").onclick=()=>{sfx.set(!sfx.on);paintSnd();sfx.play("ok")};

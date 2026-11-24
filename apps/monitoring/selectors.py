@@ -21,6 +21,7 @@ from .keys import LATEST_KEY
 from .models import PingHistory
 
 SHOW = 6    # rows per Dashboard list; the card says how many more there are
+CHART_POINTS = 288      # uptime chart: a 640-pixel line needs no more; a 60 s sweep writes 1,440 a day
 
 
 def database_info():
@@ -50,9 +51,24 @@ def disk_health():
         return {"total_bytes": 0, "free_bytes": 0, "used_percent": None, "status": "unknown"}
 
 
-def ping_history(hours=24):
-    return [{"ts": fmt_dt(p.ts), "total": p.total, "up": p.up, "avg_ms": p.avg_ms}
-            for p in PingHistory.objects.filter(ts__gte=timezone.now() - timedelta(hours=hours))]
+def ping_history(hours=24, points=CHART_POINTS):
+    """Reachability over the last `hours`, oldest first. Sweeps are averaged in equal groups so the
+    Dashboard (refreshed every 30 s) sends at most `points` rows; the newest sweep is always kept as it is,
+    because the "Online (last check)" tile reads it."""
+    rows = list(PingHistory.objects.filter(ts__gte=timezone.now() - timedelta(hours=hours))
+                .order_by("ts").values_list("ts", "total", "up", "avg_ms"))
+    if not rows:
+        return []
+    last, rest = rows[-1], rows[:-1]
+    size = -(-len(rest) // max(1, points - 1)) if rest else 1
+    out = []
+    for i in range(0, len(rest), size):
+        group = rest[i:i + size]
+        ms = [r[3] for r in group if r[3] is not None]
+        out.append((group[-1][0], round(sum(r[1] for r in group) / len(group)),
+                    round(sum(r[2] for r in group) / len(group)), round(sum(ms) / len(ms), 1) if ms else None))
+    out.append(last)
+    return [{"ts": fmt_dt(ts), "total": total, "up": up, "avg_ms": avg} for ts, total, up, avg in out]
 
 
 def attention():

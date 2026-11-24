@@ -206,10 +206,16 @@ def device_namer():
     return name_of
 
 
-def recent_logins(q="", limit=500):
+def _db_clock(moment):
+    """An aware datetime in the RADIUS database server's own clock (radpostauth.authdate is written in it)."""
+    from datetime import timedelta, timezone as dt_tz
+    return moment.astimezone(dt_tz.utc).replace(tzinfo=None) + timedelta(seconds=_LOGIN_COLS.get("offset", 0))
+
+
+def recent_logins(q="", limit=500, since=None, until=None):
     """Newest logins first: username, result, time and - when recorded - the device (IP, name).
-    `q` matches the username, the device IP, or a device name from NAS Clients / Device Inventory.
-    Returns (rows, device_logging_enabled)."""
+    `q` matches the username, the device IP, or a device name from NAS Clients / Device Inventory;
+    since / until (aware datetimes) limit it to a period. Returns (rows, device_logging_enabled)."""
     from django.db import connections
     from apps.devices import selectors as devices
     cols = _login_columns()
@@ -243,6 +249,12 @@ def recent_logins(q="", limit=500):
             parts.append("callingstationid LIKE %s")
             params.append(like)
         where.append("(" + " OR ".join(parts) + ")")
+    if since is not None:
+        where.append("authdate >= %s")
+        params.append(_db_clock(since))
+    if until is not None:
+        where.append("authdate < %s")
+        params.append(_db_clock(until))
     sql = ("SELECT username, reply, authdate, " + ("nasipaddress" if has_ip else "''") + ", "
            + ("nasidentifier" if has_id else "''") + ", "
            + ("calledstationid" if has_st else "''") + ", "
@@ -262,7 +274,7 @@ def recent_logins(q="", limit=500):
     return out, has_ip
 
 
-def accepted_logins(since, nas_ips, username="", limit=20000):
+def accepted_logins(since, nas_ips, username="", limit=20000, until=None):
     """Successful logins (Access-Accept) since `since` (an aware datetime) on the given device addresses,
     oldest first: [(username, nas_ip, time in UTC)]. Used by Command History to know when a session began.
     [] when radpostauth does not record the device (enable_login_log.sh not run) or no address is given."""
@@ -274,9 +286,11 @@ def accepted_logins(since, nas_ips, username="", limit=20000):
     shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
     cutoff = since.astimezone(dt_tz.utc).replace(tzinfo=None) + shift
     sql = ("SELECT username, nasipaddress, authdate FROM radpostauth WHERE authdate >= %s AND reply = 'Access-Accept' "
-           "AND nasipaddress IN (" + ",".join(["%s"] * len(ips)) + ")" + (" AND username = %s" if username else "")
+           + ("AND authdate < %s " if until is not None else "")
+           + "AND nasipaddress IN (" + ",".join(["%s"] * len(ips)) + ")" + (" AND username = %s" if username else "")
            + " ORDER BY authdate DESC LIMIT %s")
-    params = [cutoff, *ips] + ([username] if username else []) + [max(1, int(limit))]
+    params = ([cutoff] + ([_db_clock(until)] if until is not None else []) + [*ips]
+              + ([username] if username else []) + [max(1, int(limit))])
     with connections[DB].cursor() as cur:
         cur.execute(sql, params)
         rows = cur.fetchall()
@@ -294,11 +308,12 @@ def accepted_logins(since, nas_ips, username="", limit=20000):
     return out
 
 
-SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30)          # hours the Authentication Audit summary can cover
+SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30, 24 * 90, 24 * 365)   # = apps.core.period.PRESETS
 
 
-def login_summary(hours=24):
-    """What happened in the last `hours`: attempts, accepted / rejected, how many different users and devices.
+def login_summary(hours=24, since=None, until=None):
+    """What happened in the last `hours` (or from `since` to `until`, aware datetimes): attempts, accepted /
+    rejected, how many different users and devices.
 
     radpostauth.authdate is written in the database server's own clock, so the cutoff is computed in that
     clock (the offset found by _login_columns()). Uses the dbms_authdate index created by radius_init."""
@@ -307,13 +322,15 @@ def login_summary(hours=24):
     hours = hours if hours in SUMMARY_WINDOWS else 24
     cols = _login_columns()
     has_ip = "nasipaddress" in cols
-    shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
-    cutoff = datetime.now(dt_tz.utc).replace(tzinfo=None) + shift - timedelta(hours=hours)
+    if since is None:
+        since = datetime.now(dt_tz.utc) - timedelta(hours=hours)
+    where, params = "authdate >= %s", [_db_clock(since)]
+    if until is not None:
+        where, params = where + " AND authdate < %s", params + [_db_clock(until)]
     device_count = ("COUNT(DISTINCT CASE WHEN nasipaddress <> '' THEN nasipaddress END)" if has_ip else "0")
     with connections[DB].cursor() as cur:
         cur.execute("SELECT COUNT(*), SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END), "
-                    "COUNT(DISTINCT username), " + device_count + " FROM radpostauth WHERE authdate >= %s",
-                    [cutoff])
+                    "COUNT(DISTINCT username), " + device_count + " FROM radpostauth WHERE " + where, params)
         total, accepted, users, devices_n = cur.fetchone()
     total, accepted = int(total or 0), int(accepted or 0)
     return {"hours": hours, "total": total, "accepted": accepted, "rejected": total - accepted,

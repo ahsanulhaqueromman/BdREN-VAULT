@@ -14,6 +14,7 @@ from django.db import Error as DatabaseError
 from django.http import JsonResponse
 from django.utils import timezone
 
+from apps.core import period as periods
 from apps.core.api import ApiError, api
 from apps.core.utils import DT_FORMAT, parse_json
 
@@ -224,11 +225,11 @@ def nas_secret(request, pk):
 def audit(request):
     """Authentication Audit: a summary of the chosen period and every device login. The changes made
     on the RADIUS pages are shown in Activity Logs (apps/backups/views.py audit_events)."""
-    logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500)
+    period = periods.from_request(request)
+    logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500, since=period["since"],
+                                         until=period["until"])
     for row in logins:
         row["ts"] = _when(row.pop("authdate"))
-    try:
-        hours = int(request.GET.get("hours", 24))
-    except ValueError:
-        hours = 24
-    return JsonResponse({"logins": logins, "device_logging": logging_on, "summary": q.login_summary(hours)})
+    summary = q.login_summary(period["hours"] or 24, since=period["since"], until=period["until"])
+    return JsonResponse({"logins": logins, "device_logging": logging_on, "summary": summary,
+                         "period": periods.public(period)})

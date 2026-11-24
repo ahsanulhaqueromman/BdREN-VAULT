@@ -607,17 +607,16 @@ $o("#suBody").addEventListener("click",async e=>{
    are in Activity Logs > Administrative audit trail) ---- */
 let radLoggingOn=true,radSummary=null;
 async function loadRadAudit(){
-  const q=($("#radLoginQ")?.value||"").trim(),hours=$("#radAuditHours")?.value||"24";
-  try{const d=await api("/api/radius/audit?hours="+hours+(q?"&q="+encodeURIComponent(q):""));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
-    radSummary=d.summary||null;
+  const q=($("#radLoginQ")?.value||"").trim();
+  try{const d=await api("/api/radius/audit?"+new URLSearchParams({...periodQuery("#radAuditHours"),...(q?{q}:{})}));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
+    radSummary=d.summary?{...d.summary,label:(d.period&&d.period.label)||""}:null;
     renderRadSummary();renderRadLogins()}
   catch(e){radFail("#radLoginList","the RADIUS audit log",e);{const el=$("#radAuditKpis");if(el)el.innerHTML=""}}
 }
 /* ---- summary of the chosen period ---- */
-const RAD_PERIOD={24:"in the last 24 hours",168:"in the last 7 days",720:"in the last 30 days"};
 function renderRadSummary(){
   const s=radSummary;if(!s||!$("#radAuditKpis"))return;
-  const per=RAD_PERIOD[s.hours]||"",rate=s.total?Math.round(s.accepted*100/s.total):0;
+  const per=s.label||"",rate=s.total?Math.round(s.accepted*100/s.total):0;
   radKpis("#radAuditKpis",[
     ["Login attempts",s.total,`All device logins ${per}`],
     ["Successful",s.accepted,s.total?`${rate}% of attempts`:"No attempts","g"],
@@ -625,7 +624,7 @@ function renderRadSummary(){
     ["Users",s.users,"Different usernames that tried"],
     ["Devices",s.device_logging?s.devices:"-",s.device_logging?"Different devices logged in to":"Device not recorded yet"]]);
 }
-$("#radAuditHours")?.addEventListener("change",loadRadAudit);
+periodPicker("#radAuditHours",loadRadAudit);
 /* search runs on the server (user, device IP, or a device name from NAS Clients / Device Inventory) */
 let radLoginT=0;
 $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT=setTimeout(()=>{PAGES.radLogins=1;loadRadAudit()},350)});

@@ -414,6 +414,13 @@ if command -v nginx >/dev/null 2>&1; then
       else cp -p "$BACKUP_ROOT/nginx-$(basename "$SITE")-$STAMP" "$SITE"; warn "nginx rejected the change; original restored ($SITE)"; fi
     else ok "nginx already passes the real visitor IP"; fi
     [ "$(env_get DBMS_BEHIND_PROXY)" = 1 ] || { env_set DBMS_BEHIND_PROXY 1; ok "app trusts nginx for the visitor IP"; }
+    # HTTP/2: the page's CSS and scripts arrive in parallel over one HTTPS connection (faster first visit)
+    if grep -qE "^[[:space:]]*listen[[:space:]]+[^;]*443[^;]*ssl" "$SITE" && ! grep -qE "http2" "$SITE"; then
+      cp -p "$SITE" "$BACKUP_ROOT/nginx-h2-$(basename "$SITE")-$STAMP"
+      sed -i -E "s/^([[:space:]]*listen[[:space:]]+[^;]*443[^;]*ssl)([^;]*);/\1 http2\2;/" "$SITE"
+      if nginx -t >/dev/null 2>&1; then systemctl reload nginx; ok "nginx: HTTP/2 on"
+      else cp -p "$BACKUP_ROOT/nginx-h2-$(basename "$SITE")-$STAMP" "$SITE"; warn "nginx refused HTTP/2; left as it was"; fi
+    fi
     if grep -qE "listen[[:space:]]+[^;]*443" "$SITE"; then
       for k in DBMS_SECURE_COOKIES DBMS_FORCE_HTTPS; do [ "$(env_get $k)" = 1 ] || { env_set $k 1; ok "$k=1 (site uses HTTPS)"; }; done
     fi

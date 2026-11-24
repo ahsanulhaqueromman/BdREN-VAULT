@@ -10,7 +10,7 @@
    Inside a card "Changes only" hides the view-only commands. Searches run on the server; Export CSV
    downloads every matching action (up to 50,000). Refreshes itself every 30 seconds while the page is open. */
 let cmdData=null,cmdSess=null,cmdTab="session",cmdDetail={},cmdJump=null,cmdOnlyChg=new Set();
-const CMD_PERIOD={24:"in the last 24 hours",168:"in the last 7 days",720:"in the last 30 days"};
+const cmdPer=d=>(d&&d.period&&d.period.label)||"";
 const CMD_STATUS={active:["Active","UP"],closed:["Logged out","k-logout"],"no-logout":["No logout","k-command"],failed:["Failed login","k-fail"]};
 const CMD_VIEW={
   session:{title:"Session log",help:"One card per login, newest first: who, on which device, from when to when and what they did. A new login after a logout is a new card. Open a card to see every command.",noun:"session"},
@@ -21,7 +21,7 @@ const CMD_VIEW={
 const CMD_IC={
   user:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
   device:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 17h.01M10 17h.01M12 13V8m-4 0h8M9 4h6"/></svg>'};
-const cmdHours=()=>$("#cmdHours").value||"24";
+const cmdHours=()=>periodQuery("#cmdHours");
 const cmdSearch=()=>$("#cmdSQ").value.trim();
 const cmdFromHash=()=>{const m=/^#(user|device)=(.+)$/.exec(location.hash);try{return m?{kind:m[1],key:decodeURIComponent(m[2])}:null}catch(e){return null}};
 const cmdDur=s=>{if(s==null)return "-";if(s<60)return `${s} s`;if(s<3600)return `${Math.round(s/60)} min`;const h=Math.floor(s/3600),m=Math.round(s%3600/60);return m?`${h} h ${m} min`:`${h} h`};
@@ -36,7 +36,7 @@ const cmdFetch=(kind,key)=>{
   const sq=cmdSearch();
   /* a session's key is "user|device address|start": fetch that user's sessions on that device */
   const by=kind==="session"?(([u,ip])=>({user:u,device:ip}))(key.split("|")):{[CMD_VIEW[kind].param]:key};
-  return api("/api/radius/commands/sessions?"+new URLSearchParams({hours:cmdHours(),...by,...(sq?{q:sq}:{})}))
+  return api("/api/radius/commands/sessions?"+new URLSearchParams({...cmdHours(),...by,...(sq?{q:sq}:{})}))
     .then(d=>{cmdDetail[cmdId(kind,key)]=d}).catch(e=>{cmdDetail[cmdId(kind,key)]={error:e}});
 };
 
@@ -47,8 +47,8 @@ async function loadCommands(){
   const want=[...cmdOpenCards().filter(c=>c.kind===cmdTab),...(jump?[jump]:[])];
   try{
     const [act,sess]=await Promise.all([
-      api("/api/radius/commands?"+new URLSearchParams({hours})),
-      api("/api/radius/commands/sessions?"+new URLSearchParams({hours,...(sq?{q:sq}:{})})),
+      api("/api/radius/commands?"+new URLSearchParams(hours)),
+      api("/api/radius/commands/sessions?"+new URLSearchParams({...hours,...(sq?{q:sq}:{})})),
       ...want.map(c=>cmdFetch(c.kind,c.key))]);
     cmdData=act;cmdSess=sess;
     const keep=new Set(want.map(c=>cmdId(c.kind,c.key)));
@@ -77,7 +77,7 @@ function renderCmdStatus(){
   box.innerHTML=notes.join("");
 }
 function renderCmdKpis(){
-  const t=cmdSess.totals||{},per=CMD_PERIOD[cmdSess.hours]||"";
+  const t=cmdSess.totals||{},per=cmdPer(cmdSess);
   const by={};(cmdSess.sessions||[]).forEach(s=>{if(s.changes)by[s.username]=(by[s.username]||0)+s.changes});
   const top=Object.entries(by).sort((a,b)=>b[1]-a[1])[0];
   radKpis("#cmdKpis",[
@@ -110,7 +110,7 @@ function renderCmdSessions(){
   const list=cmdGroups(),all=cmdSess.sessions||[],filtered=cmdSearch()||$("#cmdSFilter").value,noun=CMD_VIEW[cmdTab].noun;
   const n=list.reduce((a,g)=>a+g.sessions+g.failed,0);
   $("#cmdSCount").textContent=list.length?`${cmdPlural(list.length,noun)} · ${cmdPlural(n,"session")}`:"";
-  if(!list.length){$("#cmdSessList").innerHTML=`<div class="empty"><b>${filtered&&all.length?"No matching sessions":"No sessions "+esc(CMD_PERIOD[cmdSess.hours]||"")}</b>${filtered?"Try another user, device, address or command, or a longer period.":"A session appears when a user logs in to a device that sends its logs to VAULT."}</div>`;return}
+  if(!list.length){$("#cmdSessList").innerHTML=`<div class="empty"><b>${filtered&&all.length?"No matching sessions":"No sessions "+esc(cmdPer(cmdSess))}</b>${filtered?"Try another user, device, address or command, or a longer period.":"A session appears when a user logs in to a device that sends its logs to VAULT."}</div>`;return}
   const jump=cmdJump&&cmdJump.kind===cmdTab?cmdJump.key:"";
   if(jump){const i=list.findIndex(g=>g.key===jump);if(i>=0)PAGES.cmdSess=Math.floor(i/SIZES.cmdSess)+1}
   const open=new Set([...cmdOpenCards().filter(c=>c.kind===cmdTab).map(c=>c.key),...(jump?[jump]:[])]);
@@ -149,7 +149,7 @@ function cmdCard(g,isOpen){
 function renderCmdSessionCards(){
   const all=cmdNumber(cmdSess.sessions||[]),list=all.filter(cmdKeep),filtered=cmdSearch()||$("#cmdSFilter").value;
   $("#cmdSCount").textContent=list.length?cmdPlural(list.length,"session"):"";
-  if(!list.length){$("#cmdSessList").innerHTML=`<div class="empty"><b>${filtered&&all.length?"No matching sessions":"No sessions "+esc(CMD_PERIOD[cmdSess.hours]||"")}</b>${filtered?"Try another user, device, address or command, or a longer period.":"A session appears when a user logs in to a device that sends its logs to VAULT."}</div>`;return}
+  if(!list.length){$("#cmdSessList").innerHTML=`<div class="empty"><b>${filtered&&all.length?"No matching sessions":"No sessions "+esc(cmdPer(cmdSess))}</b>${filtered?"Try another user, device, address or command, or a longer period.":"A session appears when a user logs in to a device that sends its logs to VAULT."}</div>`;return}
   const open=new Set(cmdOpenCards().filter(c=>c.kind==="session").map(c=>c.key));
   const {rows,bar}=paginate("cmdSess",list);
   morph($("#cmdSessList"),rows.map(s=>cmdSessCard(s,open.has(s.key))).join("")+bar);
@@ -191,7 +191,7 @@ function cmdBody(kind,key){
   if(d.error)return errorState("Could not load these sessions",d.error);
   if(kind==="session")return cmdSessBody(key);
   const list=(d.sessions||[]).filter(cmdKeep);
-  if(!list.length)return `<p class="rep-note" style="padding:12px 0">No sessions ${esc(CMD_PERIOD[d.hours]||"")}.</p>`;
+  if(!list.length)return `<p class="rep-note" style="padding:12px 0">No sessions ${esc(cmdPer(d))}.</p>`;
   const chg=list.reduce((n,s)=>n+s.changes,0),only=cmdOnlyChg.has(cmdId(kind,key));
   /* who did what here (by device) / where they did it (by user): one chip per person or device */
   const other=kind==="device"?"user":"device",by=new Map();
@@ -303,7 +303,7 @@ REDRAW.cmdSources=renderCmdSources;REDRAW.cmdSess=renderCmdSessions;
 let cmdT=0;
 $o("#cmdSQ").addEventListener("input",()=>{clearTimeout(cmdT);cmdT=setTimeout(()=>{PAGES.cmdSess=1;loadCommands()},350)});
 $o("#cmdSFilter").addEventListener("change",()=>{PAGES.cmdSess=1;renderCmdSessions()});
-$o("#cmdHours").addEventListener("change",()=>{PAGES.cmdSess=1;loadCommands()});
+periodPicker("#cmdHours",()=>{PAGES.cmdSess=1;loadCommands()});
 $o("#cmdRefresh").addEventListener("click",()=>loadCommands());
 $o("#cmdTabs").addEventListener("click",e=>{
   const b=e.target.closest("[data-cmd-tab]");if(!b||b.dataset.cmdTab===cmdTab)return;
@@ -312,7 +312,7 @@ $o("#cmdTabs").addEventListener("click",e=>{
   renderCmdView();renderCmdSessions();
 });
 $o("#cmdCsv").addEventListener("click",()=>{
-  const p=new URLSearchParams({hours:cmdHours(),format:"csv"}),q=cmdSearch();if(q)p.set("q",q);
+  const p=new URLSearchParams({...cmdHours(),format:"csv"}),q=cmdSearch();if(q)p.set("q",q);
   location.href="/api/radius/commands?"+p;
 });
 if(PAGE==="radius-commands")setInterval(()=>{if(!document.hidden&&cmdData)loadCommands()},30000);

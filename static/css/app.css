@@ -1537,6 +1537,12 @@ button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:transla
 .card h3::before{content:"";display:inline-block;width:4px;height:.95em;margin-right:9px;border-radius:2px;background:var(--grad);vertical-align:-.12em}
 .card{transition:border-color .25s,box-shadow .25s}
 .card:hover{border-color:var(--line-2)}
+.period-dates{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.period-dates[hidden]{display:none}
+.period-dates label{display:inline-flex;flex-direction:row;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:600;color:var(--mute)}
+.period-dates label>span{display:inline;margin:0}
+.period-dates input{width:auto;min-width:150px}
+@media (max-width:760px){.period-dates{width:100%;grid-column:1/-1;order:5;flex-wrap:nowrap}.period-dates label{flex:1 1 0;min-width:0}.period-dates input{flex:1;min-width:0;width:100%}}
 .dash-acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .dash-status{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:650;
   border:1px solid var(--line);background:var(--panel);color:var(--mute);white-space:nowrap;animation:fadeIn .3s var(--ease)}

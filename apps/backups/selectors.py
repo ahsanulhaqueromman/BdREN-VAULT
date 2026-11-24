@@ -275,17 +275,22 @@ def results_per_day(days):
     per_day = {d.isoformat(): {"ok": 0, "same": 0, "bad": 0} for d in days}
     key_of = {"SUCCESS": "ok", "UNCHANGED": "same", "FAILED": "bad"}
     tz = timezone.get_current_timezone()
-    # One small COUNT per local day over the indexed ts column: a 20,000-device inventory writes
-    # 20,000 lines a night, far too many to read one by one for a chart.
-    for day in days:
-        start = timezone.make_aware(datetime.combine(day, dtime.min), tz)
-        end = timezone.make_aware(datetime.combine(day + timedelta(days=1), dtime.min), tz)
-        counts = (BackupLog.objects.filter(ts__gte=start, ts__lt=end).order_by()
-                  .values_list("status").annotate(n=Count("id")))
-        for status, n in counts:
-            key = key_of.get(status)
-            if key and day.isoformat() in per_day:
-                per_day[day.isoformat()][key] += n
+    # Counted in the database, never read row by row (a 20,000-device inventory writes 20,000 lines a night):
+    # ONE query over the indexed ts column, one filtered COUNT per local day, grouped by status.
+    if not days:
+        return per_day
+    bounds = {d.isoformat(): (timezone.make_aware(datetime.combine(d, dtime.min), tz),
+                              timezone.make_aware(datetime.combine(d + timedelta(days=1), dtime.min), tz))
+              for d in days}
+    first, last = min(b[0] for b in bounds.values()), max(b[1] for b in bounds.values())
+    counts = {f"d{i}": Count("id", filter=Q(ts__gte=s, ts__lt=e)) for i, (s, e) in enumerate(bounds.values())}
+    rows = (BackupLog.objects.filter(ts__gte=first, ts__lt=last).order_by()
+            .values("status").annotate(**counts))
+    for row in rows:
+        key = key_of.get(row["status"])
+        if key:
+            for i, day in enumerate(bounds):
+                per_day[day][key] += row[f"d{i}"]
     return per_day
 
 

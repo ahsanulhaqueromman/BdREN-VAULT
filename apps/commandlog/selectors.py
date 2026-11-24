@@ -13,7 +13,7 @@ from apps.radius import selectors as radius
 from .models import CommandEvent, ReceiverState, SyslogSource
 
 logger = logging.getLogger("dbms")
-WINDOWS = (24, 24 * 7, 24 * 30)          # hours the page can cover
+WINDOWS = (24, 24 * 7, 24 * 30, 24 * 90, 24 * 365)   # hours the page can cover (= apps.core.period.PRESETS)
 KINDS = ("command", "change", "login", "logout", "login-failed")
 HEARTBEAT_SECONDS = 30                   # the receiver writes its heartbeat this often
 
@@ -54,13 +54,19 @@ def _period(hours):
     return hours if hours in WINDOWS else 24
 
 
-def history(hours=24, q="", kind="", limit=500):
-    """Events of the last `hours` (newest first, at most `limit`) matching the search, plus the period's totals.
+def _between(since, until):
+    rows = CommandEvent.objects.filter(received_at__gte=since)
+    return rows.filter(received_at__lt=until) if until is not None else rows
+
+
+def history(hours=24, q="", kind="", limit=500, since=None, until=None):
+    """Events of the last `hours` - or from `since` to `until` (aware datetimes) - newest first, at most `limit`,
+    matching the search, plus the period's totals.
     q matches a user, a device address or name, the user's address or the command text."""
     hours = _period(hours)
-    since = timezone.now() - timedelta(hours=hours)
+    since = since or timezone.now() - timedelta(hours=hours)
     name_of = _namer()
-    period = CommandEvent.objects.filter(received_at__gte=since)
+    period = _between(since, until)
     totals = period.aggregate(total=Count("id"), changes=Count("id", filter=Q(kind="change")),
                               commands=Count("id", filter=Q(kind="command")),
                               logins=Count("id", filter=Q(kind="login")),
@@ -135,7 +141,7 @@ def _build(items):
     return out
 
 
-def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
+def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, since=None, until=None):
     """Sessions of the last `hours`, newest activity first: who was on which device, from where, from when to
     when, and what they did. Built from the syslog events plus the RADIUS logins (Access-Accept) of the devices
     that send syslog, so a session has its start time even when the device does not log logins.
@@ -143,8 +149,8 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
     device = exactly one device address."""
     hours = _period(hours)
     now = timezone.now()
-    since = now - timedelta(hours=hours)
-    rows = CommandEvent.objects.filter(received_at__gte=since)
+    since = since or now - timedelta(hours=hours)
+    rows = _between(since, until)
     if user:
         rows = rows.filter(username=user)
     if device:
@@ -159,7 +165,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500):
     if device:
         logging_devices &= {device}
     try:
-        for username, ip, t in radius.accepted_logins(since, logging_devices, user):
+        for username, ip, t in radius.accepted_logins(since, logging_devices, user, until=until):
             events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "login",
                            "command": "", "source_ip": "", "result": "", "radius": True})
     except DatabaseError:

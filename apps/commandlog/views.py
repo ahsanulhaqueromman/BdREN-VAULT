@@ -1,6 +1,7 @@
 """Command History API (administrators only). The page is templates/radius/commands.html.
 
-    /api/radius/commands              GET  ?hours=24|168|720 &q= &kind=  events + totals + receiver state
+    /api/radius/commands              GET  ?hours=24|168|720|2160|8760 or ?from=&to= (dates) &q= &kind=
+                                           events + totals + receiver state (period: apps/core/period.py)
     /api/radius/commands?format=csv   GET  the same filter as a CSV file (up to 50,000 rows)
     /api/radius/commands/sessions     GET  ?hours= &q= &user= &device=   sessions (login to logout); with user=
                                            or device= each session also carries its commands
@@ -10,6 +11,7 @@ import csv
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
+from apps.core import period as periods
 from apps.core.api import api
 from apps.core.utils import DT_FORMAT
 
@@ -26,19 +28,19 @@ def _when(value):
     return value.strftime(DT_FORMAT)
 
 
-def _hours(request):
-    try:
-        return int(request.GET.get("hours", 24))
-    except ValueError:
-        return 24
+def _period(request):
+    """(keyword arguments for the selectors, the period as the browser gets it back)"""
+    p = periods.from_request(request)
+    return {"hours": p["hours"] or 24, "since": p["since"], "until": p["until"]}, periods.public(p)
 
 
 @api(GET="admin")
 def commands(request):
     search, kind = request.GET.get("q", ""), request.GET.get("kind", "")
+    when, shown = _period(request)
     if request.GET.get("format") == "csv":
-        return _csv(q.history(_hours(request), search, kind, limit=CSV_LIMIT))
-    data = q.history(_hours(request), search, kind)
+        return _csv(q.history(q=search, kind=kind, limit=CSV_LIMIT, **when))
+    data = q.history(q=search, kind=kind, **when)
     for e in data["events"]:
         e["ts"] = _when(e["ts"])
     status = q.receiver_status()
@@ -46,20 +48,21 @@ def commands(request):
     sources = q.sources()
     for s in sources:
         s["first_seen"], s["last_seen"] = _when(s["first_seen"]), _when(s["last_seen"])
-    return JsonResponse({**data, "receiver": status, "sources": sources})
+    return JsonResponse({**data, "receiver": status, "sources": sources, "period": shown})
 
 
 @api(GET="admin")
 def sessions(request):
     user = request.GET.get("user", "").strip()[:64]
     device = request.GET.get("device", "").strip()[:45]
-    data = q.sessions(_hours(request), request.GET.get("q", ""), user, device, with_events=bool(user or device))
+    when, shown = _period(request)
+    data = q.sessions(q=request.GET.get("q", ""), user=user, device=device, with_events=bool(user or device), **when)
     for s in data["sessions"]:
         for key in ("start", "end", "last"):
             s[key] = _when(s[key])
         for e in s["events"]:
             e["ts"] = _when(e["ts"])
-    return JsonResponse({**data, "user": user, "device": device})
+    return JsonResponse({**data, "user": user, "device": device, "period": shown})
 
 
 def _csv(data):
