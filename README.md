@@ -129,17 +129,73 @@ RADIUS / AAA, User Management and System Settings are for administrators; see [R
 
 ```mermaid
 flowchart LR
-    Browser["Browser<br/>(HTTPS)"] --> Nginx["nginx<br/>TLS, rate limit"]
-    Nginx --> App["VAULT web app<br/>Django + Waitress"]
-    App --> DB[("MariaDB<br/>dbms")]
-    App --> RDB[("MariaDB<br/>radius")]
-    App --> Files[("Saved configs<br/>/opt/vault/data/backups")]
-    App -- "SSH (read only)" --> Devices["Network devices"]
-    Devices -- "RADIUS UDP 1812/1813" --> FR["FreeRADIUS"]
-    FR --> RDB
-    Devices -- "syslog UDP 514" --> SL["Syslog receiver<br/>(vault-syslog)"]
-    SL --> DB
+    Browser["Web browser<br/>NOC engineers · administrators"]
+
+    subgraph APP["VAULT application · service vault"]
+        direction TB
+        Nginx["nginx<br/>HTTPS · TLS · login rate limit"]
+        Web["Web portal and API<br/>Django 5.2 · Waitress"]
+        Engine["Backup engine and background tasks<br/>schedule · ping monitor · retry queue · daily clean-up"]
+        Nginx --> Web
+        Web -->|"start backups"| Engine
+    end
+
+    Dev["Network devices<br/>switches · routers · firewalls · OLTs"]
+
+    subgraph AAA["Access control and logging"]
+        direction TB
+        FR["FreeRADIUS 3<br/>service freeradius"]
+        Syslog["Syslog receiver<br/>service vault-syslog"]
+    end
+
+    subgraph DATA["Data on the server"]
+        direction TB
+        RAD[("MariaDB · radius<br/>RADIUS users · NAS · login records")]
+        DBMS[("MariaDB · dbms<br/>devices · jobs · logs · users · Session Log")]
+        Files[("Saved configurations<br/>data/backups · SHA-256")]
+    end
+
+    Browser -->|"HTTPS · TCP 443"| Nginx
+    Engine ==>|"SSH · TCP 22 · read only"| Dev
+    Engine -.->|"ICMP ping"| Dev
+    Dev ==>|"RADIUS · UDP 1812 / 1813"| FR
+    Dev ==>|"syslog · UDP 514"| Syslog
+    FR -->|"check and record logins"| RAD
+    Syslog -->|"sessions and commands"| DBMS
+    Web -->|"manage users and NAS"| RAD
+    Web --> DBMS
+    Engine -->|"new versions only"| Files
+
+    classDef user fill:#475569,stroke:#334155,color:#ffffff
+    classDef edge fill:#0e7fa8,stroke:#0b5f7d,color:#ffffff
+    classDef app fill:#2f5bea,stroke:#1e3a8a,color:#ffffff
+    classDef aaa fill:#7c3aed,stroke:#5b21b6,color:#ffffff
+    classDef store fill:#0a7a54,stroke:#065f46,color:#ffffff
+    classDef device fill:#b45309,stroke:#7c2d12,color:#ffffff
+    class Browser user
+    class Nginx edge
+    class Web,Engine app
+    class FR,Syslog aaa
+    class DBMS,RAD,Files store
+    class Dev device
+    style APP fill:#2f5bea14,stroke:#2f5bea,stroke-width:1px
+    style AAA fill:#7c3aed14,stroke:#7c3aed,stroke-width:1px
+    style DATA fill:#0a7a5414,stroke:#0a7a54,stroke-width:1px
 ```
+
+**How the parts work together**
+
+1. **Portal:** people use the portal over HTTPS; nginx passes requests to the VAULT application, which keeps
+   its data in the `dbms` database and manages RADIUS users and NAS clients in the `radius` database.
+2. **Backups:** the backup engine signs in to each device over SSH, reads the configuration (never changes
+   it) and saves a new file only when the configuration changed. It also pings every device for the Dashboard.
+3. **Device logins:** devices ask FreeRADIUS whether a user may log in; FreeRADIUS answers from the `radius`
+   database and records every attempt. This keeps working while the web application restarts.
+4. **Session Log:** devices send their syslog to the receiver, which turns logins, commands and changes into
+   sessions in the `dbms` database.
+
+Colours: grey = people, teal = web server, blue = VAULT application, purple = access control and logging,
+orange = network devices, green = data. Thick arrows carry device traffic; the dotted arrow is the ping monitor.
 
 | Layer | Technology |
 |---|---|
