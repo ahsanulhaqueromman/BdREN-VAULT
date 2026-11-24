@@ -129,7 +129,7 @@ RADIUS / AAA, User Management and System Settings are for administrators; see [R
 
 ```mermaid
 flowchart LR
-    Browser["Web browser<br/>NOC engineers · administrators"]
+    Browser["Users<br/>web browser"]
 
     subgraph APP["VAULT application · service vault"]
         direction TB
