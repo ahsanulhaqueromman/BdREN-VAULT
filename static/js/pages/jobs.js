@@ -83,7 +83,7 @@ function renderJobs(){
   renderJobKpis();
   renderRetryQueue();
   const jobs=jobsData.jobs;
-  if(!jobs.length){$("#jobsList").innerHTML='<div class="empty"><b>No backup jobs yet</b>Run "Back up all devices" or wait for the schedule; each run is listed here.</div>';return}
+  if(!jobs.length){$("#jobsList").innerHTML='<div class="empty"><b>No backup jobs yet</b>Run "Back up all devices" or wait for the schedule; each run is listed here.'+emptyAct("Back up all devices","#jobsRunAll")+'</div>';return}
   const open=new Set([...document.querySelectorAll("#jobsList details[open]")].map(d=>d.dataset.job));
   const {rows,bar}=paginate("jobs",jobs);
   morph($("#jobsList"),`<div class="job-list">${rows.map(j=>jobCard(j,open.has(j.id))).join("")}</div>`+bar);

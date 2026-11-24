@@ -81,7 +81,7 @@ function renderBackups(){
       +(d.count?bkRow(d.name,d.latest,d.previous,true):`<div class="row"><span class="t">No configuration backup saved yet.</span></div>`)+`<div class="older"></div><div class="device-tree" data-tree="${esc(d.name)}" hidden></div>`
       +(older?`<div class="row"><button class="link" ${bkAttr("more",d.name,"")} data-n="${older}">Show older versions (${older})</button></div>`:"")+`</div>`;
   }).join("")+bar
-  :(bkData.length?`<div class="empty"><b>No matching backups</b>Try another device name or backup date.</div>`:`<div class="empty"><b>No devices yet</b>Add a device first, then its dated backup folders will appear here.</div>`));
+  :(bkData.length?`<div class="empty"><b>No matching backups</b>Try another device name or backup date.</div>`:`<div class="empty"><b>No devices yet</b>Add a device first, then its dated backup folders will appear here.<div class="empty-act"><a class="b p" href="/devices">Go to Device Inventory</a></div></div>`));
   updBk();
   if(targetBackupDevice!==null){
     const device=devs.find(x=>x.id===targetBackupDevice);targetBackupDevice=null;

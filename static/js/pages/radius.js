@@ -61,7 +61,7 @@ function renderRadUsers(){
   $("#radUserList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Username</th><th>Access level</th><th>Can log in on</th><th></th></tr></thead><tbody>`+
     rows.map(u=>`<tr><td><span class="dn">${esc(u.username)}</span></td><td>${lvPill(u.level)}</td><td>${radScope(u)}</td>
      <td class="acts"><button class="link" type="button" data-rad-edit="${esc(u.username)}">Edit</button><button class="link d" type="button" data-rad-del="${esc(u.username)}">Delete</button></td></tr>`).join("")+`</tbody></table></div>`+bar
-    :`<div class="empty"><b>${radUsers.length?"No matching users":"No RADIUS users yet"}</b>${radUsers.length?"Try changing the search or the access level.":"Use Add user to create the first device login."}</div>`;
+    :`<div class="empty"><b>${radUsers.length?"No matching users":"No RADIUS users yet"}</b>${radUsers.length?"Try changing the search or the access level.":"Use Add user to create the first device login."}${radUsers.length?"":emptyAct("Add user","#radAddUser")}</div>`;
 }
 /* Access is granted by device TYPE (follows the type: a device of that type added later is included at once)
    and/or by individual device. Both empty = every device. Types compare without case, like the server. */
@@ -193,7 +193,7 @@ function renderRadNas(){
      <td class="rad-sec">${on?`<code>${esc(radSecrets.get(d.id)||"")}</code>`:`<span class="dots" aria-label="Hidden">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>`}<button class="link" type="button" data-rad-show="${d.id}">${on?"Hide":"Show"}</button><button class="link" type="button" data-rad-copy="${d.id}">Copy</button></td>
      <td>${d.description?esc(d.description):'<span class="none">-</span>'}</td>
      <td class="acts"><button class="link d" type="button" data-rad-nasdel="${d.id}">Remove</button></td></tr>`}).join("")+`</tbody></table></div>`+bar
-    :`<div class="empty"><b>${radNas.length?"No matching devices":"No RADIUS devices yet"}</b>${radNas.length?"Try changing the search.":"Use Add device to register the first switch, router or firewall."}</div>`;
+    :`<div class="empty"><b>${radNas.length?"No matching devices":"No RADIUS devices yet"}</b>${radNas.length?"Try changing the search.":"Use Add NAS to register the first switch, router or firewall."}${radNas.length?"":emptyAct("Add NAS","#radAddNas")}</div>`;
 }
 /* vendor / device type are changed in place; vendor applies from the next login (FreeRADIUS reads nas.type on
    every request, e.g. Huawei levels 0-3); device type is a VAULT-only grouping, nothing to reload either way */

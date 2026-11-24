@@ -47,7 +47,7 @@
   --side-bg-2:#0f1a31;
   --side-line:rgba(148,163,184,.13);
   --side-text:#a9b7cd;
-  --side-mute:#6f819d;
+  --side-mute:#8797b2;
   --side-hi:#7fb2ff;
 
   --r:14px; --r-sm:10px; --r-xs:8px;
@@ -715,6 +715,8 @@ textarea{min-height:130px;font-family:var(--mono);font-size:13px;resize:vertical
 .empty.err::before{background:var(--bad-bg) center/22px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d63447' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E")}
 .empty .why{display:block;max-width:60ch;margin:6px auto 0;font-size:13px;color:var(--mute)}
 .empty .b{margin-top:16px}
+.empty .empty-act{display:flex;justify-content:center;margin-top:16px}
+.empty .empty-act .b{margin-top:0}
 
 /* ---------- 12. Motion ---------- */
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -1064,6 +1066,11 @@ input:disabled{background:var(--soft);color:var(--mute);cursor:not-allowed}
 .rep-range{margin:4px 0 16px;color:var(--mute);font-size:13px}
 .rep-range b{color:var(--ink)}
 .loading-block{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--mute);background:var(--panel);border:1px dashed var(--line-2);border-radius:var(--r)}
+/* lists (not the small summary cards) show grey placeholder rows above the "Loading…" line */
+:not(.kpis)>.loading-block{flex-wrap:wrap;align-content:flex-start;min-height:300px;padding:18px 18px 22px;border-style:solid;border-color:var(--line)}
+:not(.kpis)>.loading-block::before{content:"";flex:0 0 100%;height:228px;margin-bottom:16px;border-radius:var(--r-sm);background:repeating-linear-gradient(180deg,var(--soft) 0 44px,transparent 44px 52px);-webkit-mask:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 100%);mask:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 100%);animation:skel-pulse 1.4s ease-in-out infinite}
+@keyframes skel-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){:not(.kpis)>.loading-block::before{animation:none}}
 .rep-card{margin-bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;transition:border-color .2s,box-shadow .2s}
 .rep-card.has-chg{border-left:4px solid var(--c4)}
 .rep-card:hover{border-color:color-mix(in srgb,var(--blue) 30%,var(--line))}
@@ -1300,6 +1307,10 @@ kbd{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-bot
 @media (max-width:760px){
   #devices .tacts #addBtn,#devices .tacts #retryFailed{display:none}
   #devices .pop-menu .m-only{display:block}
+  /* "More" sits in the left column on phones: open its menu from the left edge so it stays on screen */
+  #devices .more{display:flex}
+  #devices .more>.more-btn{width:100%}
+  #devices .pop-menu{left:0;right:auto;width:max-content;max-width:calc(100vw - 32px)}
 }
 /* "x / total" in figure tiles: the total is smaller and muted so the figure never wraps */
 .kpi strong .of{font-size:.6em;font-weight:600;color:var(--mute);white-space:nowrap;letter-spacing:0}
@@ -1460,3 +1471,11 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 .pill.area-panel{background:var(--idle-bg);color:var(--idle)}
 #auditPanel p a{text-decoration:none}#auditPanel p a:hover{text-decoration:underline}
 /* Authentication Audit: card heading with a count on the right; failed-login log */
+
+/* ---------- Phones: comfortable tap targets (at least 40px) ---------- */
+@media (max-width:760px){
+  .b,.chip,button.link,select,
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]){min-height:40px}
+  .x,.toast-x,.mcal-nav,.gs-pg,.schedule-date-grid button{min-width:40px;min-height:40px}
+  input[type=checkbox]{width:20px;height:20px}
+}

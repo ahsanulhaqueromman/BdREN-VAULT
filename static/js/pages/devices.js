@@ -66,7 +66,7 @@ function renderDevices(){
    <td class="added-by" data-l="Added by" title="${esc(d.created_at||"")}">${esc(d.created_by||"Legacy / unknown")}</td>
    <td class="st">${pill(d.last_status)}</td><td class="when" data-l="Last backup" title="${esc(d.last_run||"")}">${fmtWhen(d.last_run)}</td>
    <td class="acts"><button type="button" class="menu-btn op" data-id="${d.id}" aria-haspopup="menu" aria-label="Actions for ${esc(d.ip)}">Action <i aria-hidden="true">&#9662;</i></button></td></tr>`).join("")+`</tbody></table></div>`+bar
-  :`<div class="empty"><b>${devs.length?"No matching devices":"No devices yet"}</b>${devs.length?"Try a different search or filter.":"Add a device: one IP adds one device, several IPs separated by commas add them all."}</div>`);
+  :`<div class="empty"><b>${devs.length?"No matching devices":"No devices yet"}</b>${devs.length?"Try a different search or filter.":"Add a device: one IP adds one device, several IPs separated by commas add them all."}${devs.length?"":emptyAct("Add device","#addBtn")}</div>`);
   updSel();
   paintPing();
   pingVisibleSoon();

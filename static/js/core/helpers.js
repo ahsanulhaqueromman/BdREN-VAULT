@@ -134,7 +134,13 @@ function toastNextPage(m,opt={}){try{sessionStorage.setItem("dbms_toast_next",JS
 (()=>{try{const s=sessionStorage.getItem("dbms_toast_next");if(!s)return;sessionStorage.removeItem("dbms_toast_next");const {m,opt}=JSON.parse(s);setTimeout(()=>toast(m,opt),300)}catch(e){}})();
 /* a section that could not load: what failed, why, and a "Try again" button that reloads the current page section */
 const errorState=(what,e)=>`<div class="empty err" role="alert"><b>${esc(what)}</b><span class="why">${esc(e&&e.message||"Something went wrong. Please try again.")}</span><button type="button" class="b" data-retry>Try again</button></div>`;
-document.addEventListener("click",e=>{if(e.target.closest("[data-retry]"))initPage()});   /* initPage(): core/start.js */
+document.addEventListener("click",e=>{if(e.target.closest("[data-retry]"))initPage()});
+/* the next step under an empty list: a button that presses the page's own button (`sel`). Drawn only when this
+   user may use that button: a Viewer gets nothing for operator buttons (.op). It still works on phones, where the
+   page's own button may be tucked into the More menu. */
+const emptyAct=(label,sel)=>{const t=document.querySelector(sel);
+  return t&&!t.disabled&&!(document.body.classList.contains("r-viewer")&&t.closest(".op"))?`<div class="empty-act"><button type="button" class="b p" data-empty-act="${esc(sel)}">${esc(label)}</button></div>`:""};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-empty-act]");if(b){const t=document.querySelector(b.dataset.emptyAct);if(t)t.click()}});   /* initPage(): core/start.js */
 /* plain-language text for server answers that came without their own message */
 const HTTP_TEXT={
   400:"The request was not accepted. Check the values you entered and try again.",
