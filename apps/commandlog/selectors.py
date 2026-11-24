@@ -16,6 +16,7 @@ logger = logging.getLogger("dbms")
 WINDOWS = (24, 24 * 7, 24 * 30, 24 * 90, 24 * 365)   # hours the page can cover (= apps.core.period.PRESETS)
 KINDS = ("command", "change", "login", "logout", "login-failed")
 HEARTBEAT_SECONDS = 30                   # the receiver writes its heartbeat this often
+REJECTED_FOR = timedelta(hours=24)       # refused messages are reported this long after the newest one
 
 
 def allowed_sources():
@@ -46,8 +47,26 @@ def receiver_status(now=None):
         return {"running": False, "seen": False, "port": None, "rejected": 0, "rejected_last_ip": "", "dropped": 0}
     now = now or timezone.now()
     alive = bool(row.heartbeat and now - row.heartbeat < timedelta(seconds=HEARTBEAT_SECONDS * 3))
+    rejected = row.rejected
+    # the note "messages were ignored" is only for a recent problem: not after a quiet day, and not once the
+    # sender has been added to NAS Clients (its later messages are accepted)
+    if not row.rejected_at or now - row.rejected_at > REJECTED_FOR or _is_allowed(row.rejected_last_ip):
+        rejected = 0
     return {"running": alive, "seen": True, "port": row.port, "heartbeat": row.heartbeat,
-            "rejected": row.rejected, "rejected_last_ip": row.rejected_last_ip, "dropped": row.dropped}
+            "rejected": rejected, "rejected_last_ip": row.rejected_last_ip if rejected else "",
+            "rejected_at": row.rejected_at if rejected else None, "dropped": row.dropped}
+
+
+def _is_allowed(ip):
+    """True when `ip` is now on NAS Clients (as an address or inside a network)."""
+    if not ip:
+        return False
+    try:
+        exact, networks = allowed_sources()
+        addr = ipaddress.ip_address(ip)
+    except (DatabaseError, ValueError):
+        return False
+    return ip in exact or any(addr.version == net.version and addr in net for net, _ in networks)
 
 
 def _period(hours):

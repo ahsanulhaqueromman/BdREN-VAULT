@@ -41,4 +41,5 @@ class ReceiverState(models.Model):
     port = models.PositiveIntegerField(default=514)
     rejected = models.PositiveBigIntegerField(default=0)     # messages from addresses that are not devices
     rejected_last_ip = models.CharField(max_length=45, blank=True, default="")
+    rejected_at = models.DateTimeField(null=True, blank=True)   # when the newest refused message came
     dropped = models.PositiveBigIntegerField(default=0)      # over the per-device rate limit

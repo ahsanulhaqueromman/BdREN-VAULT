@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-138.
+Entries 118-139.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -29,6 +29,7 @@ Entries 118-138.
 136. **A session that began before the chosen period shows its login time** - a session still going when the period starts (logged in yesterday at 05:23 PM, logged out at 05:33 PM, viewed today at 05:26 PM with "Last 24 hours") showed "Before period" as its start. The Session Log now looks up to 24 hours further back for its login, so it shows 05:23 PM -> 05:33 PM and its length. Sessions that ended before the period are still left out.
 137. **Calmer, more professional notification sounds** - the sounds are now short, soft chimes like a system notification (a clear tone with a faint bell overtone and a natural fade) instead of sliding "game" effects: backup finished = two rising notes, saved = one light tap, added = a quick rising pair, deleted = a quick falling pair, finished with failures = two even notes, failed = a lower falling pair. A gentle filter and limiter keep them quiet and free of harsh peaks. The on/off button and the per-kind choices in Settings work as before. Also fixed a browser console error when leaving the Dashboard within two seconds of opening it.
 138. **Dashboard without the network animation** - the "Network overview" banner with the moving network picture at the top of the Dashboard is removed (and its styles); the page now starts with the statistic tiles and the "Needs attention" card.
+139. **The "log messages were ignored" note goes away when fixed** - Session Log showed "N log messages were ignored because the sender is not on NAS Clients" for ever, even after that address was added to NAS Clients, because the count was never reset. Now the note is shown only while the problem is current: it disappears as soon as the sender is on NAS Clients (address or network), and a day after the last refused message; a new problem after a quiet day starts a new count. Database change: one new column (migration commandlog 0004).
 
 ## 23 Nov 2026
 

@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.scheduling.services import retention_cutoff
 
 from .models import CommandEvent, ReceiverState, SyslogSource
+from .selectors import REJECTED_FOR
 
 logger = logging.getLogger("dbms")
 
@@ -38,7 +39,11 @@ def heartbeat(port, rejected=0, rejected_ip="", dropped=0, started=False, now=No
     """The receiver is alive; add the messages it refused since the last heartbeat."""
     now = now or timezone.now()
     row, _ = ReceiverState.objects.get_or_create(pk=1)
-    changes = {"heartbeat": now, "port": port, "rejected": F("rejected") + rejected, "dropped": F("dropped") + dropped}
+    changes = {"heartbeat": now, "port": port, "dropped": F("dropped") + dropped}
+    if rejected:
+        # count refused messages per spell: after a quiet day the count starts again (see selectors.REJECTED_FOR)
+        fresh = row.rejected_at is None or now - row.rejected_at > REJECTED_FOR
+        changes.update(rejected=rejected if fresh else F("rejected") + rejected, rejected_at=now)
     if started:
         changes["started_at"] = now
     if rejected_ip:

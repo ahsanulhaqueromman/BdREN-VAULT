@@ -44,7 +44,7 @@ def commands(request):
     for e in data["events"]:
         e["ts"] = _when(e["ts"])
     status = q.receiver_status()
-    status["heartbeat"] = _when(status.get("heartbeat"))
+    status["heartbeat"], status["rejected_at"] = _when(status.get("heartbeat")), _when(status.get("rejected_at"))
     sources = q.sources()
     for s in sources:
         s["first_seen"], s["last_seen"] = _when(s["first_seen"]), _when(s["last_seen"])
