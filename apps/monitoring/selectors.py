@@ -17,7 +17,10 @@ from apps.devices import selectors as devices
 from apps.devices.vendors import VENDORS
 from apps.scheduling import services as scheduling
 
+from .keys import LATEST_KEY
 from .models import PingHistory
+
+SHOW = 6    # rows per Dashboard list; the card says how many more there are
 
 
 def database_info():
@@ -52,6 +55,51 @@ def ping_history(hours=24):
             for p in PingHistory.objects.filter(ts__gte=timezone.now() - timedelta(hours=hours))]
 
 
+def attention():
+    """Devices that need a look now: offline in the monitor's latest sweep, and devices whose last backup failed
+    (with the error), plus how many wait for an automatic retry. offline_count is None while the background
+    ping monitor has no sweep yet (or is off)."""
+    from django.core.cache import cache
+    latest = cache.get(LATEST_KEY)
+    offline, offline_count = [], None
+    if latest:
+        down = sorted(int(k) for k, r in latest.items() if not (r or {}).get("up"))
+        offline_count = len(down)
+        offline = [{"id": d.id, "name": d.name, "ip": d.ip} for d in devices.devices_with_pks(down[:SHOW])]
+    failing = devices.failing_devices()
+    shown = failing[:SHOW]
+    why = backups.last_failure_messages([d["ip"] for d in shown])
+    failed = [{"id": d["id"], "name": d["name"], "ip": d["ip"], "ts": fmt_dt(d["last_run"]) if d["last_run"] else "",
+               "message": (why.get(d["ip"]) or "")[:160]} for d in shown]
+    return {"offline": offline, "offline_count": offline_count, "failed": failed, "failed_count": len(failing),
+            "retry_count": len(backups.retry_queue())}
+
+
+def recent_changes():
+    """The newest saved configuration changes, linked to their device when it still exists."""
+    rows = backups.recent_changes(SHOW)
+    ids = {d.ip: d.id for d in devices.devices_with_ips({r["ip"] for r in rows})}
+    return [{**r, "id": ids.get(r["ip"])} for r in rows]
+
+
+def device_access():
+    """Administrators: device logins through RADIUS in the last 24 hours, and accepted logins outside a
+    user's allowed devices. None when the RADIUS database is not reachable (the card is then hidden)."""
+    from django.core.cache import cache
+
+    from apps.radius import selectors as radius
+    cached = cache.get("dash-access")      # the Dashboard refreshes every 30 s; RADIUS is read once a minute
+    if cached is not None:
+        return cached or None
+    try:
+        summary = {**radius.login_summary(24), "violations": len(radius.limit_violations(24))}
+    except Exception:
+        logging.getLogger("dbms").info("Dashboard: RADIUS login summary unavailable", exc_info=True)
+        summary = {}
+    cache.set("dash-access", summary, 60)
+    return summary or None
+
+
 def dashboard(show_internals):
     """Numbers for the Dashboard: backups per day, uptime history, vendors, results, schedule and health.
     show_internals=False (non-administrators) hides the database engine and name."""
@@ -77,4 +125,5 @@ def dashboard(show_internals):
             "sched_on": values["sched_on"] == "1",
             "next_run": scheduling.next_scheduled_run(values),
             "ping_seconds": settings.PING_SECONDS, "job_running": job_running(),
-            "health": health}
+            "health": health, "attention": attention(), "changes": recent_changes(),
+            "access": device_access() if show_internals else None}

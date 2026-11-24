@@ -289,6 +289,23 @@ def results_per_day(days):
     return per_day
 
 
+def recent_changes(limit=6):
+    """The newest backups that saved a NEW configuration (status SUCCESS; an unchanged one is not a change),
+    newest first: [{ip, name, ts}]."""
+    return [{"ip": r.ip, "name": r.name, "ts": fmt_dt(r.ts)}
+            for r in BackupLog.objects.filter(status="SUCCESS").order_by("-ts")[:limit]]
+
+
+def last_failure_messages(ips):
+    """{ip: message of that device's newest FAILED backup} - one small indexed read per device shown."""
+    out = {}
+    for ip in ips:
+        msg = BackupLog.objects.filter(ip=ip, status="FAILED").order_by("-ts").values_list("message", flat=True).first()
+        if msg:
+            out[ip] = msg
+    return out
+
+
 def last_good_backup_time():
     return BackupLog.objects.filter(status__in=GOOD).order_by("-ts").values_list("ts", flat=True).first()
 

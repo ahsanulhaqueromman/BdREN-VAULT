@@ -45,6 +45,33 @@ function lineChart(ping){
   pts.forEach((p,i)=>g+=`<circle cx="${p[0]}" cy="${p[1]}" r="6" fill="transparent"><title>${bdClock(ping[i].ts)}: ${ping[i].up}/${ping[i].total} online${ping[i].avg_ms!=null?", avg "+ping[i].avg_ms+" ms":""}</title></circle>`);
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Devices online over 24 hours" style="width:100%;height:auto">${g}</svg>`;
 }
+/* one device row: coloured dot, name + IP (and the reason), time on the right; opens the device page */
+const devRow=(d,kind,right,why)=>{const label=esc(d.name||d.ip),href=d.id?`/devices/${d.id}`:"/devices";
+  return `<li><a href="${href}"><i class="dot ${kind}" aria-hidden="true"></i><span class="nm"><b>${label}</b><span>${d.name?esc(d.ip):""}${why?`${d.name?" · ":""}<em title="${esc(why)}">${esc(why)}</em>`:""}</span></span><span class="when">${right}</span></a></li>`};
+const more=(n,shown,href,what)=>n>shown?`<a class="dl-more" href="${href}">+ ${fmtNum(n-shown)} more ${what}</a>`:"";
+function attentionHTML(a){
+  if(!a)return noData("No data");
+  const parts=[];
+  if(a.offline.length)parts.push(`<h4><span>Offline now</span><b class="r">${fmtNum(a.offline_count)}</b></h4><ul class="dl">${a.offline.map(d=>devRow(d,"bad",`<span class="tagx bad">Offline</span>`)).join("")}</ul>${more(a.offline_count,a.offline.length,"/devices","offline")}`);
+  if(a.failed.length)parts.push(`<h4><span>Last backup failed</span><b class="r">${fmtNum(a.failed_count)}</b></h4><ul class="dl">${a.failed.map(d=>devRow(d,"warn",d.ts?esc(fmtBdDateTime(d.ts)):"",d.message)).join("")}</ul>${more(a.failed_count,a.failed.length,"/devices","failed")}`);
+  if(a.retry_count)parts.push(`<p class="dl-note">${fmtNum(a.retry_count)} device${a.retry_count===1?"":"s"} will be retried automatically. <a class="link" href="/jobs">Backup Jobs</a></p>`);
+  if(!parts.length)return `<div class="allgood"><i aria-hidden="true"></i><b>All clear</b><span>${a.offline_count==null?"Every last backup succeeded. Online status appears once the ping monitor has run.":"Every device answers ping and every last backup succeeded."}</span></div>`;
+  return parts.join("");
+}
+function changesHTML(rows){
+  if(!rows||!rows.length)return noData("No configuration changes saved yet");
+  /* name, then IP, then the date on its own line (the card can be narrow) */
+  return `<ul class="dl">${rows.map(r=>`<li><a href="${r.id?`/devices/${r.id}`:"/backups"}"><i class="dot ok" aria-hidden="true"></i><span class="nm"><b>${esc(r.name||r.ip)}</b>${r.name?`<span>${esc(r.ip)}</span>`:""}<small>${esc(fmtBdDateTime(r.ts))}</small></span><span></span></a></li>`).join("")}</ul>`;
+}
+function accessHTML(x){
+  const kpi=(label,val,cls,sub)=>`<div class="kpi"><small>${label}</small><strong class="${cls}">${val}</strong><span class="d">${sub}</span></div>`;
+  return kpi("Login attempts",fmtNum(x.total),"","Accepted and rejected")
+    +kpi("Accepted",fmtNum(x.accepted),"g",x.total?Math.round(x.accepted/x.total*100)+"% of attempts":"No attempts")
+    +kpi("Rejected",fmtNum(x.rejected),x.rejected?"r":"g","Wrong password or no access")
+    +kpi("Users",fmtNum(x.users),"","Different usernames")
+    +(x.device_logging?kpi("Devices",fmtNum(x.devices),"","Signed in to"):"")
+    +kpi("Outside allowed devices",fmtNum(x.violations),x.violations?"r":"g",x.violations?"Check Authentication Audit":"None");
+}
 let wasRunning=null;
 function renderDashboard(d){
   if(wasRunning&&!d.job_running&&!manualJob)sfx.play("done");wasRunning=d.job_running;
@@ -59,6 +86,12 @@ function renderDashboard(d){
    <button type="button" class="kpi kpi-link kpi-link-success" data-go="backups" aria-label="View backups"><span class="kpi-top"><small>Backup completed</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="g">${ofTotal(completed,d.total)}</strong><span class="d">Saved or unchanged</span></button>
    <div class="kpi"><small>Backup not completed</small><strong class="${notCompleted?"r":"g"}">${fmtNum(notCompleted)}</strong><span class="d">${fmtNum(failed)} failed · ${fmtNum(neverRun)} not run</span></div>
    <div class="kpi"><small>Auto backup</small><strong class="sm2">${d.job_running?"Running now":d.sched_on?"Next: "+esc(fmtBdDateTime(d.next_run)):"Off"}</strong><span class="d">Scheduled status</span></div>`);
+  const att=d.attention;
+  setHTML("#attention",attentionHTML(att));
+  if(att)$("#attSub").textContent=att.offline_count==null?"Failed backups now; online status appears once the ping monitor has run":"Offline devices and failed backups, right now";
+  setHTML("#changes",changesHTML(d.changes));
+  $("#accessCard").hidden=!d.access;
+  if(d.access)setHTML("#access",accessHTML(d.access));
   setHTML("#chDays",barChart(d.days));
   setHTML("#chDonut",donut(d.status,d.total));
   setHTML("#chUp",lineChart(d.ping));

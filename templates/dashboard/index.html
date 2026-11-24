@@ -37,6 +37,11 @@
         </g>
       </svg>
     </div>
+    <div class="grid2 even">
+      <div class="card"><div class="title"><div><h3>Needs attention</h3><p class="d" id="attSub">Offline devices and failed backups, right now</p></div></div><div id="attention"></div></div>
+      <div class="card"><div class="title"><div><h3>Recent configuration changes</h3><p class="d">The newest backups that saved a new configuration</p></div><a class="link" href="/backups">All backups</a></div><div id="changes"></div></div>
+    </div>
+    <div class="card" id="accessCard" hidden><div class="title"><div><h3>Device logins, last 24 hours</h3><p class="d">Sign-ins to switches, routers and OLTs through RADIUS</p></div><a class="link" href="/radius/audit">Authentication Audit</a></div><div id="access" class="kpis"></div></div>
     <div class="grid2">
       <div class="card"><h3>Backups per day</h3><p class="d">Last 14 days</p><div id="chDays"></div>
         <div class="lg"><span class="k ok">Saved</span><span class="k same">Unchanged</span><span class="k bad">Failed</span></div></div>

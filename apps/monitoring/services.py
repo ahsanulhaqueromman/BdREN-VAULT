@@ -16,10 +16,9 @@ from django.utils import timezone
 from apps.devices import selectors as devices
 from apps.devices.vendors import HOSTRX
 
+from .keys import FAILS_KEY, LATEST_KEY
 from .models import PingHistory
 
-LATEST_KEY = "ping-latest"  # last full-inventory ping result, written by the monitor
-FAILS_KEY = "ping-fails"    # consecutive failed sweeps per device id (offline only after 2 in a row)
 IS_WIN = platform.system() == "Windows"
 
 
