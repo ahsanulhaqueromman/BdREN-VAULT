@@ -1,12 +1,11 @@
 """Writes for Command History: what the syslog receiver hands over, and the daily clean-up."""
 import logging
-from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from apps.scheduling.services import logs_kept_forever
+from apps.scheduling.services import retention_cutoff
 
 from .models import CommandEvent, ReceiverState, SyslogSource
 
@@ -45,16 +44,12 @@ def heartbeat(port, rejected=0, rejected_ip="", dropped=0, started=False, now=No
     ReceiverState.objects.filter(pk=1).update(**changes)
 
 
-KEEP_DAYS = 730          # the Session Log keeps two years of logins and commands
-
-
 def prune_old_events(now=None):
-    """Delete Session Log events (logins, commands, changes) older than two years (KEEP_DAYS). Nothing is deleted
-    while Settings > "Keep logs and backup files for" is Forever. Runs once a day from the background threads.
-    Returns the number of rows removed."""
-    if logs_kept_forever():
+    """Delete Session Log events (logins, commands, changes) older than Settings > "Keep logs and backup files
+    for" (Forever = keep all). Runs once a day from the background threads. Returns the number of rows removed."""
+    cutoff = retention_cutoff(now)
+    if cutoff is None:
         return 0
-    cutoff = (now or timezone.now()) - timedelta(days=KEEP_DAYS)
     removed = 0
     while True:                       # in slices, so a large table never locks for long
         ids = list(CommandEvent.objects.filter(received_at__lt=cutoff).values_list("id", flat=True)[:5000])
@@ -62,5 +57,5 @@ def prune_old_events(now=None):
             break
         removed += CommandEvent.objects.filter(id__in=ids).delete()[0]
     if removed:
-        logger.info("Session Log: removed %s entries older than two years", removed)
+        logger.info("Session Log: removed %s entries older than the retention period", removed)
     return removed

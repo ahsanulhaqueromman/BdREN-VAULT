@@ -252,18 +252,13 @@ def prune_old_logs(now=None):
     """Delete backup log rows older than the number of months set on the Settings page. Returns rows removed.
     Only the Activity Logs records are removed here (old configuration files: prune_old_backup_files, same
     setting); the audit trail stays."""
-    from datetime import timedelta
-    from apps.scheduling.services import get_setting
-    try:
-        months = int(get_setting("log_retention_months") or 0)
-    except ValueError:
+    from apps.scheduling.services import retention_cutoff, retention_months
+    cutoff = retention_cutoff(now)
+    if cutoff is None:
         return 0
-    if months <= 0:
-        return 0
-    cutoff = (now or timezone.now()) - timedelta(days=30 * months)
     removed, _ = BackupLog.objects.filter(ts__lt=cutoff).delete()
     if removed:
-        logger.info("Removed %s backup log entries older than %s months", removed, months)
+        logger.info("Removed %s backup log entries older than %s months", removed, retention_months())
     return removed
 
 
@@ -272,19 +267,14 @@ def prune_old_backup_files(now=None):
     (the same "Keep logs and backup files for" choice as the Activity Logs). The newest file of every
     device is always kept.
     Returns the number of files removed."""
-    from datetime import timedelta
-    from apps.scheduling.services import get_setting
-    try:
-        months = int(get_setting("log_retention_months") or 0)
-    except ValueError:
+    from apps.scheduling.services import retention_cutoff, retention_months
+    cutoff = retention_cutoff(now)
+    if cutoff is None:
         return 0
-    if months <= 0:
-        return 0
-    cutoff = ((now or timezone.now()) - timedelta(days=30 * months)).timestamp()
-    removed, freed = storage.prune_older_than(cutoff)
+    removed, freed = storage.prune_older_than(cutoff.timestamp())
     if removed:
         logger.info("Removed %s configuration files older than %s months (%.1f MiB); the newest file of "
-                    "every device was kept", removed, months, freed / 1024 ** 2)
+                    "every device was kept", removed, retention_months(), freed / 1024 ** 2)
     return removed
 
 

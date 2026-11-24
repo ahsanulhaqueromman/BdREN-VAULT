@@ -26,14 +26,26 @@ RUNTIME_DEFAULTS = {
     "backup_job_heartbeat": "",
     "backup_job_cancel": "",
 }
-LOG_RETENTION_CHOICES = ("0", "1", "3", "6", "12", "24")   # months; "0" = keep logs forever
+LOG_RETENTION_CHOICES = ("0", "12", "24", "48")   # months; "0" = keep logs forever
 MODES = ("interval", "daily", "days", "semimonthly")          # every N minutes / every day at HH:MM / every N days
 
 
-def logs_kept_forever():
-    """True when Settings > "Keep logs and backup files for" is Forever: then no daily clean-up deletes anything,
-    not Activity Logs, saved configurations, the Session Log or Authentication Audit."""
-    return (get_setting("log_retention_months") or "0") == "0"
+def retention_months():
+    """Settings > "Keep logs and backup files for", in months; 0 = Forever (delete nothing)."""
+    try:
+        return max(int(get_setting("log_retention_months") or 0), 0)
+    except ValueError:
+        return 0
+
+
+def retention_cutoff(now=None):
+    """Everything older than this is deleted by the daily clean-up: Activity Logs, saved configuration files
+    (the newest of each device stays), Session Log and accepted RADIUS logins. None = Forever.
+    12 months = 365 days, 24 = 730, 48 = 1461."""
+    months = retention_months()
+    if not months:
+        return None
+    return (now or timezone.now()) - timedelta(days=round(months * 365.25 / 12))
 
 
 def get_setting(key):
@@ -194,7 +206,7 @@ def clean_settings(data):
     out["sched_catchup"] = "1" if str(data.get("sched_catchup", "0")) in ("1", "true", "True", "on") else "0"
     months = str(data.get("log_retention_months", get_setting("log_retention_months")))
     if months not in LOG_RETENTION_CHOICES:
-        raise ApiError(400, "Choose how long to keep logs and backup files: forever, 1, 3, 6, 12 or 24 months")
+        raise ApiError(400, "Choose how long to keep logs and backup files: forever, 12, 24 or 48 months")
     out["log_retention_months"] = months
     return out
 

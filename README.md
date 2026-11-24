@@ -50,8 +50,9 @@ Tested with **20,000+ devices** and **30,000+ RADIUS users / NAS clients** on ge
 - Line-by-line comparison of any two versions, and **Change Reports** for a period (CSV / PDF)
 - Patient SSH with an automatic retry queue for devices that were offline or slow
 - Up to 200 parallel SSH sessions (`DBMS_MAX_WORKERS`, default 50)
-- **Retention:** one setting keeps Activity Logs and saved configurations for Forever, 1, 3, 6, 12 or
-  24 months. The newest configuration of every device is always kept.
+- **Retention:** one setting keeps every log (Activity Logs, saved configurations, Session Log, accepted
+  logins) for Forever, 12, 24 or 48 months. The newest configuration of every device is always kept.
+  With a period chosen, rejected logins are deleted after six months; Forever deletes nothing.
 
 **Supported platforms:** Cisco IOS / IOS-XE, NX-OS and ASA · Huawei VRP and SmartAX OLTs · Juniper Junos ·
 MikroTik RouterOS · Fortinet FortiOS · Arista EOS · HPE Comware · TP-Link Omada / JetStream · BDCOM ·
@@ -262,14 +263,14 @@ After editing `.env`, run `sudo systemctl restart vault`.
 - UDP 1812 / 1813 is open only to devices on the NAS Clients list; the firewall is updated by a root-owned
   script that takes no arguments, so the website cannot choose a firewall rule
 - Every device login is recorded in Authentication Audit
-- Accepted logins are kept for two years, rejected ones for six months (a daily clean-up); Forever in System Settings keeps all of them
+- Accepted logins are kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months); with a period chosen, rejected ones are deleted after six months (a daily clean-up)
 
 **Session Log (syslog)**
 - The receiver runs as the unprivileged `vault` user; systemd gives it only the right to use port 514
 - UDP 514 is open in the firewall only for NAS Clients, and the receiver also drops every message from any
   other address, so nobody else can write into the history
 - Each device may send at most 200 messages a second; the rest are dropped and counted
-- Kept for two years, then deleted automatically (a daily clean-up); with **System Settings > Keep logs and backup files for** set to Forever nothing is deleted
+- Kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months; a daily clean-up)
 
 **Server**
 - Runs as an unprivileged `vault` user; automatic security updates are enabled

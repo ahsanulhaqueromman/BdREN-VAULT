@@ -83,7 +83,7 @@ sfrm.onsubmit=async e=>{
     const b={workers:f.workers.value,sched_on:f.sched_on.checked?"1":"0",sched_mode:f.sched_mode.value,sched_every:f.sched_every.value,sched_at:parse12hTime(f.sched_at.value),sched_days:f.sched_days.value,sched_catchup:f.sched_catchup.checked?"1":"0",log_retention_months:f.log_retention_months.value};
     const keep=b.log_retention_months,shorter=keep!=="0"&&(savedKeep==="0"||+keep<+savedKeep);
     if(shorter){      /* a shorter file retention deletes saved configurations: ask first */
-      if(!await confirmAction({title:`Keep logs and backup files for ${keep} month${keep==="1"?"":"s"} only?`,message:`Activity Logs entries and saved configuration versions older than ${keep} month${keep==="1"?"":"s"} will be deleted at the next daily clean-up (within 24 hours). The newest configuration of every device is always kept. Deleted files cannot be recovered.`,confirm:"Save and delete old files",run:()=>api("/api/settings",J("PUT",b))}))return;
+      if(!await confirmAction({title:`Keep logs and backup files for ${keep} month${keep==="1"?"":"s"} only?`,message:`Activity Logs entries, saved configuration versions, Session Log entries and accepted logins older than ${keep} month${keep==="1"?"":"s"} will be deleted at the next daily clean-up (within 24 hours). The newest configuration of every device is always kept. Deleted files cannot be recovered.`,confirm:"Save and delete old files",run:()=>api("/api/settings",J("PUT",b))}))return;
     }else await api("/api/settings",J("PUT",b));
     toast("Your settings were saved and are now in effect.",{title:"Settings saved"});loadSettings();
   }catch(err){toast(err.message,{type:"error"})}
