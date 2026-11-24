@@ -242,11 +242,28 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
 
 
 def sources():
-    """Devices that send syslog, newest first, with how many of their messages were user actions."""
+    """Devices that send syslog, newest first, with how many of their messages were user actions.
+
+    Only devices still on NAS Clients: one deleted from NAS Clients is no longer accepted by the receiver,
+    so it leaves this list too (its past sessions stay in the Session Log)."""
     name_of = _namer()
+    try:
+        exact, networks = allowed_sources()
+    except DatabaseError:
+        exact = networks = None          # NAS Clients cannot be read: show every sender rather than none
+
+    def on_nas(ip):
+        if exact is None:
+            return True
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        return ip in exact or any(addr.version == net.version and addr in net for net, _ in networks)
+
     return [{"ip": s.ip, "device": name_of(s.ip), "first_seen": s.first_seen, "last_seen": s.last_seen,
              "received": s.received, "recognized": s.recognized, "sample": s.last_unrecognized}
-            for s in SyslogSource.objects.order_by("-last_seen")[:500]]
+            for s in SyslogSource.objects.order_by("-last_seen")[:500] if on_nas(s.ip)]
 
 
 def _namer():

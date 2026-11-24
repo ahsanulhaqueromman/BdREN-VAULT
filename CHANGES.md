@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-141.
+Entries 118-142.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -32,6 +32,7 @@ Entries 118-141.
 139. **The "log messages were ignored" note goes away when fixed** - Session Log showed "N log messages were ignored because the sender is not on NAS Clients" for ever, even after that address was added to NAS Clients, because the count was never reset. Now the note is shown only while the problem is current: it disappears as soon as the sender is on NAS Clients (address or network), and a day after the last refused message; a new problem after a quiet day starts a new count. Database change: one new column (migration commandlog 0004).
 140. **Cisco show commands in the Session Log** - Cisco logs only configuration commands by itself, so show, ping and other commands were missing. Device Setup > Cisco > "Command logging" now ends with a small event manager applet (VAULT-CLI-LOG) that sends every command with the user name, and VAULT lists show / ping / traceroute from it as view commands. Configuration commands still come from the archive log, so they are not counted twice, and end / exit / configure terminal are left out. Tested on an ASR1002 (IOS-XE 3.13, EEM 4.0); needs EEM with the cli event detector and $_cli_username.
 141. **Cisco device names and configure terminal** - with "logging origin-id hostname" on the router, VAULT now reads the name Cisco writes in each message (SUST-EDGE-R1) and shows it with the address, like Huawei and Juniper, even when the NAS entry has no name. configure terminal (and enable) from the EEM applet now show as view lines; end, exit and quit are still left out because the archive log already shows them.
+142. **Deleted NAS devices leave "Devices sending logs"** - a device deleted from NAS Clients is no longer accepted by the receiver, so it no longer stays in the Session Log list of devices sending logs either. Its past sessions stay in the Session Log.
 
 ## 23 Nov 2026
 
