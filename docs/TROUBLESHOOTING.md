@@ -216,6 +216,8 @@ Then log in to a device once and look at **Authentication Audit**.
 
 Session Log is filled by the **vault-syslog** service, which receives the devices' syslog on UDP 514.
 The page itself says what is wrong at the top (receiver not installed, not running, or messages ignored).
+Press **What to do** on the warning for the steps; a warning about ignored or dropped messages can be
+cleared with **Done, dismiss** once it is handled (it comes back only with the next such message).
 
 **a) Is the receiver running?**
 
@@ -242,9 +244,20 @@ sudo ufw status | grep 514                      # with the firewall on, the devi
 | Nothing in tcpdump | The device does not send: check its syslog settings (Device Setup, step "Command logging") and that it can reach the server (`ping` from the device) |
 | Packets arrive, page says "messages were ignored" | They come from an address that is not on NAS Clients (often a loopback or management address). Make the device send from its NAS address (`info-center loghost source`, `logging source-interface`, `source-address`), or add that address on NAS Clients |
 | Packets arrive, no ufw rule for the device | `sudo /usr/local/sbin/vault-radius-firewall` (adds UDP 514 for every NAS Clients address) |
+| A device deleted from NAS Clients is still in "Devices sending logs" | Update VAULT: the list shows only devices on NAS Clients |
 | Device listed under "Devices sending logs" but "No user actions yet" | The device sends other logs but not its commands. Open **Last message received** to see its format, then turn on command logging (Huawei: `info-center enable` and `info-center loghost <server>`; Cisco: `archive` / `log config` / `notify syslog`) |
 
-**c) Test the receiver from the server itself** (only works when 127.0.0.1 is on NAS Clients; remove it afterwards):
+**c) Cisco (IOS / IOS-XE)**
+
+| What you see | Cause and fix |
+|---|---|
+| Configuration changes arrive, `show` / `ping` do not | Cisco logs configuration commands only. Add the event manager applet from Device Setup, step "Command logging" (needs EEM 3.0 or newer: IOS 15 / IOS-XE) |
+| `show running-config \| include x` arrives as `show running-config` | Cisco removes the part after the pipe before the applet sees the command; only TACACS+ command accounting sends it |
+| The session shows "No logout" | Cisco sends its logout message at level 6 (informational), below `logging trap notifications`. The session closes 15 minutes after the last command, or at once with RADIUS accounting: `aaa accounting exec default start-stop group radius` |
+| The device shows by address, not by name | Add `logging origin-id hostname`, or give the device a name on NAS Clients or in Device Inventory |
+| The router sends from a different address per path | Each VAULT server sees the address the packets leave from (a VRF or management interface may differ). Check with `sudo tcpdump -ni any udp port 514` and put that address on NAS Clients, or set `logging source-interface` |
+
+**d) Test the receiver from the server itself** (only works when 127.0.0.1 is on NAS Clients; remove it afterwards):
 
 ```bash
 logger -n 127.0.0.1 -P 514 -d '%%01SHELL/5/CMDRECORD(s)[1]:Recorded command information. (Task=VT0, Ip=10.0.0.5, VpnName=, User=test, AuthenticationMethod="RADIUS", Command="display version")'

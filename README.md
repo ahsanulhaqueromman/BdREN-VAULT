@@ -85,10 +85,15 @@ V-SOL · any other device through generic SSH
   per vendor (Cisco privilege, Huawei level, Juniper class, MikroTik group, Fortinet profile)
 - Limit a user to specific devices or to a device type; new devices of that type are covered automatically
 - New NAS devices work immediately, with no FreeRADIUS restart
+- A NAS device added without a name gets the name it sends in its syslog (for example Cisco
+  `logging origin-id hostname`); the name is kept on NAS Clients and every page reads it from there
+- User passwords are stored only as salted SHA-256, never in clear text
 - **Authentication Audit:** every login attempt, with the device it went to and the address it came from
 - **Session Log:** every device login as a session (who, which device, from where, how long) and,
   by device or by user, each session from login through every command and configuration change to logout; read from the devices' own
-  syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV
+  syslog (Huawei, Cisco, Juniper, MikroTik, Fortinet) and the RADIUS logins; search, filter and export to CSV.
+  Each warning on the page (receiver stopped, messages ignored or dropped) has a **What to do** button with the
+  steps, and **Done, dismiss** where it can be cleared
 - Copy-ready configuration commands per vendor on the **Device Setup** page
 
 ### Monitoring and operations
@@ -416,6 +421,11 @@ logins included.
 **RADIUS**
 - UDP 1812 / 1813 is open only to devices on the NAS Clients list; the firewall is updated by a root-owned
   script that takes no arguments, so the website cannot choose a firewall rule
+- User passwords are stored only as salted SHA-256 (`SSHA2-256-Password`), so the `radius` database and its
+  backups hold no readable password. The installer converts passwords left in clear text by older versions
+  (`manage.py radius_hash_passwords`), keeping the same passwords. Logins use PAP, which SSH / Telnet logins on
+  network devices use; CHAP / MS-CHAP need the clear text and do not work
+- Shared secrets are 24 random characters per device
 - Every device login is recorded in Authentication Audit
 - Accepted logins are kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months); with a period chosen, rejected ones are deleted after six months (a daily clean-up)
 
@@ -424,6 +434,9 @@ logins included.
 - UDP 514 is open in the firewall only for NAS Clients, and the receiver also drops every message from any
   other address, so nobody else can write into the history
 - Each device may send at most 200 messages a second; the rest are dropped and counted
+- Cisco: the event manager applet from Device Setup catches view commands only (show, ping, configure, ...),
+  so a password typed in a configuration command never leaves the device in clear text; configuration
+  commands come from the archive log with `hidekeys`
 - Kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months; a daily clean-up)
 
 **Server**
