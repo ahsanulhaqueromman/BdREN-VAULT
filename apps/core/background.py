@@ -60,6 +60,7 @@ def start_background():
     from apps.backups.services import run_retention
     from apps.commandlog.services import prune_old_events
     from apps.monitoring.services import ping_monitor_tick
+    from apps.radius.services import prune_old_logins
     from apps.scheduling.services import scheduler_tick
 
     close_stale_jobs()
@@ -67,5 +68,6 @@ def start_background():
     _run_forever("scheduler", scheduler_tick, 30, first_delay=30)
     _run_forever("retention", run_retention, 24 * 3600, first_delay=120)
     _run_forever("command-history-retention", prune_old_events, 24 * 3600, first_delay=180)
+    _run_forever("radius-login-retention", prune_old_logins, 24 * 3600, first_delay=240)
     if settings.PING_SECONDS > 0:
         _run_forever("ping-monitor", ping_monitor_tick, max(15, settings.PING_SECONDS), first_delay=10)

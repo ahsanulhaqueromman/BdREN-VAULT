@@ -13,6 +13,8 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSide()});
 function setMin(on){document.body.classList.toggle("side-min",on);const b=$("#colBtn");b.setAttribute("aria-pressed",on);const t=on?"Expand menu":"Minimize menu";b.title=t;b.setAttribute("aria-label",t);try{localStorage.setItem("nb_side_min",on?"1":"0")}catch(e){}}
 $("#colBtn").onclick=()=>setMin(!document.body.classList.contains("side-min"));
 setMin(document.body.classList.contains("side-min"));
+/* back to where the menu was scrolled on the last screen (core/transition.js saves it) */
+try{const y=+sessionStorage.getItem("vault_nav_y"),n=$(".side nav");if(n&&y>0)n.scrollTop=y}catch(e){}
 
 /* ---- RADIUS / AAA drop-down: opens on click and remembers it; always open while one of its pages is shown ---- */
 document.querySelectorAll(".side .dd").forEach(dd=>{

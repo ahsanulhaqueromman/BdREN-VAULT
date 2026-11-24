@@ -45,16 +45,13 @@ def heartbeat(port, rejected=0, rejected_ip="", dropped=0, started=False, now=No
     ReceiverState.objects.filter(pk=1).update(**changes)
 
 
+KEEP_DAYS = 730          # the Session Log keeps two years of logins and commands
+
+
 def prune_old_events(now=None):
-    """Delete command history older than Settings > "Keep logs and backup files for" (Forever = keep all).
+    """Delete Session Log events (logins, commands, changes) older than two years (KEEP_DAYS).
     Runs once a day from the background threads. Returns the number of rows removed."""
-    try:
-        months = int(get_setting("log_retention_months") or 0)
-    except ValueError:
-        return 0
-    if months <= 0:
-        return 0
-    cutoff = (now or timezone.now()) - timedelta(days=30 * months)
+    cutoff = (now or timezone.now()) - timedelta(days=KEEP_DAYS)
     removed = 0
     while True:                       # in slices, so a large table never locks for long
         ids = list(CommandEvent.objects.filter(received_at__lt=cutoff).values_list("id", flat=True)[:5000])
@@ -62,5 +59,5 @@ def prune_old_events(now=None):
             break
         removed += CommandEvent.objects.filter(id__in=ids).delete()[0]
     if removed:
-        logger.info("Removed %s command history entries older than %s months", removed, months)
+        logger.info("Session Log: removed %s entries older than two years", removed)
     return removed

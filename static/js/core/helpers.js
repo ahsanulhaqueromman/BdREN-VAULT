@@ -286,21 +286,30 @@ function paginate(key,items){
   const bar=!items.length?"":`<div class="pager" data-pager="${key}">
     <span class="pg-info">Showing ${from+1}&ndash;${Math.min(from+size,items.length)} of ${items.length}</span><span class="sp"></span>
     <label class="pg-size"><span>Rows per page</span><select aria-label="Rows per page">${PAGE_SIZES.map(n=>`<option${n===size?" selected":""}>${n}</option>`).join("")}</select></label>
-    <button type="button" class="b" data-go="${p-1}"${p<=1?" disabled":""}>Previous</button>
+    <button type="button" class="b" data-pg="${p-1}"${p<=1?" disabled":""}>Previous</button>
     <span class="pg-num">Page ${p} of ${pages}</span>
-    <button type="button" class="b" data-go="${p+1}"${p>=pages?" disabled":""}>Next</button></div>`;
+    <button type="button" class="b" data-pg="${p+1}"${p>=pages?" disabled":""}>Next</button></div>`;
   return {rows:items.slice(from,from+size),bar};
 }
 const REDRAW={devices:()=>renderDevices(),backups:()=>renderBackups(),logs:()=>renderLogs(),audit:()=>renderAudit(),radUsers:()=>renderRadUsers(),radNas:()=>renderRadNas(),radLogins:()=>renderRadLogins(),reports:()=>renderReport(),signins:()=>renderSignins(),jobs:()=>renderJobs(),retry:()=>renderRetryQueue()};
+/* after a page change the new page starts at the top of its list: when the list's top has scrolled out of
+   sight (the pager sits under it), bring it back below the sticky header */
+function pagerTop(key){
+  const list=document.querySelector(`.pager[data-pager="${key}"]`)?.parentElement;if(!list)return;
+  const top=list.getBoundingClientRect().top,head=(document.querySelector(".appbar")?.offsetHeight||64)+12;
+  if(top<head)window.scrollBy({top:top-head,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+}
+/* data-pg (not data-go: pages use data-go for their own links, e.g. Session Log, and a click must not do both) */
 document.addEventListener("click",e=>{
-  const b=e.target.closest(".pager [data-go]");if(!b||b.disabled)return;
-  const key=b.closest(".pager").dataset.pager;PAGES[key]=+b.dataset.go;REDRAW[key]();
-});
+  const b=e.target.closest(".pager [data-pg]");if(!b||b.disabled||!REDRAW[b.closest(".pager").dataset.pager])return;
+  e.stopPropagation();
+  const key=b.closest(".pager").dataset.pager;PAGES[key]=+b.dataset.pg;REDRAW[key]();pagerTop(key);
+},true);
 document.addEventListener("change",e=>{
   if(!e.target.matches(".pager select"))return;
-  const key=e.target.closest(".pager").dataset.pager;
+  const key=e.target.closest(".pager").dataset.pager;if(!REDRAW[key])return;
   SIZES[key]=+e.target.value;localStorage.setItem("dbms_page_size_"+key,SIZES[key]);
-  PAGES[key]=1;REDRAW[key]();
+  PAGES[key]=1;REDRAW[key]();pagerTop(key);
 });
 
 /* status text and pill for the "Status" column */

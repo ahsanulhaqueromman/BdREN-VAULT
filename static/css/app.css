@@ -733,10 +733,15 @@ textarea{min-height:130px;font-family:var(--mono);font-size:13px;resize:vertical
 @keyframes bkblink{0%,100%{background:color-mix(in srgb,var(--ok) 18%,transparent)}50%{background:transparent}}
 
 main>section:not([hidden]){animation:fadeUp .2s var(--ease) both}
-/* moving between screens: the browser cross-fades the old page into the new one (menu and top bar stay
-   put), instead of a blank flash. Browsers without it simply load the page as before. */
+/* moving between screens: the browser keeps the old page on screen until the new one is ready (no blank
+   flash), then swaps it at once; only the new page's content fades up (main>section above). The menu and the
+   top bar are their own layers so they never fade or jump. A cross-fade of the whole page on top of the
+   section fade made the content blink twice. Browsers without it simply load the page as before. */
 @view-transition{navigation:auto}
-::view-transition-old(root),::view-transition-new(root){animation-duration:.12s}
+.side{view-transition-name:vault-side}
+.shell>.appbar{view-transition-name:vault-bar}
+::view-transition-old(root),::view-transition-new(root),
+::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}
 /* tiles and charts animate on the first draw only (dashboard.js adds .charts-ready afterwards),
    so the 30-second refresh never makes them flash */
 #dashboard:not(.charts-ready) .kpis>.kpi{animation:fadeUp .26s var(--ease) both}

@@ -16,7 +16,7 @@ from django.db import transaction
 
 from . import selectors
 from .models import (NO_DEVICE, ROLE_MAX_LEN, ROLE_SUGGESTIONS, AuditLog, Nas, NasRole, RadCheck, RadGroupReply, RadUserGroup,
-                     UserDevice, UserGrant, clean_role)
+                     UserDevice, UserGrant, clean_role, RadPostAuth)
 from .router import DB
 from .selectors import LEGACY_ATTR, LEGACY_OP, PASSWORD_ATTRS, is_single_ip, pattern_devices
 
@@ -82,6 +82,40 @@ def audit(actor, action, target="", detail="", ip=None):
                                 detail=detail[:300], ip=ip or None)
     except Exception:
         logger.exception("Could not write the RADIUS audit line %s %s", action, target)
+
+
+LOGIN_KEEP_DAYS = {"accepted": 730, "rejected": 183}     # Authentication Audit: 2 years / 6 months
+
+
+def prune_old_logins(now=None):
+    """Delete old device logins from radpostauth: accepted ones after two years, every other result (rejected)
+    after six months (LOGIN_KEEP_DAYS). Runs once a day from the background threads, in slices so FreeRADIUS
+    can keep writing. A server without the RADIUS database skips it. Returns the number of rows removed."""
+    from datetime import timedelta
+
+    from django.db import DatabaseError
+    from django.utils import timezone
+
+    now = now or timezone.now()
+    accepted = RadPostAuth.objects.filter(reply="Access-Accept",
+                                          authdate__lt=now - timedelta(days=LOGIN_KEEP_DAYS["accepted"]))
+    rejected = RadPostAuth.objects.exclude(reply="Access-Accept").filter(
+        authdate__lt=now - timedelta(days=LOGIN_KEEP_DAYS["rejected"]))
+    removed = 0
+    try:
+        for rows in (accepted, rejected):
+            while True:
+                ids = list(rows.values_list("id", flat=True)[:5000])
+                if not ids:
+                    break
+                removed += RadPostAuth.objects.filter(id__in=ids).delete()[0]
+    except DatabaseError:
+        logger.warning("Authentication Audit retention skipped: the RADIUS database is not reachable")
+        return removed
+    if removed:
+        logger.info("Authentication Audit: removed %s old device logins (accepted > 2 years, rejected > 6 months)",
+                    removed)
+    return removed
 
 
 def hash_password(password):
