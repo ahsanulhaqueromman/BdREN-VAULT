@@ -520,11 +520,11 @@ A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
 
 ## Author
 
-| | |
-|---|---|
-| **Designed and developed by** | **Ahsanul Haque** |
-| **Organization** | Bangladesh Research and Education Network (BdREN) |
-| **Project** | BdREN VAULT: network configuration backup, RADIUS / AAA access control and Session Log |
+**Md Ahsanul Haque**<br>
+Bangladesh Research and Education Network (BdREN)
+
+Designed and developed BdREN VAULT: network configuration backup, RADIUS / AAA access control and
+Session Log.
 
 ---
 
