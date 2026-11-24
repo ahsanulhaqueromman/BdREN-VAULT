@@ -3,7 +3,7 @@
 {% block content %}
 <section id="dashboard">
     <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Backup activity, device uptime and the automatic schedule at a glance." %}</div>
-      <button class="b" id="dashRefresh" type="button">Refresh</button></div>
+      <div class="dash-acts"><span class="dash-status" id="dashStatus" role="status" hidden></span><button class="b" id="dashRefresh" type="button">Refresh</button></div></div>
     <div class="kpis" id="kpis"></div>
     <div class="netmap">
       <div class="nm-tx">

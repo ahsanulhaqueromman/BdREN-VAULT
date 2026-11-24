@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#f3f6fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#080e1c" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" href="{% static 'img/bdren-logo.png' %}">
-<link rel="stylesheet" href="{% static 'css/app.css' %}?v=146">
+<link rel="stylesheet" href="{% static 'css/app.css' %}?v=148">
 <script src="{% static 'js/core/transition.js' %}?v=125"></script>
 </head>
 <body class="r-{{ request.user.role }}" data-page="{% if denied %}denied{% else %}{{ page.key }}{% endif %}" data-idle-timeout-ms="{{ session_idle_ms|default:900000 }}"{% if device_id %} data-device-id="{{ device_id }}"{% endif %}{% if denied %} data-denied="1"{% endif %}>
@@ -95,7 +95,7 @@
 <script src="{% static 'js/core/menu.js' %}?v=125"></script>
 <script src="{% static 'js/core/account.js' %}?v=124"></script>
 <script src="{% static 'js/core/notifications.js' %}?v=124"></script>
-<script src="{% static 'js/pages/dashboard.js' %}?v=129"></script>
+<script src="{% static 'js/pages/dashboard.js' %}?v=130"></script>
 <script src="{% static 'js/pages/devices.js' %}?v=127"></script>
 <script src="{% static 'js/core/backup-jobs.js' %}?v=125"></script>
 <script src="{% static 'js/pages/backups.js' %}?v=125"></script>

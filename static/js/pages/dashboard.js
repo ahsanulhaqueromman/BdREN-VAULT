@@ -92,6 +92,12 @@ function renderDashboard(d){
    <div class="kpi"><small>Auto backup</small><strong class="sm2">${d.job_running?"Running now":d.sched_on?"Next: "+esc(fmtBdDateTime(d.next_run)):"Off"}</strong><span class="d">Scheduled status</span></div>`);
   const att=d.attention;
   setHTML("#attention",attentionHTML(att));
+  const st=$("#dashStatus");
+  if(st){const issues=att?(att.offline_count||0)+(att.failed_count||0):0;
+    const online=last&&last.total?` · ${fmtNum(last.up)} of ${fmtNum(last.total)} online`:"";
+    st.className="dash-status "+(!d.total?"idle":issues?"bad":"ok");
+    st.textContent=!d.total?"No devices yet":issues?`${fmtNum(issues)} need attention${online}`:`All systems normal${online}`;
+    st.hidden=false;}
   if(att)$("#attSub").textContent=att.offline_count==null?"Failed backups now; online status appears once the ping monitor has run":"Offline devices and failed backups, right now";
   setHTML("#changes",changesHTML(d.changes));
   $("#accessCard").hidden=!d.access;

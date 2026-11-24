@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-127.
+Entries 118-129.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -17,6 +17,8 @@ Entries 118-127.
 125. **A more informative Dashboard** - a new "Needs attention" card lists the devices offline right now and the devices whose last backup failed, with the error, and says how many wait for an automatic retry (each row opens the device; "All clear" when nothing is wrong). "Recent configuration changes" lists the newest backups that saved a new configuration. Administrators also see "Device logins, last 24 hours" from RADIUS: attempts, accepted, rejected, users, devices and logins outside a user's allowed devices (read at most once a minute).
 126. **No repeated numbers** - Device Inventory no longer has a KPI row above the list: its totals were the same as the filter chips (All / Online / Offline / Backup failed) and the Dashboard. On the Dashboard, "Backup completed" and "Backup not completed" are one card, "Last backup OK" (with failed and not-run counts); the new "Last backup run" card shows when the newest run started, how many devices were ok or failed and how long it took; "Online" shows the average ping time. System health has one Disk card (was two), drops "Last successful backup" and "Failures, last 24 h" (shown by the cards above and the 14-day chart), and adds how long logs are kept and, for administrators, whether the Session Log receiver is running.
 127. **Repository tidied** - README has a table of contents, a page-by-page guide to the portal, a ports and services table, the installer options (`APP_DIR`, `SVC_USER`) and a data and retention section. This changelog is grouped by date with clean numbering. The Docker files were removed: they were not used or documented and left out FreeRADIUS, the syslog receiver and nginx, so `deploy/install.sh` is the one supported way to install.
+128. **Design polish** - statistic tiles show their icon in a small coloured badge instead of a faint picture behind the text, and lay out evenly (three per row, six on wide screens, never 5 + 1); every card heading has a small accent mark; the Dashboard shows a status pill next to Refresh ("All systems normal", or how many devices need attention, with how many are online); long System health values are cut to two lines.
+129. **Calmer sign-in page** - the VAULT name and BdREN logo no longer shimmer, and the footer shows the year and reads "Backup today, ensure tomorrow". The sign-in form itself is unchanged.
 
 ## 23 Nov 2026
 

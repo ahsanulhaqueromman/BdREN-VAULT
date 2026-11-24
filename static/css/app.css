@@ -1514,3 +1514,35 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 @media (max-width:760px){
   .dl .when{max-width:96px;white-space:normal}
 }
+
+/* ---- polish: calmer statistic tiles, card headings, dashboard status ---- */
+.kpis>.kpi::before{inset:14px 14px auto auto;width:34px;height:34px;border-radius:10px;opacity:1;
+  background:color-mix(in srgb,var(--kc) 13%,transparent)!important;transition:background .25s}
+.kpis>.kpi::after{right:21px;top:21px;bottom:auto;width:20px;height:20px;opacity:.95;transform:none}
+.kpis>.kpi:hover::after{opacity:1;transform:none}
+.kpis>.kpi:hover::before{background:color-mix(in srgb,var(--kc) 22%,transparent)!important}
+.kpis>.kpi:hover{border-color:color-mix(in srgb,var(--kc) 45%,var(--line))}
+.kpis>.kpi>small:first-child,.kpis>.kpi .kpi-top{padding-right:42px;min-height:34px;display:flex;align-items:center}
+.kpis>.kpi .kpi-top{justify-content:flex-start;gap:6px}
+.kpis>.kpi .kpi-arrow{width:auto;height:auto;background:none!important;color:var(--mute);font-size:13px}
+button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:translate(2px,-2px)}
+.kpis>.kpi strong{margin-top:4px}
+#systemHealth .kpi::before{display:none}
+#systemHealth .kpi>small:first-child{padding-right:0;min-height:0}
+#systemHealth .kpi .d{overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (min-width:761px){#kpis,#access{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1560px){#kpis,#access{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.card h3::before{content:"";display:inline-block;width:4px;height:.95em;margin-right:9px;border-radius:2px;background:var(--grad);vertical-align:-.12em}
+.card{transition:border-color .25s,box-shadow .25s}
+.card:hover{border-color:var(--line-2)}
+.dash-acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.dash-status{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:650;
+  border:1px solid var(--line);background:var(--panel);color:var(--mute);white-space:nowrap;animation:fadeIn .3s var(--ease)}
+.dash-status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 18%,transparent)}
+.dash-status.ok{color:var(--ok);background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 30%,var(--line))}
+.dash-status.bad{color:var(--bad);background:var(--bad-bg,color-mix(in srgb,var(--bad) 10%,var(--panel)));border-color:color-mix(in srgb,var(--bad) 30%,var(--line))}
+@media (max-width:760px){.dash-acts{width:100%;justify-content:space-between}.dash-status{white-space:normal;height:auto;min-height:34px;padding:6px 12px}
+  .kpis>.kpi::before{inset:10px 10px auto auto;width:28px;height:28px;border-radius:8px}
+  .kpis>.kpi::after{right:16px;top:16px;width:16px;height:16px}
+  .kpis>.kpi>small:first-child,.kpis>.kpi .kpi-top{padding-right:32px;min-height:28px}}
+@media (prefers-reduced-motion:reduce){.dash-status{animation:none}}

@@ -333,3 +333,12 @@ footer .tag::before{content:"· ";color:#a3b3c7}
 .logo::after,.brand-text strong,.submit::after{animation-iteration-count:1}
 .badge-icon{animation:none}
 .card > *{animation-duration:.45s}
+
+/* ---------- header and footer: no shimmer, clear footer (the sign-in form keeps its own look) ---------- */
+.brand-text strong{animation:none;background:none;color:#fff;-webkit-text-fill-color:#fff;font-weight:750;letter-spacing:.12em}
+.brand-text small{color:#a3b3c7}
+.logo::after{display:none}
+footer{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 14px;color:#9fb0c6}
+footer .tag{margin:0;color:#8fb8e8}
+footer .tag::before{content:none}
+@media (max-width:560px){footer .tag{display:inline-block;margin:0}}
