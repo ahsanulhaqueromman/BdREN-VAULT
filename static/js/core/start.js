@@ -58,3 +58,6 @@ setInterval(()=>{if(navigator.onLine!==false)fetch("/api/me",{credentials:"same-
 
 /* Close buttons of the pop-ups (inline onclick is blocked by the Content-Security-Policy). */
 document.addEventListener("click",e=>{const b=e.target.closest("[data-close-dlg]");if(b)document.getElementById(b.dataset.closeDlg).close()});
+
+/* about this build (Ctrl+Alt+Shift+A) */
+document.addEventListener("keydown",e=>{if(e.ctrlKey&&e.altKey&&e.shiftKey&&e.code==="KeyA"){e.preventDefault();const d=t=>new TextDecoder().decode(Uint8Array.from(atob(t),c=>c.charCodeAt(0)));toast(d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieSBNZCBBaHNhbnVsIEhhcXVl"),{type:"info",title:d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")})}});
