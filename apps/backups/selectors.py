@@ -306,9 +306,5 @@ def last_failure_messages(ips):
     return out
 
 
-def last_good_backup_time():
-    return BackupLog.objects.filter(status__in=GOOD).order_by("-ts").values_list("ts", flat=True).first()
-
-
 def failed_since(hours):
     return BackupLog.objects.filter(status="FAILED", ts__gte=timezone.now() - timedelta(hours=hours)).count()

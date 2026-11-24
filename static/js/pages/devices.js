@@ -20,17 +20,9 @@ const pUp=d=>pingMap[d.id]&&pingMap[d.id].up,pDown=d=>pingMap[d.id]&&!pingMap[d.
 /* The dot by the vendor name shows reachability only: a failed backup is already shown by the red pill and the row bar. */
 const devBad=d=>!!pDown(d);
 const FILTERS=[["all","All",()=>true],["online","Online",pUp],["offline","Offline",pDown],["failed","Backup failed",d=>d.last_status==="FAILED"]];
-/* the KPI cards above the table */
-function renderStats(){
-  const ok=devs.filter(isOk).length,bad=devs.filter(d=>d.last_status==="FAILED").length;
-  const last=devs.map(d=>d.last_run).filter(Boolean).sort().pop();
-  morph($("#stats"),`<div class="kpi"><small>Total devices</small><strong>${fmtNum(devs.length)}</strong></div>
-   <div class="kpi"><small>Online now</small><strong class="g" id="onlineNow" data-morph-skip>-</strong></div>
-   <div class="kpi"><small>Backup succeeded</small><strong class="g">${fmtNum(ok)}</strong></div>
-   <div class="kpi"><small>Backup failed</small><strong class="${bad?"r":""}">${fmtNum(bad)}</strong></div>
-   <div class="kpi"><small>Last run</small><strong class="sm2">${last?fmtWhen(last):"Never"}</strong></div>`);
-  paintPing();
-}
+/* totals are in the filter chips (All / Online / Offline / Backup failed) and on the Dashboard,
+   so the page has no separate KPI row; this only refreshes the online counts */
+function renderStats(){paintPing()}
 /* filter chips with live counts */
 function paintChips(){
   const box=$("#devChips");if(!box)return;

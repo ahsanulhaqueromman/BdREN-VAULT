@@ -78,13 +78,17 @@ function renderDashboard(d){
   const ok=d.status.SUCCESS+d.status.UNCHANGED,last=d.ping[d.ping.length-1];
   const up24=d.ping.length?(d.ping.reduce((a,p)=>a+(p.total?p.up/p.total:0),0)/d.ping.length*100).toFixed(1)+"%":"-";
   const completed=Math.min(d.total, d.status.SUCCESS+d.status.UNCHANGED);
-  const notCompleted=Math.max(0, d.total-completed);
   const failed=d.status.FAILED||0, neverRun=d.status.NONE||0;
+  const j=d.last_job,jc=(j&&j.counts)||{};
+  const dur=s=>s==null?"":s<60?s+" s":s<3600?Math.round(s/60)+" min":(s/3600).toFixed(1)+" h";
+  const lastRun=!j?"Never":!j.finished?"Running now":esc(fmtBdDateTime(j.started));
+  const lastRunSub=!j?"No backup has run yet":!j.finished?`${fmtNum(j.done)} of ${fmtNum(j.total)} devices done`
+    :`${fmtNum((jc.SUCCESS||0)+(jc.UNCHANGED||0))} ok · ${fmtNum(jc.FAILED||0)} failed${j.duration_s!=null?" · "+dur(j.duration_s):""}`;
   setHTML("#kpis",`<button type="button" class="kpi kpi-link" data-go="devices" aria-label="View all devices"><span class="kpi-top"><small>Total devices</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong>${fmtNum(d.total)}</strong><span class="d">All configured devices</span></button>
-   <div class="kpi"><small>Online (last check)</small><strong class="g">${last?ofTotal(last.up,last.total):"-"}</strong><span class="d">Reachable by ping</span></div>
+   <div class="kpi"><small>Online (last check)</small><strong class="g">${last?ofTotal(last.up,last.total):"-"}</strong><span class="d">${last&&last.avg_ms!=null?"Average ping "+last.avg_ms+" ms":"Reachable by ping"}</span></div>
    <div class="kpi"><small>Uptime, 24 h</small><strong>${up24}</strong><span class="d">Average monitored availability</span></div>
-   <button type="button" class="kpi kpi-link kpi-link-success" data-go="backups" aria-label="View backups"><span class="kpi-top"><small>Backup completed</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="g">${ofTotal(completed,d.total)}</strong><span class="d">Saved or unchanged</span></button>
-   <div class="kpi"><small>Backup not completed</small><strong class="${notCompleted?"r":"g"}">${fmtNum(notCompleted)}</strong><span class="d">${fmtNum(failed)} failed · ${fmtNum(neverRun)} not run</span></div>
+   <button type="button" class="kpi kpi-link kpi-link-success" data-go="backups" aria-label="View backups"><span class="kpi-top"><small>Last backup OK</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="${failed?"":"g"}">${ofTotal(completed,d.total)}</strong><span class="d">${failed||neverRun?`${fmtNum(failed)} failed · ${fmtNum(neverRun)} not run`:"Saved or unchanged"}</span></button>
+   <button type="button" class="kpi kpi-link" data-go="jobs" aria-label="View backup jobs"><span class="kpi-top"><small>Last backup run</small><span class="kpi-arrow" aria-hidden="true">↗</span></span><strong class="sm2">${lastRun}</strong><span class="d">${lastRunSub}</span></button>
    <div class="kpi"><small>Auto backup</small><strong class="sm2">${d.job_running?"Running now":d.sched_on?"Next: "+esc(fmtBdDateTime(d.next_run)):"Off"}</strong><span class="d">Scheduled status</span></div>`);
   const att=d.attention;
   setHTML("#attention",attentionHTML(att));
@@ -102,12 +106,12 @@ function renderDashboard(d){
   const fmtBytes=n=>{n=Number(n||0);if(n<1024)return n+" B";const u=["KB","MB","GB","TB"];let i=-1;do{n/=1024;i++}while(n>=1024&&i<u.length-1);return n.toFixed(1)+" "+u[i]};
   const diskLabel=disk.status==="critical"?"Critical":disk.status==="warning"?"Low space":disk.status==="ok"?"Healthy":"Unknown";
   const diskClass=disk.status==="critical"?"r":disk.status==="warning"?"sm2":"g";
-  setHTML("#systemHealth",`<div class="kpi"><small>Disk status</small><strong class="${diskClass}">${esc(diskLabel)}</strong><span class="d">${disk.free_bytes?esc(fmtBytes(disk.free_bytes))+" free of "+esc(fmtBytes(disk.total_bytes)):"Could not read disk capacity"}</span></div>
-   <div class="kpi"><small>Disk used</small><strong>${disk.used_percent==null?"-":esc(disk.used_percent)+"%"}</strong><span class="d">Warning below 15% free; critical below 5% or 2 GB</span></div>
+  const keep=h.retention_months?h.retention_months+" months":"Forever",sl=h.syslog;
+  setHTML("#systemHealth",`<div class="kpi" title="Warning below 15% free; critical below 5% or 2 GB"><small>Disk</small><strong class="${diskClass}">${esc(diskLabel)}${disk.used_percent==null?"":" · "+esc(disk.used_percent)+"% used"}</strong><span class="d">${disk.free_bytes?esc(fmtBytes(disk.free_bytes))+" free of "+esc(fmtBytes(disk.total_bytes)):"Could not read disk capacity"}</span></div>
    <div class="kpi"><small>Database size</small><strong>${h.database_bytes==null?"Unavailable":esc(fmtBytes(h.database_bytes))}</strong><span class="d">${esc(h.database_engine||"Database")}${h.database_name?" · "+esc(h.database_name):""} (data + indexes)</span></div>
    <div class="kpi"><small>Backup storage</small><strong class="${h.backup_dir_exists?"g":"r"}">${h.backup_dir_exists?"Available":"Missing"}</strong><span class="d">Configured backup directory</span></div>
-   <div class="kpi"><small>Last successful backup</small><strong class="sm2">${esc(h.last_success&&h.last_success!=="Never"?fmtBdDateTime(h.last_success):"Never")}</strong><span class="d">Saved or unchanged</span></div>
-   <div class="kpi"><small>Failures, last 24 h</small><strong class="${h.failed_24h?"r":"g"}">${fmtNum(h.failed_24h)}</strong><span class="d">From backup logs</span></div>`);
+   <div class="kpi"><small>Logs kept for</small><strong>${esc(keep)}</strong><span class="d">${h.retention_months?"Older logs and backups are deleted daily":"Nothing is deleted automatically"}</span></div>
+   ${sl?`<div class="kpi"><small>Session Log receiver</small><strong class="${sl.running?"g":"r"}">${sl.running?"Running":sl.seen?"Not running":"Not set up"}</strong><span class="d">${sl.heartbeat?"Last report "+esc(fmtBdDateTime(sl.heartbeat)):"Receives device syslog"}</span></div>`:""}`);
   /* charts animate in on the first draw only; later 30-second refreshes update quietly (see app.css "Motion") */
   if(!renderDashboard.drawn){renderDashboard.drawn=true;setTimeout(()=>$("#dashboard").classList.add("charts-ready"),1600)}
 }

@@ -100,6 +100,24 @@ def device_access():
     return summary or None
 
 
+def last_job():
+    """The newest backup run: when, why, how long and its result counts (None before the first run)."""
+    jobs = backups.job_history(1)["jobs"]
+    if not jobs:
+        return None
+    j = jobs[0]
+    return {k: j[k] for k in ("started", "finished", "finished_at", "duration_s", "total", "done", "counts",
+                              "reason_label")}
+
+
+def syslog_receiver():
+    """Administrators: is the Session Log's syslog receiver running, and when did it last report."""
+    from apps.commandlog import selectors as commandlog
+    st = commandlog.receiver_status()
+    return {"running": st["running"], "seen": st.get("seen", False),
+            "heartbeat": fmt_dt(st["heartbeat"]) if st.get("heartbeat") else ""}
+
+
 def dashboard(show_internals):
     """Numbers for the Dashboard: backups per day, uptime history, vendors, results, schedule and health.
     show_internals=False (non-administrators) hides the database engine and name."""
@@ -113,17 +131,16 @@ def dashboard(show_internals):
         status[last_status if last_status in status else "NONE"] += 1
     values = scheduling.all_settings()
     db_info = database_info()
-    last_good = backups.last_good_backup_time()
     health = {"disk": disk_health(), "database_bytes": db_info["bytes"],
               "database_engine": db_info["engine"] if show_internals else "Database",
               "database_name": db_info["name"] if show_internals else "",
               "backup_dir_exists": settings.BACKUP_DIR.is_dir(),
-              "last_success": fmt_dt(last_good) if last_good else "Never",
-              "failed_24h": backups.failed_since(24)}
+              "retention_months": scheduling.retention_months(),
+              "syslog": syslog_receiver() if show_internals else None}
     return {"days": [{"d": k, **v} for k, v in per_day.items()], "ping": ping_history(), "status": status,
             "vendors": sorted(vendors.items(), key=lambda x: -x[1]), "total": total,
             "sched_on": values["sched_on"] == "1",
             "next_run": scheduling.next_scheduled_run(values),
             "ping_seconds": settings.PING_SECONDS, "job_running": job_running(),
-            "health": health, "attention": attention(), "changes": recent_changes(),
+            "health": health, "last_job": last_job(), "attention": attention(), "changes": recent_changes(),
             "access": device_access() if show_internals else None}
