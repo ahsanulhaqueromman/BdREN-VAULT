@@ -122,6 +122,10 @@ def _build(items):
             out.append(cur)
             continue
         if kind == "logout":
+            if e.get("radius"):     # RADIUS accounting Stop: ends the user's open session on this device
+                if cur and not cur["closed"]:
+                    cur.update(end=t, last=t, closed=True)
+                continue            # none open: already closed by the syslog logout, or began before the period
             if cur and cur["closed"] and cur["end"] and t - cur["end"] <= SAME_MOMENT:
                 cur["source_ip"] = cur["source_ip"] or e["source_ip"]     # the same logout reported twice
                 continue
@@ -170,6 +174,12 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
                            "command": "", "source_ip": "", "result": "", "radius": True})
     except DatabaseError:
         logger.warning("Command History: RADIUS logins could not be read; sessions start at the first command")
+    try:   # logouts from RADIUS accounting (Stop), for devices whose syslog logout message does not arrive
+        for username, ip, t in radius.accounting_stops(since, logging_devices, user, until=until):
+            events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "logout",
+                           "command": "", "source_ip": "", "result": "", "radius": True})
+    except DatabaseError:
+        logger.debug("Command History: no RADIUS accounting (radacct) to read logouts from")
     events.sort(key=lambda e: (e["ts"], e["id"]))
     groups = {}
     for e in events:

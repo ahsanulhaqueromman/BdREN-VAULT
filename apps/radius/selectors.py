@@ -308,6 +308,45 @@ def accepted_logins(since, nas_ips, username="", limit=20000, until=None):
     return out
 
 
+def accounting_stops(since, nas_ips, username="", limit=20000, until=None):
+    """Logouts reported by RADIUS accounting (Accounting-Stop: radacct.acctstoptime) since `since` on the given
+    device addresses, oldest first: [(username, nas_ip, time in UTC)]. Session Log uses them to close a session
+    when the device does not send a logout message by syslog. [] when no address is given; raises
+    DatabaseError when the radacct table is missing (the caller ignores it)."""
+    from datetime import datetime, timedelta, timezone as dt_tz
+    from django.db import connections
+    ips = sorted({ip for ip in nas_ips if ip})[:500]
+    if not ips:
+        return []
+    _login_columns()                                # finds the database clock offset (_LOGIN_COLS["offset"])
+    shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
+    # a session that lasted some time: per-command accounting (Juniper interactive-commands, Cisco
+    # "aaa accounting commands") writes Stop records of length 0, which are not logouts
+    sql = ("SELECT username, nasipaddress, acctstoptime FROM radacct WHERE acctstoptime >= %s "
+           "AND (acctsessiontime > 0 OR acctstoptime > acctstarttime) "
+           + ("AND acctstoptime < %s " if until is not None else "")
+           + "AND nasipaddress IN (" + ",".join(["%s"] * len(ips)) + ")" + (" AND username = %s" if username else "")
+           + " ORDER BY acctstoptime DESC LIMIT %s")
+    params = ([_db_clock(since)] + ([_db_clock(until)] if until is not None else []) + [*ips]
+              + ([username] if username else []) + [max(1, int(limit))])
+    with connections[DB].cursor() as cur:
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+    out = []
+    for u, ip, t in reversed(rows):
+        if isinstance(t, str):                      # SQLite gives text
+            try:
+                t = datetime.fromisoformat(t)
+            except ValueError:
+                continue
+        if t is None:
+            continue
+        if t.tzinfo is None:
+            t = (t - shift).replace(tzinfo=dt_tz.utc)
+        out.append((u, ip, t))
+    return out
+
+
 SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30, 24 * 90, 24 * 365)   # = apps.core.period.PRESETS
 
 

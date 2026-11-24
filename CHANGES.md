@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-133.
+Entries 118-134.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -24,6 +24,7 @@ Entries 118-133.
 131. **Faster Dashboard** - the uptime chart now gets at most 288 points (one per 5 minutes) instead of every ping sweep (1,440 a day at 60 s), so each 30-second refresh sends about 19 KB instead of 105 KB with 3,000 devices and draws far fewer points; "Backups per day" is one database query instead of 14. The installer turns on HTTP/2 in the nginx site (the page files then load in parallel over one HTTPS connection); if nginx refuses it, the site is left as it was.
 132. **Logs of any period** - Authentication Audit and Session Log can show the last 90 days, the last year, or **Custom dates** (a From and a To day, up to three years at once), as far back as System Settings keeps logs. On Authentication Audit the login list now follows the chosen period too (before, it always showed the newest 500 logins).
 133. **Session Log order** - in Sessions, By device and By user, sessions still open ("Active") come first, then the newest login first (before: by the time of the last activity).
+134. **A logout reported by RADIUS ends the session** - a Session Log session no longer stays "Active" after the user has left when the device's syslog logout message does not reach VAULT: the RADIUS accounting Stop (radacct, sent by devices set up with the Device Setup commands, accounting start-stop) now closes it. Zero-length Stop records from per-command accounting are not counted as logouts, and a Stop for a session already closed by syslog changes nothing.
 
 ## 23 Nov 2026
 
