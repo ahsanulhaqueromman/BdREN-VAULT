@@ -1,4 +1,5 @@
-"""Monitoring - HTTP layer: /api/ping (ping column) and /api/dashboard (Dashboard numbers)."""
+"""Monitoring - HTTP layer: /api/ping (ping column), /api/dashboard (Dashboard numbers) and
+/api/dashboard/ssh (the Active Sessions card, refreshed on its own every 10 s)."""
 from django.http import JsonResponse
 
 from apps.core.api import api
@@ -17,3 +18,9 @@ def ping_all(request):
 def dashboard(request):
     """Numbers for the Dashboard graphs: backups per day, uptime history, vendors, next scheduled run."""
     return JsonResponse(selectors.dashboard(show_internals=request.user.has_role("admin")))
+
+
+@api(GET="admin")
+def dashboard_ssh(request):
+    """Administrators: who is signed in to a device right now (the Dashboard's Active Sessions card)."""
+    return JsonResponse({"ssh": selectors.active_sessions()})

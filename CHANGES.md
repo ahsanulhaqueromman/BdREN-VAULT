@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-153.
+Entries 118-154.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -44,6 +44,7 @@ Entries 118-153.
 151. **BlastRADIUS protection** - `deploy/install.sh` now runs `deploy/radius/enable_blastradius.sh`, which adds `require_message_authenticator = auto` and `limit_proxy_state = auto` to security { } in radiusd.conf (CVE-2024-3596). "auto" means a device that sends Message-Authenticator once must always send it, and a device that never sends it keeps working, so no device is locked out. The script checks that FreeRADIUS knows the settings (3.2.5 or a package with the fix; otherwise it says to update and changes nothing), keeps a backup of radiusd.conf, and restores it if FreeRADIUS refuses the change or does not start.
 152. **BdREN logo in the side menu** - the mark at the top of the side menu shows the BdREN logo on a white tile instead of the server icon; the green live dot stays.
 153. **Active SSH sessions on the Dashboard** - for administrators the "Recent configuration changes" card is replaced by "Active SSH sessions": who is signed in to a device right now (from the Session Log: no logout and activity in the last 15 minutes), on which device, from which address, for how long and how many commands or changes, with a live count. Read at most every 30 seconds. Other roles still see the recent configuration changes.
+154. **Active Sessions card: faster, and opens the session** - the card (renamed from "Active SSH sessions") refreshes on its own every 10 seconds through `/api/dashboard/ssh` (read at most every 5 seconds), so a new login shows within seconds. Clicking a row opens that session in the Session Log (`#session=<user|device|start>`) with every command the user ran. A `#user=`, `#device=` or `#session=` link now opens and scrolls to its card once; the 30-second refresh no longer scrolls back to it.
 
 ## 23 Nov 2026
 

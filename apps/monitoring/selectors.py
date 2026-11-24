@@ -118,7 +118,8 @@ def device_access():
 
 def active_sessions():
     """Administrators: who is signed in to a device over SSH right now, from the Session Log (a session with no
-    logout and activity in the last 15 minutes). Read at most every 30 s. None when it cannot be read."""
+    logout and activity in the last 15 minutes). Read at most every 5 s (the card asks every 10 s).
+    None when it cannot be read."""
     from django.core.cache import cache
 
     from apps.commandlog import selectors as commandlog
@@ -129,16 +130,17 @@ def active_sessions():
         now = timezone.now()
         live = [s for s in commandlog.sessions(hours=24)["sessions"] if s["status"] == "active"]
         ids = {d.ip: d.id for d in devices.devices_with_ips({s["device_ip"] for s in live})}
-        rows = [{"user": s["username"], "device": s["device"], "ip": s["device_ip"], "id": ids.get(s["device_ip"]),
+        rows = [{"key": s["key"], "user": s["username"], "device": s["device"], "ip": s["device_ip"],
+                 "id": ids.get(s["device_ip"]),
                  "from": s["source_ip"], "since": fmt_dt(s["start"] or s["last"]),
                  "for_s": int((now - (s["start"] or s["last"])).total_seconds()),
                  "last": fmt_dt(s["last"]), "commands": s["commands"], "changes": s["changes"]} for s in live]
         out = {"count": len(rows), "users": len({r["user"] for r in rows}), "devices": len({r["ip"] for r in rows}),
                "rows": rows[:SHOW]}
     except Exception:
-        logging.getLogger("dbms").info("Dashboard: active SSH sessions unavailable", exc_info=True)
+        logging.getLogger("dbms").info("Dashboard: active sessions unavailable", exc_info=True)
         out = {}
-    cache.set("dash-ssh", out, 30)
+    cache.set("dash-ssh", out, 5)
     return out or None
 
 

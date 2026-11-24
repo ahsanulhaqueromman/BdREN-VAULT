@@ -7,9 +7,10 @@
      By device  one card per device; opening it lists every session on it, newest first: which user, from
                 where, login -> every command in order -> logout. #device=<address> opens a card.
      By user    one card per user; opening it lists that user's sessions on every device. #user=<name>
+   #session=<user|address|start> opens one session (the Dashboard's Active Sessions card links here).
    Inside a card "Changes only" hides the view-only commands. Searches run on the server; Export CSV
    downloads every matching action (up to 50,000). Refreshes itself every 30 seconds while the page is open. */
-let cmdData=null,cmdSess=null,cmdTab="session",cmdDetail={},cmdJump=null,cmdOnlyChg=new Set();
+let cmdData=null,cmdSess=null,cmdTab="session",cmdDetail={},cmdJump=null,cmdJumped="",cmdOnlyChg=new Set();
 const cmdPer=d=>(d&&d.period&&d.period.label)||"";
 const CMD_STATUS={active:["Active","UP"],closed:["Logged out","k-logout"],"no-logout":["No logout","k-command"],failed:["Failed login","k-fail"]};
 const CMD_VIEW={
@@ -23,7 +24,7 @@ const CMD_IC={
   device:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 17h.01M10 17h.01M12 13V8m-4 0h8M9 4h6"/></svg>'};
 const cmdHours=()=>periodQuery("#cmdHours");
 const cmdSearch=()=>$("#cmdSQ").value.trim();
-const cmdFromHash=()=>{const m=/^#(user|device)=(.+)$/.exec(location.hash);try{return m?{kind:m[1],key:decodeURIComponent(m[2])}:null}catch(e){return null}};
+const cmdFromHash=()=>{const m=/^#(user|device|session)=(.+)$/.exec(location.hash);try{return m?{kind:m[1],key:decodeURIComponent(m[2])}:null}catch(e){return null}};
 const cmdDur=s=>{if(s==null)return "-";if(s<60)return `${s} s`;if(s<3600)return `${Math.round(s/60)} min`;const h=Math.floor(s/3600),m=Math.round(s%3600/60);return m?`${h} h ${m} min`:`${h} h`};
 const cmdDevice=(name,ip)=>`<span class="dn">${esc(name||ip)}</span>${name?`<span class="sub m">${esc(ip)}</span>`:""}`;
 const cmdPlural=(n,w)=>`${fmtNum(n)} ${w}${n===1?"":"s"}`;
@@ -41,8 +42,10 @@ const cmdFetch=(kind,key)=>{
 };
 
 async function loadCommands(){
-  const jump=cmdFromHash();
-  if(jump){cmdTab=jump.kind;cmdJump=jump}
+  /* a #user= / #device= / #session= link opens its card once; the 30-second refresh keeps it open but does not
+     scroll back to it */
+  const jump=location.hash!==cmdJumped?cmdFromHash():null;
+  if(jump){cmdTab=jump.kind;cmdJump=jump;cmdJumped=location.hash}
   const sq=cmdSearch(),hours=cmdHours();
   const want=[...cmdOpenCards().filter(c=>c.kind===cmdTab),...(jump?[jump]:[])];
   try{
@@ -150,7 +153,7 @@ function renderCmdSessions(){
   cmdJump=null;
   if(jump){
     const el=[...document.querySelectorAll("#cmdSessList details")].find(d=>d.dataset.key===jump);
-    if(el){el.open=true;setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),60)}
+    if(el){el.open=true;cmdScrollTo(el)}
   }
 }
 function cmdCard(g,isOpen){
@@ -181,9 +184,20 @@ function renderCmdSessionCards(){
   const all=cmdNumber(cmdSess.sessions||[]),list=all.filter(cmdKeep),filtered=cmdSearch()||$("#cmdSFilter").value;
   $("#cmdSCount").textContent=list.length?cmdPlural(list.length,"session"):"";
   if(!list.length){$("#cmdSessList").innerHTML=`<div class="empty"><b>${filtered&&all.length?"No matching sessions":"No sessions "+esc(cmdPer(cmdSess))}</b>${filtered?"Try another user, device, address or command, or a longer period.":"A session appears when a user logs in to a device that sends its logs to VAULT."}</div>`;return}
-  const open=new Set(cmdOpenCards().filter(c=>c.kind==="session").map(c=>c.key));
+  /* #session=<key> (from the Dashboard): open that session; if its key moved (the login was not seen, so the
+     key follows the newest action), open the same user's active session on that device instead */
+  let jump=cmdJump&&cmdJump.kind==="session"?cmdJump.key:"";
+  if(jump&&!list.some(s=>s.key===jump)){const [u,ip]=jump.split("|"),alt=list.find(s=>s.username===u&&s.device_ip===ip);
+    if(alt){cmdDetail[cmdId("session",alt.key)]=cmdDetail[cmdId("session",jump)];jump=alt.key}}
+  if(jump){const i=list.findIndex(s=>s.key===jump);if(i>=0)PAGES.cmdSess=Math.floor(i/SIZES.cmdSess)+1}
+  const open=new Set([...cmdOpenCards().filter(c=>c.kind==="session").map(c=>c.key),...(jump?[jump]:[])]);
   const {rows,bar}=paginate("cmdSess",list);
   morph($("#cmdSessList"),rows.map(s=>cmdSessCard(s,open.has(s.key))).join("")+bar);
+  cmdJump=null;
+  if(jump){
+    const el=[...document.querySelectorAll("#cmdSessList details")].find(d=>d.dataset.key===jump);
+    if(el){el.open=true;cmdScrollTo(el)}
+  }
 }
 function cmdSessCard(s,isOpen){
   const work=s.changes+s.commands,chgPct=work?Math.round(s.changes/work*100):0;
@@ -310,6 +324,11 @@ $o("#cmdSessList").addEventListener("click",e=>{
   const go=e.target.closest("[data-go]");
   if(go){e.preventDefault();cmdOpen(go.dataset.go,go.dataset.key)}
 });
+/* bring an opened card to the top of the screen once the page around it has settled */
+function cmdScrollTo(el){requestAnimationFrame(()=>setTimeout(()=>{
+  el.scrollIntoView({behavior:"smooth",block:"start"});
+  setTimeout(()=>{if(Math.abs(el.getBoundingClientRect().top)>40)el.scrollIntoView({behavior:"instant",block:"start"})},900);   /* smooth scroll was interrupted */
+},250))}
 function cmdOpen(kind,key){
   history.pushState(null,"",`#${kind}=${encodeURIComponent(key)}`);
   PAGES.cmdSess=1;loadCommands();
