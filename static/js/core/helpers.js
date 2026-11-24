@@ -192,15 +192,24 @@ const sfx=(()=>{
     del  :c=>{const t=at(c);tone(c,587.33,t,.3,.13);tone(c,440,t+.08,.42,.12)},        /* deleted: quick falling pair (D5, A4) */
     warn :c=>{const t=at(c);tone(c,698.46,t,.4,.14);tone(c,698.46,t+.16,.55,.12)},     /* finished with some failures: two even notes (F5) */
     error:c=>{const t=at(c);tone(c,466.16,t,.45,.16);tone(c,349.23,t+.15,.7,.15)},     /* failed: lower falling pair (A#4, F4) */
-    about:c=>{const t=at(c);                                                         /* about card: a warm pad swell (Cmaj9 voicing) under two soft bell notes */
-      const bus=c.createGain(),lp=c.createBiquadFilter();lp.type="lowpass";lp.Q.value=.7;
-      lp.frequency.setValueAtTime(700,t);lp.frequency.exponentialRampToValueAtTime(2600,t+.6);lp.frequency.exponentialRampToValueAtTime(1200,t+2.2);
-      bus.gain.setValueAtTime(.0001,t);bus.gain.exponentialRampToValueAtTime(.09,t+.35);bus.gain.exponentialRampToValueAtTime(.0001,t+2.4);
+    about:c=>{const t=at(c);                                                         /* about card: a deep low hit with a shimmer on top, like a film studio logo */
+      const hit=c.createOscillator(),hg=c.createGain();hit.type="sine";              /* low hit: a sine that drops from 90 Hz to 38 Hz */
+      hit.frequency.setValueAtTime(90,t);hit.frequency.exponentialRampToValueAtTime(38,t+.9);
+      hg.gain.setValueAtTime(.0001,t);hg.gain.exponentialRampToValueAtTime(.6,t+.01);hg.gain.exponentialRampToValueAtTime(.0001,t+.9);
+      hit.connect(hg);hg.connect(out);hit.start(t);hit.stop(t+.95);
+      const len=Math.ceil(c.sampleRate*.9),buf=c.createBuffer(1,len,c.sampleRate),ch=buf.getChannelData(0);   /* shimmer: soft high noise */
+      for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+      const ns=c.createBufferSource(),hp=c.createBiquadFilter(),ng=c.createGain();ns.buffer=buf;hp.type="highpass";hp.frequency.value=4000;
+      ng.gain.setValueAtTime(.0001,t);ng.gain.exponentialRampToValueAtTime(.05,t+.5);ng.gain.exponentialRampToValueAtTime(.0001,t+.9);
+      ns.connect(hp);hp.connect(ng);ng.connect(out);ns.start(t);ns.stop(t+.9);
+      const bus=c.createGain(),lp=c.createBiquadFilter();lp.type="lowpass";lp.Q.value=.7;   /* chord swell (C2 C3 G3 E4 G4) that opens up */
+      lp.frequency.setValueAtTime(400,t);lp.frequency.exponentialRampToValueAtTime(2000,t+.85);lp.frequency.exponentialRampToValueAtTime(1100,t+2.6);
+      bus.gain.setValueAtTime(.0001,t);bus.gain.exponentialRampToValueAtTime(.08,t+.6);bus.gain.exponentialRampToValueAtTime(.0001,t+2.6);
       bus.connect(lp);lp.connect(out);
-      for(const f of [130.81,196,329.63,493.88,587.33])for(const det of [-5,5]){       /* C3 G3 E4 B4 D5, each as two slightly detuned voices */
+      for(const f of [65.41,130.81,196,329.63,392])for(const det of [-5,5]){
         const o=c.createOscillator(),g=c.createGain();o.type=f<200?"sine":"triangle";o.frequency.value=f;o.detune.value=det;
-        g.gain.value=f<200?.5:.28;o.connect(g);g.connect(bus);o.start(t);o.stop(t+2.5)}
-      tone(c,783.99,t+.12,1.3,.075);tone(c,1174.66,t+.34,1.5,.055)}                  /* G5 then D6, quiet, on top */
+        g.gain.value=f<200?.5:.28;o.connect(g);g.connect(bus);o.start(t);o.stop(t+2.7)}
+      tone(c,1567.98,t+.5,1.6,.04)}                                                    /* a quiet high G6 on top */
   };
   return{
     sounds,
