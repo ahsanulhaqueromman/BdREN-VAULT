@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-129.
+Entries 118-130.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -19,6 +19,8 @@ Entries 118-129.
 127. **Repository tidied** - README has a table of contents, a page-by-page guide to the portal, a ports and services table, the installer options (`APP_DIR`, `SVC_USER`) and a data and retention section. This changelog is grouped by date with clean numbering. The Docker files were removed: they were not used or documented and left out FreeRADIUS, the syslog receiver and nginx, so `deploy/install.sh` is the one supported way to install.
 128. **Design polish** - statistic tiles show their icon in a small coloured badge instead of a faint picture behind the text, and lay out evenly (three per row, six on wide screens, never 5 + 1); every card heading has a small accent mark; the Dashboard shows a status pill next to Refresh ("All systems normal", or how many devices need attention, with how many are online); long System health values are cut to two lines.
 129. **Calmer sign-in page** - the VAULT name and BdREN logo no longer shimmer, and the footer shows the year and reads "Backup today, ensure tomorrow". The sign-in form itself is unchanged.
+130. **Session Log: commit and save are labelled as such** - `commit` (Huawei VRP 8, Juniper), `save` (Huawei), `write` / `write memory` / `copy running-config startup-config` (Cisco) and `execute cfg save` (FortiGate) were shown as "+ add" like a new configuration line. They now show as "✓ commit" or "✓ save" in blue; they still count as changes.
+    - Cisco: commands typed with `do` in configuration mode are judged by the command after it, so `do wr` shows as "✓ save" and `do show ...` / `do ping ...` count as view commands, not changes (for new log lines). "Configured from ... by ..." (leaving configuration mode) shows as "✓ done" instead of "+ add".
 
 ## 23 Nov 2026
 

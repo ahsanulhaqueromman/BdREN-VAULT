@@ -27,8 +27,9 @@ MODE_ONLY = re.compile(r"^diag(?:n(?:o(?:s(?:e)?)?)?)?$", re.I)
 
 
 def is_change(command):
-    """True when a CLI command may change the device (anything that is not a show / ping / mode switch)."""
-    text = (command or "").strip()
+    """True when a CLI command may change the device (anything that is not a show / ping / mode switch).
+    Cisco "do <command>" runs an exec command from configuration mode, so "do show run" is read-only."""
+    text = re.sub(r"^do\s+", "", (command or "").strip(), flags=re.I)
     return bool(text) and not READ_ONLY.match(text) and not MODE_ONLY.match(text)
 
 

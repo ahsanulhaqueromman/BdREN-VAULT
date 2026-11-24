@@ -1390,6 +1390,8 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 .cmd-log .l.chg.add i{color:#4ade80;font-weight:700}
 .cmd-log .l.chg.del{color:#ffa3aa;background:rgba(239,68,68,.13)}
 .cmd-log .l.chg.del i{color:#f87171;font-weight:700}
+.cmd-log .l.chg.save{color:#b9d4ff;background:rgba(59,130,246,.14)}
+.cmd-log .l.chg.save i{color:#7fb0ff;font-weight:700}
 .cmd-log .l.fail{color:#ff9aa2;background:rgba(239,68,68,.12)}
 .cmd-log .l.none{color:#7f8ea8;font-style:italic}
 .cmd-log em{color:#ff9aa2;font-style:normal}

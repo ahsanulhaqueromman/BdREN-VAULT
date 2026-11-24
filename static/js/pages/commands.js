@@ -221,7 +221,12 @@ function cmdNumber(list){
 /* a configuration change that takes something away: undo (Huawei), no (Cisco), delete / deactivate (Juniper),
    unset (FortiGate), remove (MikroTik). Shown as "- remove" in red; every other change as "+ add" in green. */
 const CMD_REMOVE=/^(undo|no|delete|deactivate|unset|purge)\b|(^\/|\s)remove\b/i;
-const cmdMark=e=>e.kind!=="change"?["cmd","view"]:CMD_REMOVE.test((e.command||"").trim())?["chg del","− remove"]:["chg add","+ add"];
+/* commands that apply or store the configuration rather than add a line to it: commit (Huawei VRP 8, Juniper,
+   XR), save (Huawei), write / copy running-config startup-config (Cisco), execute cfg save (FortiGate) */
+const CMD_COMMIT=/^commit\b/i, CMD_SAVE=/^(?:save\b|wr(?:ite)?(?:\s+(?:mem(?:ory)?|startup-config))?$|copy\s+run\S*\s+start\S*|execute\s+cfg\s+save\b)/i;
+const cmdMark=e=>{if(e.kind!=="change")return ["cmd","view"];const c=(e.command||"").trim().replace(/^do\s+/i,"");
+  if(/^configuration finished\b/i.test(c))return ["chg save","✓ done"];   // Cisco: left configuration mode
+  return CMD_COMMIT.test(c)?["chg save","✓ commit"]:CMD_SAVE.test(c)?["chg save","✓ save"]:CMD_REMOVE.test(c)?["chg del","− remove"]:["chg add","+ add"]};
 function cmdLog(s){
   const line=(t,cls,text)=>`<span class="l ${cls}"><time>${t?esc(bdClock(t,true)):""}</time><span>${text}</span></span>`;
   let log;
