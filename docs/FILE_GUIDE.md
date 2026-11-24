@@ -25,6 +25,7 @@ Every app has the same files: `views.py` + `urls.py` (HTTP), `services.py` (rule
 | Where backup files are stored on disk | `apps/backups/storage.py` |
 | Background backup jobs (parallel, progress) | `apps/backups/jobs.py` |
 | Ping and the background ping monitor | `apps/monitoring/services.py` |
+| Dashboard numbers (Needs attention, recent changes, logins, health) | `apps/monitoring/selectors.py`, `static/js/pages/dashboard.js` |
 | Settings page, automatic backup timer | `apps/scheduling/services.py` |
 | Web users, roles, sign-in lockout | `apps/accounts/` |
 | RADIUS users, levels, NAS, audit | `apps/radius/services.py`, `apps/radius/views.py` |
@@ -65,7 +66,7 @@ apps/                    Django apps, one folder per area
     reports.py           Change report (diff of versions per month range)
     audit.py             The audit trail: record_audit() and every audit read
   monitoring/            Ping and the Dashboard numbers
-    views.py  services.py (ping, monitor)  selectors.py (Dashboard, health)  models.py
+    views.py  services.py (ping, monitor)  selectors.py (Dashboard, health)  keys.py (ping cache keys)  models.py
   scheduling/            Settings and the automatic backup timer
     views.py  services.py  models.py
   radius/                RADIUS / AAA (FreeRADIUS database)

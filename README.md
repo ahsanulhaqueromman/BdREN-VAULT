@@ -12,6 +12,7 @@
 ![Use](https://img.shields.io/badge/Use-Internal%20(BdREN)-blue)
 
 [Features](#features) ·
+[Pages](#pages-in-the-portal) ·
 [Installation](#installation) ·
 [Updating](#updating) ·
 [Security](#security) ·
@@ -19,6 +20,27 @@
 [Documentation](#documentation)
 
 </div>
+
+<details>
+<summary><b>Contents</b></summary>
+
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Pages in the portal](#pages-in-the-portal)
+4. [Architecture](#architecture)
+5. [Requirements](#requirements)
+6. [Ports and services](#ports-and-services)
+7. [Installation](#installation)
+8. [Updating](#updating)
+9. [Configuration](#configuration)
+10. [Data and retention](#data-and-retention)
+11. [Roles](#roles)
+12. [Security](#security)
+13. [Operations](#operations)
+14. [Project structure](#project-structure)
+15. [Documentation](#documentation)
+
+</details>
 
 ---
 
@@ -71,9 +93,35 @@ V-SOL · any other device through generic SSH
 
 ### Monitoring and operations
 - Continuous ICMP reachability monitoring (fping for large inventories) with an uptime dashboard
+- **Dashboard:** devices online and average ping time, 24-hour uptime, last backup result and last run,
+  the automatic schedule, a **Needs attention** list (devices offline now, devices whose last backup failed
+  with the error), recent configuration changes, device logins of the last 24 hours (administrators), and
+  system health (disk, database, backup storage, log retention, Session Log receiver)
 - Backup Jobs page with live progress, Activity Logs and one audit trail of every administrative action (panel and RADIUS)
 - Notification bell for failed backups and other problems
 - Responsive interface for desktop, tablet and phone, with light and dark themes
+
+---
+
+## Pages in the portal
+
+| Menu | Page | What it is for |
+|---|---|---|
+| Overview | **Dashboard** | Everything at a glance: reachability, backup results, what needs attention, recent changes, logins, system health |
+| Inventory | **Device Inventory** | Add, edit and delete devices; live ping; back up one, a selection or all; filter by online, offline or failed. Each device has its own page with its backups |
+| Configuration | **Configuration Backups** | Every saved version per device and date: view, compare two versions, download (one or all as zip) |
+| | **Change Reports** | What changed on each device over a period, version by version; export CSV or PDF |
+| Operations | **Backup Jobs** | Every backup run with live progress, result counts, duration and the devices that need attention |
+| | **Activity Logs** | Every backup attempt with its result and reason, plus the audit trail of every administrative change |
+| Access Control > RADIUS / AAA | **Users** | Device login accounts, their access level and the devices they may log in to |
+| | **NAS** | Devices allowed to ask FreeRADIUS to authenticate a login, with their shared secret |
+| | **Authentication Audit** | Every device login attempt: user, device, source address, accepted or rejected |
+| | **Session Log** | Each device login as a session, with every command and configuration change, from the devices' syslog |
+| | **Device Setup** | Copy-ready RADIUS, syslog and backup-account commands for each vendor |
+| Administration | **User Management** | Portal users, their roles, and the sign-in history of the portal |
+| | **System Settings** | Backup schedule, parallel SSH sessions, log retention, notifications |
+
+RADIUS / AAA, User Management and System Settings are for administrators; see [Roles](#roles).
 
 ---
 
@@ -124,6 +172,26 @@ Everything else (Python packages, MariaDB, FreeRADIUS, nginx, fping, fail2ban) i
 
 ---
 
+## Ports and services
+
+| Port | Direction | Used by | Open to |
+|---|---|---|---|
+| TCP 443 (and 80 for the certificate) | users → server | nginx, the portal | users |
+| TCP 22 | server → devices | SSH backups (read only) | the devices |
+| ICMP | server → devices | reachability monitor | the devices |
+| UDP 1812 / 1813 | devices → server | FreeRADIUS logins and accounting | NAS Clients only (firewall) |
+| UDP 514 | devices → server | Session Log syslog receiver | NAS Clients only (firewall and receiver) |
+
+| systemd service | What it runs |
+|---|---|
+| `vault` | the web application (Waitress) and its background tasks: schedule, ping monitor, retry queue, daily clean-up |
+| `vault-syslog` | the Session Log syslog receiver |
+| `freeradius` | device logins (RADIUS), independent of the web application |
+| `nginx` | HTTPS in front of the application |
+| `mariadb` | the `dbms` and `radius` databases |
+
+---
+
 ## Installation
 
 ### 1. Get the code
@@ -165,6 +233,13 @@ It then does the rest on its own:
 8. A final health check
 
 Passwords that the installer generates are stored only in `/opt/vault/.env`.
+
+The program folder and the service user can be changed with two variables (the defaults are
+`/opt/vault` and `vault`). Use the same values for every later update:
+
+```bash
+sudo APP_DIR=/opt/dbms SVC_USER=dbms bash deploy/install.sh
+```
 
 ### 3. Open the portal
 
@@ -232,11 +307,34 @@ After editing `.env`, run `sudo systemctl restart vault`.
 
 ---
 
+## Data and retention
+
+| What | Where |
+|---|---|
+| Saved configurations | `/opt/vault/data/backups/<device>/<year>/<month>/<day>/`, each file with a SHA-256 checksum |
+| Encryption key for device passwords | `/opt/vault/data/secret.key` (never in Git; back it up) |
+| Application data (devices, logs, users, Session Log) | MariaDB database `dbms` |
+| RADIUS users, NAS clients, login records | MariaDB database `radius` |
+| Settings and generated passwords | `/opt/vault/.env` |
+
+**System Settings > Keep logs and backup files for** sets one period for every log: **Forever**, 12, 24 or
+48 months. A daily clean-up then deletes, older than that period:
+
+- Activity Logs entries
+- saved configuration versions (the newest version of every device is always kept)
+- Session Log entries
+- accepted logins in Authentication Audit
+
+With a period chosen, rejected logins are deleted after six months. **Forever deletes nothing**, rejected
+logins included.
+
+---
+
 ## Roles
 
 | Role | Can do |
 |---|---|
-| **Viewer** | See everything except administration pages |
+| **Viewer** | See devices, backups, reports, jobs and logs; cannot change anything or open saved configurations |
 | **Operator** | Viewer rights, plus add and edit devices and run backups (typing the device password; saved logins are for administrators) |
 | **Administrator** | Everything, including deleting, RADIUS / AAA, users and settings |
 

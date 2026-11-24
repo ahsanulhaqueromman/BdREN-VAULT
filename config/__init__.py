@@ -1,4 +1,4 @@
-# Use PyMySQL as the MySQL driver. It is pure Python, so no C build tools are needed (Linux, Windows, Docker).
+# Use PyMySQL as the MySQL driver. It is pure Python, so no C build tools are needed (Linux and Windows).
 try:
     import pymysql
 
