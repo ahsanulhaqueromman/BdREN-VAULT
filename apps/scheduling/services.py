@@ -30,6 +30,12 @@ LOG_RETENTION_CHOICES = ("0", "1", "3", "6", "12", "24")   # months; "0" = keep 
 MODES = ("interval", "daily", "days", "semimonthly")          # every N minutes / every day at HH:MM / every N days
 
 
+def logs_kept_forever():
+    """True when Settings > "Keep logs and backup files for" is Forever: then no daily clean-up deletes anything,
+    not Activity Logs, saved configurations, the Session Log or Authentication Audit."""
+    return (get_setting("log_retention_months") or "0") == "0"
+
+
 def get_setting(key):
     """Value of one setting from the database, or its default."""
     row = AppSetting.objects.filter(key=key).first()

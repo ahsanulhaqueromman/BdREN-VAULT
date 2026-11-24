@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from apps.scheduling.services import get_setting
+from apps.scheduling.services import logs_kept_forever
 
 from .models import CommandEvent, ReceiverState, SyslogSource
 
@@ -49,8 +49,11 @@ KEEP_DAYS = 730          # the Session Log keeps two years of logins and command
 
 
 def prune_old_events(now=None):
-    """Delete Session Log events (logins, commands, changes) older than two years (KEEP_DAYS).
-    Runs once a day from the background threads. Returns the number of rows removed."""
+    """Delete Session Log events (logins, commands, changes) older than two years (KEEP_DAYS). Nothing is deleted
+    while Settings > "Keep logs and backup files for" is Forever. Runs once a day from the background threads.
+    Returns the number of rows removed."""
+    if logs_kept_forever():
+        return 0
     cutoff = (now or timezone.now()) - timedelta(days=KEEP_DAYS)
     removed = 0
     while True:                       # in slices, so a large table never locks for long

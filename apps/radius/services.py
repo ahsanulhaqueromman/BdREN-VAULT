@@ -89,13 +89,18 @@ LOGIN_KEEP_DAYS = {"accepted": 730, "rejected": 183}     # Authentication Audit:
 
 def prune_old_logins(now=None):
     """Delete old device logins from radpostauth: accepted ones after two years, every other result (rejected)
-    after six months (LOGIN_KEEP_DAYS). Runs once a day from the background threads, in slices so FreeRADIUS
+    after six months (LOGIN_KEEP_DAYS). Nothing is deleted while Settings > "Keep logs and backup files for" is
+    Forever. Runs once a day from the background threads, in slices so FreeRADIUS
     can keep writing. A server without the RADIUS database skips it. Returns the number of rows removed."""
     from datetime import timedelta
 
     from django.db import DatabaseError
     from django.utils import timezone
 
+    from apps.scheduling.services import logs_kept_forever
+
+    if logs_kept_forever():
+        return 0
     now = now or timezone.now()
     accepted = RadPostAuth.objects.filter(reply="Access-Accept",
                                           authdate__lt=now - timedelta(days=LOGIN_KEEP_DAYS["accepted"]))
