@@ -66,15 +66,46 @@ function renderCmdView(){
   $("#cmdTabs").querySelectorAll("[data-cmd-tab]").forEach(b=>{const on=b.dataset.cmdTab===cmdTab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
 }
 
+/* a warning note: what happened, a "What to do" button that opens the steps, and (when the note can be
+   cleared) a Dismiss button under the steps, to click once they are done */
+function cmdNote(title,text,steps,dismiss){
+  return `<div class="rad-note"><b>${title}</b> ${text}<details class="rad-help"><summary class="b rad-act">What to do</summary>
+    <ol>${steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+    ${dismiss?`<div class="rad-acts"><button class="b rad-act" type="button" data-cmd-dismiss="${dismiss}">Done, dismiss</button></div>`
+             :`<p class="rad-help-end">This note goes away by itself once it is fixed.</p>`}</details></div>`;
+}
+const CMD_DISMISSED={rejected:"It comes back only if a device that is not on NAS Clients sends again.",
+                     dropped:"It comes back only if a device sends too many messages again."};
 function renderCmdStatus(){
   const r=cmdData.receiver||{},box=$("#cmdStatus");
-  const notes=[];
-  if(!r.seen)notes.push(`<div class="rad-note"><b>The syslog receiver is not installed yet.</b> It listens for the devices' logs on UDP 514. Run this once on the server:<code>sudo bash /opt/vault/deploy/enable_syslog.sh</code>Then turn on command logging on each device (Device Setup, step "Command logging").</div>`);
-  else if(!r.running)notes.push(`<div class="rad-note"><b>The syslog receiver is not running</b>${r.heartbeat?` (last seen ${esc(fmtWhen(r.heartbeat).replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim())})`:""}. Logs that arrive now are lost. Check it on the server:<code>sudo systemctl status vault-syslog --no-pager</code><code>sudo journalctl -u vault-syslog -n 30 --no-pager</code></div>`);
-  else if(!(cmdData.sources||[]).length)notes.push(`<div class="rad-note"><b>Waiting for the first device.</b> The receiver is listening on UDP ${esc(r.port||514)}, but no device has sent a log yet. Turn on command logging on a device: <a href="${esc(PAGE_URL["radius-setup"]||"/radius/setup")}">Device Setup</a>, step "Command logging". Only devices on NAS Clients are accepted.</div>`);
-  if(r.rejected)notes.push(`<div class="rad-note"><b>${fmtNum(r.rejected)} log message${r.rejected===1?" was":"s were"} ignored</b> because the sender is not on NAS Clients${r.rejected_last_ip?` (last one from <span class="m">${esc(r.rejected_last_ip)}</span>)`:""}. If that is one of your devices, add the address it sends from (often its loopback or management interface).${r.rejected_last_ip&&PAGE_URL["radius-nas"]?`<a class="b rad-act" href="${esc(PAGE_URL["radius-nas"]+"?add="+encodeURIComponent(r.rejected_last_ip))}">Add ${esc(r.rejected_last_ip)} to NAS Clients</a>`:""}</div>`);
-  if(r.dropped)notes.push(`<div class="rad-note"><b>${fmtNum(r.dropped)} message${r.dropped===1?" was":"s were"} dropped</b> because a device sent more than 200 per second. Lower the log level that device sends to VAULT.</div>`);
+  const notes=[],setup=`<a href="${esc(PAGE_URL["radius-setup"]||"/radius/setup")}">Device Setup</a>`;
+  if(!r.seen)notes.push(cmdNote("The syslog receiver is not installed yet.","It listens for the devices' logs on UDP 514.",[
+    `Run this once on the server:<code>sudo bash /opt/vault/deploy/enable_syslog.sh</code>`,
+    `Turn on command logging on each device: ${setup}, step "Command logging".`]));
+  else if(!r.running)notes.push(cmdNote("The syslog receiver is not running",
+    `${r.heartbeat?`(last seen ${esc(fmtWhen(r.heartbeat).replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim())}). `:""}Logs that arrive now are lost.`,[
+    `See why it stopped:<code>sudo systemctl status vault-syslog --no-pager</code><code>sudo journalctl -u vault-syslog -n 30 --no-pager</code>`,
+    `Start it again:<code>sudo systemctl restart vault-syslog</code>`]));
+  else if(!(cmdData.sources||[]).length)notes.push(cmdNote("Waiting for the first device.",`The receiver is listening on UDP ${esc(r.port||514)}, but no device has sent a log yet.`,[
+    `Add the device to NAS Clients: only devices on NAS Clients are accepted.`,
+    `Turn on command logging on it: ${setup}, step "Command logging".`]));
+  if(r.rejected){
+    const ip=r.rejected_last_ip,add=ip&&PAGE_URL["radius-nas"]?` <a class="b rad-act" href="${esc(PAGE_URL["radius-nas"]+"?add="+encodeURIComponent(ip))}">Add ${esc(ip)} to NAS Clients</a>`:"";
+    notes.push(cmdNote(`${fmtNum(r.rejected)} log message${r.rejected===1?" was":"s were"} ignored`,
+      `because the sender is not on NAS Clients${ip?` (last one from <span class="m">${esc(ip)}</span>)`:""}.`,[
+      `If ${ip?`<span class="m">${esc(ip)}</span>`:"the sender"} is one of your devices, add that address to NAS Clients (often its loopback or management interface).${add}`,
+      `If it is an old address the device no longer sends from, or not your device, nothing has to change.`,
+      `Then dismiss this note.`],"rejected"));
+  }
+  if(r.dropped)notes.push(cmdNote(`${fmtNum(r.dropped)} message${r.dropped===1?" was":"s were"} dropped`,"because a device sent more than 200 per second.",[
+    `Lower the log level that device sends to VAULT, for example on Cisco <code>logging trap notifications</code>`,
+    `Then dismiss this note.`],"dropped"));
   box.innerHTML=notes.join("");
+  box.querySelectorAll("[data-cmd-dismiss]").forEach(b=>b.onclick=async()=>{
+    const note=b.dataset.cmdDismiss;b.disabled=true;
+    try{await api(`/api/radius/commands/notes/${note}/dismiss`,J("POST",{}));cmdData.receiver[note]=0;renderCmdStatus();toast(CMD_DISMISSED[note],{title:"Note dismissed"})}
+    catch(e){b.disabled=false;toast(e.message,{type:"error"})}
+  });
 }
 function renderCmdKpis(){
   const t=cmdSess.totals||{},per=cmdPer(cmdSess);

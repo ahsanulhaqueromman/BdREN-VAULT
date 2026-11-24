@@ -5,10 +5,11 @@
     /api/radius/commands?format=csv   GET  the same filter as a CSV file (up to 50,000 rows)
     /api/radius/commands/sessions     GET  ?hours= &q= &user= &device=   sessions (login to logout); with user=
                                            or device= each session also carries its commands
+    /api/radius/commands/notes/<rejected|dropped>/dismiss  POST  clear that note (it comes back with the next one)
 """
 import csv
 
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.utils import timezone
 
 from apps.core import period as periods
@@ -16,6 +17,7 @@ from apps.core.api import api
 from apps.core.utils import DT_FORMAT
 
 from . import selectors as q
+from . import services
 
 CSV_LIMIT = 50000
 
@@ -49,6 +51,13 @@ def commands(request):
     for s in sources:
         s["first_seen"], s["last_seen"] = _when(s["first_seen"]), _when(s["last_seen"])
     return JsonResponse({**data, "receiver": status, "sources": sources, "period": shown})
+
+
+@api(POST="admin")
+def dismiss_note(request, note):
+    if not services.dismiss_note(note):
+        raise Http404
+    return JsonResponse({"ok": True})
 
 
 @api(GET="admin")

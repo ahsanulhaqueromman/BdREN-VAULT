@@ -51,6 +51,20 @@ def heartbeat(port, rejected=0, rejected_ip="", dropped=0, started=False, now=No
     ReceiverState.objects.filter(pk=1).update(**changes)
 
 
+DISMISSABLE = {   # Session Log notes an administrator may clear; each comes back with the next such message
+    "rejected": {"rejected": 0, "rejected_last_ip": "", "rejected_at": None},   # "log messages were ignored"
+    "dropped": {"dropped": 0},                                                   # "messages were dropped"
+}
+
+
+def dismiss_note(note):
+    """Clear one Session Log note (a key of DISMISSABLE). Returns False for an unknown note."""
+    if note not in DISMISSABLE:
+        return False
+    ReceiverState.objects.filter(pk=1).update(**DISMISSABLE[note])
+    return True
+
+
 def prune_old_events(now=None):
     """Delete Session Log events (logins, commands, changes) older than Settings > "Keep logs and backup files
     for" (Forever = keep all). Runs once a day from the background threads. Returns the number of rows removed."""

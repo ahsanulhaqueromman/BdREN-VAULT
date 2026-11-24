@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-143.
+Entries 118-145.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -34,6 +34,8 @@ Entries 118-143.
 141. **Cisco device names and configure terminal** - with "logging origin-id hostname" on the router, VAULT now reads the name Cisco writes in each message (SUST-EDGE-R1) and shows it with the address, like Huawei and Juniper, even when the NAS entry has no name. configure terminal (and enable) from the EEM applet now show as view lines; end, exit and quit are still left out because the archive log already shows them.
 142. **Deleted NAS devices leave "Devices sending logs"** - a device deleted from NAS Clients is no longer accepted by the receiver, so it no longer stays in the Session Log list of devices sending logs either. Its past sessions stay in the Session Log.
 143. **Add an ignored sender in one click** - the Session Log note "log messages were ignored because the sender is not on NAS Clients" now has a button "Add <address> to NAS Clients". It opens Add NAS with that address filled in; give it a name and vendor and save, and the firewall opens UDP 514 for it.
+144. **"What to do" on every Session Log warning** - each warning note (receiver not installed or not running, waiting for the first device, messages ignored, messages dropped) has a "What to do" button that opens the steps to fix it. Under the steps of "messages ignored" (with "Add <address> to NAS Clients") and "messages dropped" is "Done, dismiss": it clears the note, which comes back only with the next such message. The other notes go away by themselves once fixed.
+145. **Cisco applet catches view commands only** - Device Setup > Command logging for Cisco now gives the event manager applet the pattern "^(show|ping|traceroute|configure|telnet|ssh|clear|debug|undebug|terminal)" instead of ".*". Configuration commands still come from the archive log (with hidekeys), so nothing is lost, and a password typed in a configuration command is no longer sent in clear text. On a router that has the old applet, enter the applet again with the new event line.
 
 ## 23 Nov 2026
 
