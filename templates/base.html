@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#f3f6fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#080e1c" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" href="{% static 'img/bdren-logo.png' %}">
-<link rel="stylesheet" href="{% static 'css/app.css' %}?v=165">
+<link rel="stylesheet" href="{% static 'css/app.css' %}?v=167">
 <script src="{% static 'js/core/transition.js' %}?v=125"></script>
 </head>
 <body class="r-{{ request.user.role }}" data-page="{% if denied %}denied{% else %}{{ page.key }}{% endif %}" data-idle-timeout-ms="{{ session_idle_ms|default:900000 }}"{% if device_id %} data-device-id="{{ device_id }}"{% endif %}{% if denied %} data-denied="1"{% endif %}>
@@ -90,7 +90,7 @@
 {{ vmeta|json_script:"vendors-data" }}
 {{ page_urls|json_script:"page-urls" }}
 {# core first, then one file per screen, then search / start / responsive (start.js must stay after every loader) #}
-<script src="{% static 'js/core/helpers.js' %}?v=136"></script>
+<script src="{% static 'js/core/helpers.js' %}?v=137"></script>
 <script src="{% static 'js/core/menu.js' %}?v=126"></script>
 <script src="{% static 'js/core/account.js' %}?v=124"></script>
 <script src="{% static 'js/core/notifications.js' %}?v=124"></script>
@@ -99,9 +99,9 @@
 <script src="{% static 'js/core/backup-jobs.js' %}?v=125"></script>
 <script src="{% static 'js/pages/backups.js' %}?v=125"></script>
 <script src="{% static 'js/pages/logs.js' %}?v=125"></script>
-<script src="{% static 'js/pages/users.js' %}?v=124"></script>
+<script src="{% static 'js/pages/users.js' %}?v=126"></script>
 <script src="{% static 'js/pages/settings.js' %}?v=128"></script>
-<script src="{% static 'js/pages/radius.js' %}?v=139"></script>
+<script src="{% static 'js/pages/radius.js' %}?v=141"></script>
 <script src="{% static 'js/pages/commands.js' %}?v=147"></script>
 <script src="{% static 'js/pages/reports.js' %}?v=125"></script>
 <script src="{% static 'js/pages/jobs.js' %}?v=125"></script>

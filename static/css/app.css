@@ -424,9 +424,8 @@ tbody tr:has(.sel:checked){background:var(--info-bg)}
 td.m{font-family:var(--mono);font-size:12.5px}
 td .sub{display:block;margin-top:2px;color:var(--mute);font-size:12px}
 .when{font-size:13px}
-.acts{text-align:right}
+.acts,th.ac{text-align:center}   /* Action column: heading centred over its button on every table */
 th.c,td.c{width:44px;padding-right:0}
-th.ac{text-align:right;padding-right:22px}
 input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--primary);cursor:pointer}
 .dt th,.dt td{padding-left:12px;padding-right:12px}
 .dt td.when{white-space:normal;min-width:120px}
@@ -445,11 +444,11 @@ input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--primary)
 .menu-btn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:5px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
 .menu-btn i{font-style:normal;font-size:10px;color:var(--mute)}
 .menu-btn:hover{border-color:var(--blue);background:var(--info-bg)}
-#rowMenu{position:fixed;z-index:60;min-width:150px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);animation:pop .16s var(--ease)}
-#rowMenu button,.pop-menu>*{display:block;width:100%;min-height:38px;padding:8px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
-#rowMenu button:hover,.pop-menu>*:hover{background:var(--info-bg)}
-#rowMenu button.d,.pop-menu>.d{color:var(--bad)}
-#rowMenu button.d:hover,.pop-menu>.d:hover{background:var(--bad-bg)}
+#rowMenu,#actMenu{position:fixed;z-index:60;min-width:150px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);animation:pop .16s var(--ease)}
+#rowMenu button,#actMenu button,.pop-menu>*{display:block;width:100%;min-height:38px;padding:8px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+#rowMenu button:hover,#actMenu button:hover,#actMenu button:focus-visible,.pop-menu>*:hover{background:var(--info-bg)}
+#rowMenu button.d,#actMenu button.d,.pop-menu>.d{color:var(--bad)}
+#rowMenu button.d:hover,#actMenu button.d:hover,#actMenu button.d:focus-visible,.pop-menu>.d:hover{background:var(--bad-bg)}
 .pager{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 2px;color:var(--mute);font-size:13px}
 .pager .pg-size{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;color:var(--mute)}
 .pager select{min-height:34px;padding:4px 28px 4px 10px}

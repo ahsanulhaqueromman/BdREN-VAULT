@@ -58,9 +58,9 @@ function renderRadUsers(){
   radKpis("#radUserKpis",[["RADIUS users",radUsers.length,"All access levels"],...radLevels.map(l=>[lvLabel(l),radUsers.filter(u=>u.level===l).length,RAD_LEVEL_NOTE[l]||"Access level"])]);
   $("#radUserCount").textContent=`${list.length} of ${radUsers.length} users`;
   const {rows,bar}=paginate("radUsers",list);
-  $("#radUserList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Username</th><th>Access level</th><th>Can log in on</th><th></th></tr></thead><tbody>`+
+  $("#radUserList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Username</th><th>Access level</th><th>Can log in on</th><th class="acts">Action</th></tr></thead><tbody>`+
     rows.map(u=>`<tr><td><span class="dn">${esc(u.username)}</span></td><td>${lvPill(u.level)}</td><td>${radScope(u)}</td>
-     <td class="acts"><button class="link" type="button" data-rad-edit="${esc(u.username)}">Edit</button><button class="link d" type="button" data-rad-del="${esc(u.username)}">Delete</button></td></tr>`).join("")+`</tbody></table></div>`+bar
+     <td class="acts">${actMenu(esc(u.username),`<button class="link" type="button" data-rad-edit="${esc(u.username)}">Edit</button><button class="link d" type="button" data-rad-del="${esc(u.username)}">Delete</button>`)}</td></tr>`).join("")+`</tbody></table></div>`+bar
     :`<div class="empty"><b>${radUsers.length?"No matching users":"No RADIUS users yet"}</b>${radUsers.length?"Try changing the search or the access level.":"Use Add user to create the first device login."}${radUsers.length?"":emptyAct("Add user","#radAddUser")}</div>`;
 }
 /* Access is granted by device TYPE (follows the type: a device of that type added later is included at once)
@@ -188,12 +188,12 @@ function renderRadNas(){
   const list=radNas.filter(d=>!q||`${d.name} ${d.nasname} ${vendor(d.vendor)} ${d.role||""} ${d.description}`.toLowerCase().includes(q));
   $("#radNasCount").textContent=`${list.length} of ${radNas.length} devices`;
   const {rows,bar}=paginate("radNas",list);
-  $("#radNasList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>IP / network</th><th>Vendor</th><th>Device Group</th><th>Shared secret</th><th>Description</th><th></th></tr></thead><tbody>`+
+  $("#radNasList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>IP / network</th><th>Vendor</th><th>Device Group</th><th>Shared secret</th><th>Description</th><th class="acts">Action</th></tr></thead><tbody>`+
     rows.map(d=>{const on=radShown.has(d.id);return `<tr><td><span class="dn">${esc(d.name)}</span></td><td class="m">${esc(d.nasname)}</td><td><select class="rad-type" data-rad-vendor="${d.id}" aria-label="Vendor of ${esc(d.name)}">${radVendors.map(v=>`<option value="${esc(v.key)}"${v.key===d.vendor?" selected":""}>${esc(v.label)}</option>`).join("")}${radVendors.some(v=>v.key===d.vendor)?"":`<option selected>${esc(vendor(d.vendor))}</option>`}</select></td>
      <td><input class="rad-role-edit" data-rad-role="${d.id}" list="radRoleList" autocomplete="off" maxlength="50" aria-label="Device Group of ${esc(d.name)}" value="${esc(d.role||"Other")}"></td>
      <td class="rad-sec">${on?`<code>${esc(radSecrets.get(d.id)||"")}</code>`:`<span class="dots" aria-label="Hidden">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>`}<button class="link" type="button" data-rad-show="${d.id}">${on?"Hide":"Show"}</button><button class="link" type="button" data-rad-copy="${d.id}">Copy</button></td>
      <td>${d.description?esc(d.description):'<span class="none">-</span>'}</td>
-     <td class="acts"><button class="link d" type="button" data-rad-nasdel="${d.id}">Remove</button></td></tr>`}).join("")+`</tbody></table></div>`+bar
+     <td class="acts">${actMenu(esc(d.name),`<button class="link" type="button" data-rad-copy="${d.id}">Copy shared secret</button><button class="link d" type="button" data-rad-nasdel="${d.id}">Remove</button>`)}</td></tr>`}).join("")+`</tbody></table></div>`+bar
     :`<div class="empty"><b>${radNas.length?"No matching devices":"No RADIUS devices yet"}</b>${radNas.length?"Try changing the search.":"Use Add NAS to register the first switch, router or firewall."}${radNas.length?"":emptyAct("Add NAS","#radAddNas")}</div>`;
 }
 /* vendor / device type are changed in place; vendor applies from the next login (FreeRADIUS reads nas.type on

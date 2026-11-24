@@ -382,3 +382,33 @@ const SND_ON='<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M1
 function paintSnd(){const on=sfx.on,b=$("#sndBtn");$("#sndIc").innerHTML=on?SND_ON:SND_OFF;$("#sndTx").textContent=on?"Sound on":"Sound off";b.setAttribute("aria-pressed",on);b.title=on?"Notification sound is on (click to mute)":"Notification sound is off (click to turn on)"}
 $("#sndBtn").onclick=()=>{sfx.set(!sfx.on);paintSnd();sfx.play("ok")};
 paintSnd();
+
+/* ---- row Action menus (RADIUS Users, NAS, User Management): actMenu(name, buttons) draws an "Action" button and
+   keeps the row's own buttons hidden next to it. Opening it shows copies of them in one shared floating menu
+   (#actMenu, outside the table so a scrolling table never cuts it off); choosing an item clicks the hidden
+   original, so each page's own click handler does the work. ---- */
+const actMenu=(name,items)=>`<button type="button" class="menu-btn" data-actmenu aria-haspopup="menu" aria-expanded="false" aria-label="Actions for ${name}">Action <i aria-hidden="true">&#9662;</i></button><span class="act-items" hidden>${items}</span>`;
+let actBox=null,actFrom=null,actAt=0;
+function actClose(){if(!actBox||actBox.hidden)return;actBox.hidden=true;actFrom&&actFrom.setAttribute("aria-expanded","false");actFrom=null}
+function actOpen(btn){
+  if(actFrom===btn)return actClose();               /* the same button again closes it */
+  actClose();
+  if(!actBox){actBox=document.createElement("div");actBox.id="actMenu";actBox.setAttribute("role","menu");actBox.hidden=true;document.body.append(actBox);
+    actBox.addEventListener("click",e=>{const it=e.target.closest("[data-i]");if(!it)return;
+      const orig=actBox._items[+it.dataset.i],back=actFrom;actClose();back&&back.focus();orig&&orig.click()});
+    actBox.addEventListener("keydown",e=>{const all=[...actBox.querySelectorAll("button")],i=all.indexOf(document.activeElement);
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();all[(i+(e.key==="ArrowDown"?1:all.length-1))%all.length]?.focus()}})}
+  const items=[...(btn.nextElementSibling?.querySelectorAll("button")||[])];
+  actBox._items=items;
+  actBox.innerHTML=items.map((b,i)=>`<button type="button" role="menuitem" data-i="${i}"${b.classList.contains("d")?' class="d"':""}>${esc(b.textContent.trim())}</button>`).join("");
+  actFrom=btn;actAt=Date.now();btn.setAttribute("aria-expanded","true");actBox.hidden=false;
+  const r=btn.getBoundingClientRect(),w=actBox.offsetWidth,h=actBox.offsetHeight,below=r.bottom+4+h<=innerHeight;
+  actBox.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+  actBox.style.top=(below?r.bottom+4:r.top-h-4)+"px";
+  actBox.querySelector("button")?.focus({preventScroll:true});
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-actmenu]");if(b){e.stopPropagation();actOpen(b);return}
+  if(!e.target.closest("#actMenu"))actClose()},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&actBox&&!actBox.hidden){const b=actFrom;actClose();b&&b.focus()}});
+addEventListener("resize",actClose);
+addEventListener("scroll",()=>{if(Date.now()-actAt>250)actClose()},true);

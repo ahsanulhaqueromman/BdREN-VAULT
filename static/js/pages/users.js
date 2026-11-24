@@ -7,14 +7,14 @@ let users=[];
 /* ---- users tab (admin only): add, edit, disable, delete users ---- */
 async function loadUsers(){
   users=await api("/api/users");
-  $("#userList").innerHTML=`<div class="tbl"><table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Created</th><th></th></tr></thead><tbody>`+
+  $("#userList").innerHTML=`<div class="tbl"><table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Created</th><th class="acts">Action</th></tr></thead><tbody>`+
   users.map(u=>`<tr><td><span class="dn">${esc(u.username)}</span>${u.id===ME.id?' <span class="none">(you)</span>':""}</td>
    <td><span class="pill ${u.role}">${ROLE_LABEL[u.role]}</span></td>
    <td>${!u.active?'<span class="pill DOWN" title="This account is disabled and cannot sign in">Disabled</span>'
         :u.online?'<span class="pill UP" title="Signed in right now">Active</span>'
         :'<span class="pill" title="Not signed in at the moment">Inactive</span>'}</td>
    <td class="when" title="${esc(u.last_login_ip||"")}">${fmtWhen(u.last_login)}${u.last_login_ip?`<span class="sub">IP: ${esc(u.last_login_ip)}</span>`:""}</td><td class="when">${esc((u.created||"").slice(0,10))}</td>
-   <td class="acts"><button class="link" type="button" data-user-history="${esc(u.username)}">History</button><button class="link" type="button" data-user-edit="${u.id}">Edit</button>${u.id===ME.id?"":`<button class="link d" type="button" data-user-del="${u.id}">Delete</button>`}</td></tr>`).join("")+`</tbody></table></div>`;
+   <td class="acts">${actMenu(esc(u.username),`<button class="link" type="button" data-user-history="${esc(u.username)}">Sign-in history</button><button class="link" type="button" data-user-edit="${u.id}">Edit</button>${u.id===ME.id?"":`<button class="link d" type="button" data-user-del="${u.id}">Delete</button>`}`)}</td></tr>`).join("")+`</tbody></table></div>`;
   const sel=$("#signinAccount"),keep=sel.value;
   sel.innerHTML=`<option value="">All accounts</option>`+users.map(u=>`<option value="${esc(u.username)}">${esc(u.username)}</option>`).join("");
   sel.value=users.some(u=>u.username===keep)?keep:"";
