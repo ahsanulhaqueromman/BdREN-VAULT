@@ -126,8 +126,42 @@ sudo systemctl start freeradius
 | `Shared secret is incorrect` | The secret on the device differs from the one in **NAS Clients** |
 | `Access-Reject` for a valid user | Wrong password, the user is not allowed on that device, or the source address is blocked after an unknown-username login (see **Authentication Audit**) |
 | Logged in with the wrong level | Run `check_levels.sh`; it names the cause and the fix |
+| `Access-Reject` and `freeradius -X` says no Cleartext-Password / CHAP / MS-CHAP | Passwords are stored as salted SHA-256, which works with PAP only. Set the device to PAP for logins (SSH / Telnet logins use PAP by default) |
+| A device was fine, then every request is dropped with a Message-Authenticator message | BlastRADIUS protection (`require_message_authenticator = auto`): the device sent Message-Authenticator once and now sends a request without it. Update its firmware or its RADIUS settings so it always sends it |
 
 > Every device must keep one **local** administrator account, so you can still log in when RADIUS is down.
+
+### Check RADIUS security (both servers)
+
+Make sure you are on the server you mean (both prompts may say `root@bdren`):
+
+```bash
+hostname -I                                            # the server's address
+```
+
+Passwords stored as hashes, none in clear text:
+
+```bash
+sudo mysql radius -e "SELECT attribute, COUNT(*) FROM radcheck WHERE attribute IN ('Cleartext-Password','SSHA2-256-Password') GROUP BY attribute;"
+```
+
+Only `SSHA2-256-Password` should be listed. If `Cleartext-Password` is there too, run
+`sudo bash /opt/vault/deploy/install.sh`, or convert them by hand (same passwords):
+
+```bash
+sudo -u vault /opt/vault/.venv/bin/python /opt/vault/manage.py radius_hash_passwords
+```
+
+BlastRADIUS (CVE-2024-3596) protection:
+
+```bash
+freeradius -v | head -1                                # 3.2.5 or newer (or a package with the fix)
+grep -n "^\s*require_message_authenticator\|^\s*limit_proxy_state" /etc/freeradius/3.0/radiusd.conf
+```
+
+Both lines must say `= auto` (FreeRADIUS 3.2.5 already has them; the lines starting with `#` are only
+comments). If they are missing: `sudo bash /opt/vault/deploy/radius/enable_blastradius.sh`. An older
+FreeRADIUS has to be updated first: `sudo apt update && sudo apt install --only-upgrade freeradius`.
 
 ---
 
@@ -209,6 +243,19 @@ sudo freeradius -XC && sudo systemctl restart freeradius
 
 If the check fails, put the backup back: `sudo cp -p $F.manual-backup $F && sudo systemctl restart freeradius`.
 Then log in to a device once and look at **Authentication Audit**.
+
+---
+
+### From is empty
+
+**From** is the address the person logged in from. It comes from the device's RADIUS request
+(Calling-Station-Id), and when the device sends none (Huawei switches, for one) from the device's syslog in
+the Session Log: the same user's login line, else the closest command line, up to 10 minutes after the login.
+Still empty: the device does not send its logins to VAULT (Device Setup, step "Command logging"; Huawei:
+`info-center source SSH channel loghost log level informational`).
+
+The address is the one the device sees. Behind NAT, a jump server or a VPN that is the NAT / jump server / VPN
+address (for example the same address for everyone), not the person's own public address.
 
 ---
 

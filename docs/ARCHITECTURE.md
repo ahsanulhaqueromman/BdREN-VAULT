@@ -6,7 +6,7 @@ How the VAULT is put together. For "which file does what", see
 ## Components
 
 ```
- Browser ──HTTPS──> nginx :443 ──> waitress (manage.py serve, service "dbms") ──> Django app
+ Browser ──HTTPS──> nginx :443 ──> waitress (manage.py serve, service "vault") ──> Django app
                                                                                   │
             ┌──────────────────────────────┬──────────────────────────┬──────────┴─────────────┐
             │ MySQL "dbms"                  │ MySQL "radius"            │ data/ folder            │
@@ -15,11 +15,15 @@ How the VAULT is put together. For "which file does what", see
             └──────────────────────────────┴─────────────┬────────────┴────────────────────────┘
                                                          │ read on every login
  Switch / router ──RADIUS UDP 1812──> FreeRADIUS 3 ──────┘
+ Switch / router ──syslog UDP 514───> syslog receiver (manage.py syslog_receive, service "vault-syslog")
+                                      ──> MySQL "dbms" (Session Log)
  Backup engine ──SSH 22 / ICMP──> switches, routers, OLTs, firewalls
 ```
 
 - **Django app** (one process): web pages, JSON API, the SSH backup engine, the scheduler and the ping monitor
   (background threads started by `apps/core/background.py`).
+- **Syslog receiver** (its own process): turns the devices' syslog into Session Log logins, commands and
+  changes. It accepts only NAS Clients addresses, at most 200 messages a second per device.
 - **FreeRADIUS** never talks to the app. Both use the `radius` database, so a user, level, device limit or new
   switch saved in the panel is used on the next login, with no restart.
 
@@ -52,7 +56,8 @@ A module may only depend on the layers **below** it:
 | `backups` | `/api/backup`, `/api/jobs`, `/api/logs`, `/api/backups` | back up one device, start / stop jobs, delete versions, log housekeeping | jobs, logs, versions, reports, alerts | `engine.py`, `storage.py`, `jobs.py`, `reports.py`, `audit.py` |
 | `monitoring` | `/api/ping`, `/api/dashboard` | ping, background monitor | Dashboard numbers, server health | OS `ping` |
 | `scheduling` | `/api/settings` | settings, the backup timer | | |
-| `radius` | `/api/radius/*` | RADIUS users, levels, NAS, FreeRADIUS restart | users, NAS, logins, limit violations | `router.py` (second database) |
+| `radius` | `/api/radius/*` | RADIUS users, levels, NAS, FreeRADIUS restart, password hashing, NAS names from syslog | users, NAS, logins, limit violations | `router.py` (second database) |
+| `commandlog` | `/api/radius/commands*` | save what the receiver hands over, dismiss a warning, clean-up | sessions, devices sending logs, receiver state, From for Authentication Audit | `receiver.py` (UDP 514), `parsers.py` (vendor formats) |
 | `core` | pages, `/healthz` | | | shared kernel: `api.py`, `crypto.py`, `netguard.py`, `background.py`, `pages.py` |
 
 **Between apps** only the public modules are used: another app's `selectors`, `services` (and `audit`,
@@ -85,6 +90,8 @@ Every screen is its own page. The list lives in one place, **`apps/core/pages.py
 | `radius-users` | `/radius/users` | `radius/users.html` | Administrator |
 | `radius-nas` | `/radius/nas` | `radius/nas.html` | Administrator |
 | `radius-audit` | `/radius/audit` | `radius/audit.html` | Administrator |
+| `radius-commands` | `/radius/commands` | `radius/commands.html` (Session Log) | Administrator |
+| `radius-setup` | `/radius/setup` | `radius/setup.html` (Device Setup) | Administrator |
 | `users` | `/users` | `accounts/users.html` | Administrator |
 | `settings` | `/settings` | `settings/index.html` | Administrator |
 
@@ -110,7 +117,7 @@ and a function from an earlier file can be used directly.
 static/js/core/    shared by every page
   early.js          side-menu state before the page is drawn
   helpers.js        $, $o, esc, toast, api(), dates, confirm pop-up, pager, PAGE / showTab / openDevice
-  menu.js           phone drawer, minimise, RADIUS drop-down, account menu
+  menu.js           menu button (minimise on a computer, drawer on a phone), RADIUS drop-down, account menu
   account.js        signed-in user (ME), sign out, change own password
   backup-jobs.js    start / follow / stop a backup (top-bar chip on every page)
   search.js         global search (Ctrl+K)
@@ -160,6 +167,37 @@ extra table, `dbms_user_nas` (where a user may log in). FreeRADIUS uses three po
 
 Access levels send each vendor's attribute with `:=`, so nothing else can override the level chosen in the
 panel. `deploy/radius/check_levels.sh` verifies the whole chain on a server.
+
+- **Passwords** are stored only as salted SHA-256 (`SSHA2-256-Password`, `services.hash_password`); FreeRADIUS
+  checks them with PAP. `manage.py radius_hash_passwords` (run by the installer) converts clear-text ones left
+  by older versions, keeping the same passwords.
+- **BlastRADIUS** (CVE-2024-3596): `deploy/radius/enable_blastradius.sh` (run by the installer) makes sure
+  radiusd.conf has `require_message_authenticator = auto` and `limit_proxy_state = auto`.
+- **Firewall**: UDP 1812 / 1813 and 514 open only for NAS Clients addresses (`deploy/radius/vault-radius-firewall`,
+  run after every NAS change).
+- **NAS names**: an entry added without a name gets the host name the device sends in its syslog
+  (`services.name_nas_from_syslog`, called by the receiver); a typed name is never changed.
+
+## Session Log
+
+```
+ device ──syslog──> receiver.py ──parsers.py──> CommandEvent (dbms)     logins, commands, changes
+                         │                       SyslogSource            per sender: counts, host name
+                         └─ heartbeat ────────> ReceiverState           running, ignored / dropped counts
+ FreeRADIUS ──────────────────────────────────> radpostauth / radacct   RADIUS logins and logouts
+                                                        │
+ selectors.sessions(): events + RADIUS logins / logouts ┘──> one card per login (login → commands → logout)
+```
+
+- A session is built on each request from the period asked for (plus 24 hours before it, for a session already
+  going), at most 20,000 events; with no logout it shows as active for 15 minutes after the last event.
+- Device names: NAS Clients, then Device Inventory, then the syslog host name (`selectors._namer`).
+- The warnings on the page (receiver not installed or not running, messages ignored or dropped) carry the
+  steps to fix them; ignored / dropped can be cleared (`POST /api/radius/commands/notes/<note>/dismiss`).
+- Cisco IOS logs configuration commands only (archive log); show / ping come from the event manager applet in
+  Device Setup. The part after a pipe is never sent by Cisco.
+- Authentication Audit's **From** falls back to the Session Log (`selectors.fill_login_sources`) when the
+  device sends no Calling-Station-Id.
 
 ## Security
 
