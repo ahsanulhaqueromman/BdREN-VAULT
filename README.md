@@ -426,6 +426,10 @@ logins included.
   (`manage.py radius_hash_passwords`), keeping the same passwords. Logins use PAP, which SSH / Telnet logins on
   network devices use; CHAP / MS-CHAP need the clear text and do not work
 - Shared secrets are 24 random characters per device
+- BlastRADIUS (CVE-2024-3596): the installer sets `require_message_authenticator = auto` and
+  `limit_proxy_state = auto` in FreeRADIUS (`deploy/radius/enable_blastradius.sh`); needs FreeRADIUS 3.2.5 or a
+  package with the fix, otherwise the installer says to update it. Keep RADIUS on a management network or VPN
+  where you can, and update device firmware so devices send and check Message-Authenticator
 - Every device login is recorded in Authentication Audit
 - Accepted logins are kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months); with a period chosen, rejected ones are deleted after six months (a daily clean-up)
 
