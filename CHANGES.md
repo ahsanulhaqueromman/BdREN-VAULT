@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-149.
+Entries 118-150.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -40,6 +40,7 @@ Entries 118-149.
 147. **RADIUS passwords stored as hashes** - new command `manage.py radius_hash_passwords` turns the RADIUS passwords still stored in clear text into salted SHA-256 (SSHA2-256-Password) without changing them, so nobody needs a new password. `--user NAME` does one user, to test a login on every kind of device first; without it the command needs `RADIUS_PASSWORD_MODE=ssha2` in .env, so that new passwords are hashed too. It cannot be undone, and these users can then log in with PAP only (SSH / Telnet logins use PAP). Each run is written to the RADIUS audit log (user.hash).
 148. **RADIUS passwords are always hashed** - the clear-text mode is gone: every RADIUS password VAULT stores is salted SHA-256 (SSHA2-256-Password), and the `RADIUS_PASSWORD_MODE` setting is no longer read. `deploy/install.sh` runs `manage.py radius_hash_passwords --yes`, which converts any password still stored in clear text without changing it. These users log in with PAP, which SSH / Telnet logins on network devices use.
 149. **Authentication Audit: From filled in from syslog** - devices that send no Calling-Station-Id with the login request (Huawei switches, for one) showed "-" under From. VAULT now takes that address from the same device's syslog in the Session Log: the same user's login line (Huawei UserAddress=), else the closest command line (Ip=), from 2 minutes before to 10 minutes after the login. An address sent with the RADIUS request still comes first. Needs the device to send its logins to VAULT (Device Setup, step "Command logging").
+150. **Menu button in the top bar** - the small arrow next to the VAULT name is gone. The menu button (three lines) now sits at the left of the top bar on every screen size: on a computer it minimises or expands the side menu (remembered in the browser, as before), on phones and tablets it opens the side menu.
 
 ## 23 Nov 2026
 
