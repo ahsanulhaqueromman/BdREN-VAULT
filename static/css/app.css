@@ -980,7 +980,6 @@ main>section:not([hidden]){animation:fadeUp .2s var(--ease) both}
    ============================================================================= */
 :root{
   --c1:#2f5bea;--c2:#0ea5c6;--c3:#10b981;--c4:#8b5cf6;--c5:#f59e0b;--c6:#ec4899;
-  --net-bg:linear-gradient(120deg,#0b1430 0%,#10204a 45%,#0b2a3f 100%);
 }
 /* faint network-of-nodes texture behind every page. It sits on its own fixed layer (not
    background-attachment:fixed, which repaints the whole window on every scroll frame). */
@@ -1035,28 +1034,6 @@ td.when .tm::before{content:none}
 #systemHealth .kpi::after{display:none}
 .kpi strong.w{color:var(--warn)}
 
-/* dashboard network map */
-.netmap{position:relative;display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,1.5fr);align-items:center;gap:10px 24px;margin:0 0 20px;padding:20px 24px;overflow:hidden;
-  color:#e7eefc;background:var(--net-bg);border:1px solid rgba(129,140,248,.25);border-radius:18px;box-shadow:0 18px 40px -22px rgba(30,64,175,.7)}
-.netmap::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 1px 1px,rgba(148,163,184,.16) 1px,transparent 0) 0 0/18px 18px;mask:linear-gradient(90deg,#000,transparent 70%);-webkit-mask:linear-gradient(90deg,#000,transparent 70%);pointer-events:none}
-.nm-tx{position:relative;z-index:1;min-width:0}
-.nm-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7dd3fc}
-.nm-eyebrow i{width:8px;height:8px;border-radius:50%;background:#34d399;animation:beacon 2s ease-in-out infinite}
-.netmap h3{margin:6px 0 14px;font-size:clamp(17px,1vw + 10px,21px);font-weight:750;letter-spacing:-.02em;line-height:1.3;color:#fff}
-.nm-map{position:relative;z-index:1;width:100%;height:auto;max-height:170px}
-.nm-links path{stroke-dasharray:4 5;animation:dash 1.4s linear infinite}
-@keyframes dash{to{stroke-dashoffset:-18}}
-.nm-nodes .core{filter:drop-shadow(0 0 10px rgba(129,140,248,.9))}
-.nm-nodes .ring{fill:none;stroke:#818cf8;stroke-width:1.5;transform-box:fill-box;transform-origin:center;animation:ripple 2.6s ease-out infinite}
-@keyframes ripple{from{opacity:.8;transform:scale(.7)}to{opacity:0;transform:scale(1.7)}}
-.nm-nodes .dist{fill:#0e1a3a;stroke:#38bdf8;stroke-width:2}
-.nm-nodes .edge{fill:#0e1a3a;stroke:#34d399;stroke-width:2}
-.nm-nodes .core-ic{stroke:#fff;stroke-width:2.2;stroke-linecap:round}
-.pk.a{fill:#22d3ee;filter:drop-shadow(0 0 4px #22d3ee)}
-.pk.b{fill:#a78bfa;filter:drop-shadow(0 0 4px #a78bfa)}
-.pk.c{fill:#34d399;filter:drop-shadow(0 0 4px #34d399)}
-.netmap .upd{animation:updGlowDark 1.6s var(--ease)}
-@keyframes updGlowDark{0%{color:#67e8f9;text-shadow:0 0 12px rgba(103,232,249,.9)}100%{color:#fff;text-shadow:none}}
 
 /* Add device: note under the IP field when several addresses are typed */
 .ipnote{display:block;margin-top:4px;padding:7px 10px;border-radius:8px;background:var(--info-bg);color:var(--blue-d);font-size:12px;font-weight:600;line-height:1.45}
@@ -1111,20 +1088,17 @@ input:disabled{background:var(--soft);color:var(--mute);cursor:not-allowed}
 .rep-note code{font:12px var(--mono);overflow-wrap:anywhere}
 
 @media (max-width:1024px){
-  .netmap{grid-template-columns:1fr}
-  .nm-map{max-height:140px}
   .rep-card>summary{grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"dev badge chev" "bar bar bar" "lines last last";gap:8px 12px}
   .rep-dev{grid-area:dev}.rep-badge{grid-area:badge}.rep-chev{grid-area:chev}.rep-bar{grid-area:bar}.rep-lines{grid-area:lines}.rep-last{grid-area:last;text-align:right}
   .rep-last br{display:none}
 }
 @media (max-width:760px){
   .livechip{display:none}
-  .netmap{padding:16px;border-radius:16px}
   .rep-tl li{grid-template-columns:minmax(0,1fr) auto}
   .rep-when{grid-column:1/-1;grid-template-columns:auto auto;justify-content:start;gap:8px}
   .pager .pg-size span{display:none}
 }
-@media (prefers-reduced-motion:reduce){.nm-pkts{display:none}.nm-links path,.brand::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.brand::after{animation:none}}
 
 /* change report: month range form + month calendar (reports.js) */
 .rep-range-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 12px;margin:0 0 10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm)}
@@ -1228,7 +1202,6 @@ kbd{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-bot
 #stats>.kpi:nth-child(4){--kc:#d63447;--ki:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E")}
 #stats>.kpi:nth-child(5){--kc:var(--c4);--ki:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")}#signinKpis>.kpi:nth-child(1){--kc:var(--c1);--ki:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3'/%3E%3C/svg%3E")}
 #signinKpis>.kpi:nth-child(2){--kc:#d63447;--ki:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E")}
-.nm-sub{position:relative;z-index:1;margin:0;max-width:44ch;color:#a9bbd8;font-size:13.5px;line-height:1.55}
 
 .rad-note ul{margin:6px 0 8px;padding-left:20px}.rad-note li{margin:2px 0}
 
@@ -1279,10 +1252,8 @@ kbd{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-bot
 
 /* ---------- Calm motion: status lights pulse slowly, decoration moves slowly or not at all ---------- */
 .mark::after{animation:none}
-.livechip i,.nm-eyebrow i,.schedule-dot::after{animation-duration:4s}
+.livechip i,.schedule-dot::after{animation-duration:4s}
 .brand::after{animation-duration:9s;opacity:.6}
-.nm-links path{animation-duration:4s}
-.nm-nodes .ring{animation-duration:5s}
 .pill.chk::before{animation-duration:2.4s}
 /* newest unread backup: flash a few times to draw the eye, then stay marked */
 #devpage .row.latest-blink{animation-iteration-count:3;background:color-mix(in srgb,var(--ok) 8%,transparent)}
@@ -1292,8 +1263,6 @@ kbd{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-bot
 @media (max-width:760px){
   #kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .kpis>.kpi::after{width:30px;height:30px;right:10px;bottom:10px;opacity:.09}
-  .netmap h3{margin-bottom:10px}
-  .nm-sub{font-size:13px;line-height:1.5}
 }
 
 /* Header "More" menu (Devices): same look as the row Action menu */

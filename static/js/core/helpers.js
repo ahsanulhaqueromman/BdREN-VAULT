@@ -163,21 +163,35 @@ const sfx=(()=>{
   let prefs={...defaults};
   try{on=localStorage.getItem("nb_sound")!=="0";prefs={...defaults,...JSON.parse(localStorage.getItem("nb_sound_prefs")||"{}")}}catch(e){}
   const AC=window.AudioContext||window.webkitAudioContext;
-  const engine=()=>{if(!AC)return null;if(!ctx)ctx=new AC();if(ctx.state==="suspended")ctx.resume();return ctx};
+  let out=null;
+  const engine=()=>{
+    if(!AC)return null;
+    if(!ctx){ctx=new AC();
+      /* one quiet output for every sound: a gentle low-pass takes off the harsh top, a soft limiter keeps chords from peaking */
+      const lp=ctx.createBiquadFilter(),lim=ctx.createDynamicsCompressor();
+      lp.type="lowpass";lp.frequency.value=5200;lp.Q.value=.5;
+      lim.threshold.value=-14;lim.knee.value=12;lim.ratio.value=4;lim.attack.value=.003;lim.release.value=.2;
+      out=ctx.createGain();out.gain.value=.7;out.connect(lp);lp.connect(lim);lim.connect(ctx.destination)}
+    if(ctx.state==="suspended")ctx.resume();return ctx};
   ["pointerdown","keydown"].forEach(ev=>addEventListener(ev,engine,{once:true,passive:true}));   /* browsers allow sound only after a first click or tap */
-  function note(c,f,t,d,o={}){
-    const osc=c.createOscillator(),g=c.createGain(),v=o.gain==null?.2:o.gain;
-    osc.type=o.type||"sine";osc.frequency.setValueAtTime(f,t);if(o.to)osc.frequency.exponentialRampToValueAtTime(o.to,t+d);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);   /* soft attack, smooth fade: no clicks */
-    osc.connect(g);g.connect(c.destination);osc.start(t);osc.stop(t+d+.03);
+  /* a short struck tone (soft mallet / glass): a pure fundamental plus a faint, faster-fading overtone, quick attack
+     and a natural exponential decay; no pitch slides, so it sounds like a system chime rather than a game effect */
+  function tone(c,f,t,d,v=.18){
+    for(const [mul,amp,len] of [[1,1,1],[2.76,.09,.35],[5.4,.03,.18]]){   /* overtones a little off whole multiples: bell-like */
+      const osc=c.createOscillator(),g=c.createGain(),end=t+d*len;
+      osc.type="sine";osc.frequency.setValueAtTime(f*mul,t);
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v*amp,t+.006);g.gain.exponentialRampToValueAtTime(.0001,end);
+      osc.connect(g);g.connect(out);osc.start(t);osc.stop(end+.02);
+    }
   }
+  const at=c=>c.currentTime+.02;
   const sounds={
-    done :c=>{const t=c.currentTime+.02;note(c,659.25,t,.32);note(c,987.77,t+.14,.5);note(c,1975.5,t+.14,.5,{gain:.04})},          /* backup finished: bright two-note chime */
-    ok   :c=>{const t=c.currentTime+.02;note(c,880,t,.22,{gain:.16});note(c,1318.5,t+.07,.28,{gain:.08})},                              /* saved / updated: single soft ping */
-    add  :c=>{const t=c.currentTime+.02;note(c,520,t,.13,{to:780,gain:.18});note(c,1046.5,t+.1,.26,{gain:.13})},                       /* added: rising pop */
-    del  :c=>{const t=c.currentTime+.02;note(c,420,t,.2,{to:160,gain:.2});note(c,110,t,.09,{type:"triangle",gain:.1})},                /* deleted: soft falling swoosh */
-    warn :c=>{const t=c.currentTime+.02;note(c,587.33,t,.2,{type:"triangle"});note(c,440,t+.17,.36,{type:"triangle"})},               /* finished with some failures */
-    error:c=>{const t=c.currentTime+.02;note(c,311.13,t,.26,{type:"triangle"});note(c,233.08,t+.18,.46,{type:"triangle"})}             /* failed */
+    done :c=>{const t=at(c);tone(c,783.99,t,.55,.16);tone(c,1046.5,t+.11,.8,.15)},     /* backup finished: two-note rising chime (G5, C6) */
+    ok   :c=>{tone(c,1174.66,at(c),.32,.16)},                                           /* saved / updated: one light tap (D6) */
+    add  :c=>{const t=at(c);tone(c,880,t,.3,.12);tone(c,1318.51,t+.075,.42,.11)},      /* added: quick rising pair (A5, E6) */
+    del  :c=>{const t=at(c);tone(c,587.33,t,.3,.13);tone(c,440,t+.08,.42,.12)},        /* deleted: quick falling pair (D5, A4) */
+    warn :c=>{const t=at(c);tone(c,698.46,t,.4,.14);tone(c,698.46,t+.16,.55,.12)},     /* finished with some failures: two even notes (F5) */
+    error:c=>{const t=at(c);tone(c,466.16,t,.45,.16);tone(c,349.23,t+.15,.7,.15)}      /* failed: lower falling pair (A#4, F4) */
   };
   return{
     sounds,

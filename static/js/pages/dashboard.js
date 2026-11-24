@@ -119,5 +119,5 @@ function renderDashboard(d){
    <div class="kpi"><small>Logs kept for</small><strong>${esc(keep)}</strong><span class="d">${h.retention_months?"Older logs and backups are deleted daily":"Nothing is deleted automatically"}</span></div>
    ${sl?`<div class="kpi"><small>Session Log receiver</small><strong class="${sl.running?"g":"r"}">${sl.running?"Running":sl.seen?"Not running":"Not set up"}</strong><span class="d">${sl.heartbeat?"Last report "+esc(fmtBdDateTime(sl.heartbeat)):"Receives device syslog"}</span></div>`:""}`);
   /* charts animate in on the first draw only; later 30-second refreshes update quietly (see app.css "Motion") */
-  if(!renderDashboard.drawn){renderDashboard.drawn=true;setTimeout(()=>$("#dashboard").classList.add("charts-ready"),1600)}
+  if(!renderDashboard.drawn){renderDashboard.drawn=true;setTimeout(()=>$("#dashboard")?.classList.add("charts-ready"),1600)}
 }
