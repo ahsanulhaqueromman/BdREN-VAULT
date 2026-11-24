@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-151.
+Entries 118-152.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -42,6 +42,7 @@ Entries 118-151.
 149. **Authentication Audit: From filled in from syslog** - devices that send no Calling-Station-Id with the login request (Huawei switches, for one) showed "-" under From. VAULT now takes that address from the same device's syslog in the Session Log: the same user's login line (Huawei UserAddress=), else the closest command line (Ip=), from 2 minutes before to 10 minutes after the login. An address sent with the RADIUS request still comes first. Needs the device to send its logins to VAULT (Device Setup, step "Command logging").
 150. **Menu button in the top bar** - the small arrow next to the VAULT name is gone. The menu button (three lines) now sits at the left of the top bar on every screen size: on a computer it minimises or expands the side menu (remembered in the browser, as before), on phones and tablets it opens the side menu.
 151. **BlastRADIUS protection** - `deploy/install.sh` now runs `deploy/radius/enable_blastradius.sh`, which adds `require_message_authenticator = auto` and `limit_proxy_state = auto` to security { } in radiusd.conf (CVE-2024-3596). "auto" means a device that sends Message-Authenticator once must always send it, and a device that never sends it keeps working, so no device is locked out. The script checks that FreeRADIUS knows the settings (3.2.5 or a package with the fix; otherwise it says to update and changes nothing), keeps a backup of radiusd.conf, and restores it if FreeRADIUS refuses the change or does not start.
+152. **BdREN logo in the side menu** - the mark at the top of the side menu shows the BdREN logo on a white tile instead of the server icon; the green live dot stays.
 
 ## 23 Nov 2026
 

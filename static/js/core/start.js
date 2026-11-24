@@ -59,7 +59,7 @@ setInterval(()=>{if(navigator.onLine!==false)fetch("/api/me",{credentials:"same-
 /* Close buttons of the pop-ups (inline onclick is blocked by the Content-Security-Policy). */
 document.addEventListener("click",e=>{const b=e.target.closest("[data-close-dlg]");if(b)document.getElementById(b.dataset.closeDlg).close()});
 
-/* about this build (Ctrl+Alt+Shift+A): a card over the blurred page; Esc, a click outside or Close shuts it */
+/* about this build (Ctrl+Alt+Shift+A): a card over the blurred page; Esc, a click outside or the X shuts it */
 document.addEventListener("keydown",e=>{
   if(!(e.ctrlKey&&e.altKey&&e.shiftKey&&e.code==="KeyA"))return;
   e.preventDefault();
@@ -67,17 +67,23 @@ document.addEventListener("keydown",e=>{
   const d=t=>new TextDecoder().decode(Uint8Array.from(atob(t),c=>c.charCodeAt(0)));
   const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text)n.textContent=text;return n};
   const ov=el("div","abt-ov"),card=el("div","abt-card");
-  card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-label","About");
+  card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-label","About BdREN VAULT");
+  const x=el("button","abt-x");x.type="button";x.setAttribute("aria-label","Close");
+  x.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
   const mark=el("div","abt-mark");
-  mark.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01M12 10v4"/></svg>';
-  const close=el("button","b abt-close","Close");close.type="button";
-  card.append(mark,el("div","abt-app","BdREN VAULT"),el("div","abt-rule"),el("div","abt-by",d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieQ==")),
-              el("div","abt-name",d("TWQgQWhzYW51bCBIYXF1ZQ==")),el("div","abt-org",d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")),close);
+  const logo=document.querySelector(".brand .mark img");
+  if(logo){const img=el("img");img.src=logo.src;img.alt="BdREN";mark.append(img)}
+  const head=el("div","abt-head");head.append(mark,el("div","abt-app","BdREN VAULT"),el("div","abt-sub","Network Backup & AAA"));
+  const div=el("div","abt-div");div.append(el("span"),el("i"),el("span"));
+  const tags=el("div","abt-tags");["Configuration Backup","RADIUS / AAA","Session Log"].forEach(t=>tags.append(el("span","",t)));
+  const foot=el("div","abt-foot");
+  foot.append(el("span","","© "+new Date().getFullYear()+" "+d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcms=")),el("span","abt-key","Esc"));
+  card.append(x,head,div,el("div","abt-by",d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieQ==")),el("div","abt-name",d("TWQgQWhzYW51bCBIYXF1ZQ==")),el("div","abt-org",d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")),tags,foot);
   ov.append(card);document.body.append(ov);
   const prev=document.activeElement;
-  const shut=()=>{ov.classList.add("out");document.removeEventListener("keydown",onKey,true);setTimeout(()=>ov.remove(),180);prev&&prev.focus&&prev.focus()};
+  const shut=()=>{ov.classList.add("out");document.removeEventListener("keydown",onKey,true);setTimeout(()=>ov.remove(),200);prev&&prev.focus&&prev.focus()};
   const onKey=k=>{if(k.key==="Escape"){k.stopPropagation();shut()}};
   document.addEventListener("keydown",onKey,true);
   ov.addEventListener("click",k=>{if(k.target===ov)shut()});
-  close.onclick=shut;close.focus();
+  x.onclick=shut;x.focus();
 });
