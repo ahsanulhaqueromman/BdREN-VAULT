@@ -159,10 +159,11 @@ def _login_columns():
     return _LOGIN_COLS["cols"]
 
 
-def device_namer():
+def device_namer(hostnames=None):
     """A function ip -> readable device name ("" when unknown), for labelling RADIUS logins.
     Looks in order: a NAS Clients entry for that exact address, a Device Inventory device with that address,
-    then a NAS Clients network entry (10.0.0.0/24) containing it - the smallest network wins.
+    `hostnames` ({ip: name}, e.g. the host name a device writes in its syslog messages), then a NAS Clients
+    network entry (10.0.0.0/24) containing it - the smallest network wins.
     A NAS short name that is just the address again is skipped in favour of its description."""
     from apps.devices import selectors as devices
 
@@ -194,7 +195,7 @@ def device_namer():
         if not ip:
             return ""
         if ip not in cache:
-            found = exact.get(ip) or inventory.get(ip, "")
+            found = exact.get(ip) or inventory.get(ip, "") or (hostnames or {}).get(ip, "")
             if not found:
                 try:
                     addr = ipaddress.ip_address(ip)

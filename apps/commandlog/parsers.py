@@ -33,6 +33,30 @@ def is_change(command):
     return bool(text) and not READ_ONLY.match(text) and not MODE_ONLY.match(text)
 
 
+# ---- the device's host name, from the syslog header ----------------------------------------------------------
+# <189>Nov 24 2026 11:19:00 Training-Room-AS-04 %%01SHELL/5/CMDRECORD...     (Huawei)
+# <189>Nov 24 11:19:00 core-rtr mgd[1234]: UI_CMDLINE_READ_LINE...            (Juniper, RFC 3164)
+# <189>1 2026-11-24T11:19:00+06:00 core-rtr mgd 1234 UI_LOGIN_EVENT ...      (RFC 5424)
+# ... devname="FGT-01" ...                                                     (Fortinet)
+# Cisco writes no host name unless "logging origin-id hostname"; then none is found and the address is shown.
+_TS = (r"(?:[A-Z][a-z]{2}\s+\d{1,2}(?:\s+\d{4})?\s+\d{1,2}:\d{2}:\d{2}(?:\.\d+)?"
+       r"|\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)(?:Z|[+-]\d{2}:?\d{2})?")
+_HOST = re.compile(r"^<\d{1,3}>(?:1 )?" + _TS + r"\s+([A-Za-z0-9][A-Za-z0-9._-]{0,63})\s")
+_FORTI_HOST = re.compile(r'\bdevname="?([A-Za-z0-9][A-Za-z0-9._-]{0,63})')
+
+
+def hostname(data):
+    """The host name in a syslog message's header, or "" (none written, or only an address)."""
+    text = data.decode("utf-8", "replace") if isinstance(data, bytes) else (data or "")
+    m = _HOST.match(text) or _FORTI_HOST.search(text)
+    if not m:
+        return ""
+    name = m.group(1)
+    if re.fullmatch(r"[\d.]+", name):              # only an IPv4 address: the address is shown anyway
+        return ""
+    return name
+
+
 def _clean(value, limit=MAX_COMMAND):
     value = re.sub(r"[\x00-\x1f\x7f]", " ", value or "").strip()
     return value[:limit]

@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-134.
+Entries 118-136.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -25,6 +25,8 @@ Entries 118-134.
 132. **Logs of any period** - Authentication Audit and Session Log can show the last 90 days, the last year, or **Custom dates** (a From and a To day, up to three years at once), as far back as System Settings keeps logs. On Authentication Audit the login list now follows the chosen period too (before, it always showed the newest 500 logins).
 133. **Session Log order** - in Sessions, By device and By user, sessions still open ("Active") come first, then the newest login first (before: by the time of the last activity).
 134. **A logout reported by RADIUS ends the session** - a Session Log session no longer stays "Active" after the user has left when the device's syslog logout message does not reach VAULT: the RADIUS accounting Stop (radacct, sent by devices set up with the Device Setup commands, accounting start-stop) now closes it. Zero-length Stop records from per-command accounting are not counted as logouts, and a Stop for a session already closed by syslog changes nothing.
+135. **Device host names in the Session Log** - VAULT keeps the host name each device writes in its syslog messages (Huawei, Juniper, RFC 5424, Fortinet devname) and shows it with the address: "ahsan on Training-Room-AS-04", 10.252.0.149 below it, in Sessions, By device, By user and Devices sending logs. A name set in NAS Clients or Device Inventory still comes first; Cisco writes no host name unless "logging origin-id hostname" is set. Database change: one new column (migration commandlog 0003).
+136. **A session that began before the chosen period shows its login time** - a session still going when the period starts (logged in yesterday at 05:23 PM, logged out at 05:33 PM, viewed today at 05:26 PM with "Last 24 hours") showed "Before period" as its start. The Session Log now looks up to 24 hours further back for its login, so it shows 05:23 PM -> 05:33 PM and its length. Sessions that ended before the period are still left out.
 
 ## 23 Nov 2026
 

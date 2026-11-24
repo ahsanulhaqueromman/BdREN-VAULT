@@ -102,6 +102,8 @@ class Receiver:
             return
         stat = self.stats.setdefault(ip, {"received": 0, "recognized": 0, "sample": ""})
         stat["received"] += 1
+        if not stat.get("hostname"):
+            stat["hostname"] = parsers.hostname(data[:MAX_DATAGRAM])
         event = parsers.parse(data[:MAX_DATAGRAM], vendor)
         if event:
             stat["recognized"] += 1

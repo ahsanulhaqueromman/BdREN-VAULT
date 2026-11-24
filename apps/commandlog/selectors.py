@@ -96,6 +96,8 @@ SESSION_GAP = timedelta(minutes=30)      # this long without activity (and no lo
 SAME_MOMENT = timedelta(seconds=15)      # two login (or logout) messages this close are the same login (or logout)
 OPEN_FOR = timedelta(minutes=15)         # no logout and active this recently = shown as "Active"
 MAX_EVENTS = 20000                       # newest events read per request
+LOOK_BACK = timedelta(hours=24)          # a session still going at the start of the period: its login is looked
+                                         # for this far back, so it shows when it began (not "Before period")
 
 
 def _session(username, device_ip, start, login):
@@ -154,7 +156,8 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     hours = _period(hours)
     now = timezone.now()
     since = since or now - timedelta(hours=hours)
-    rows = _between(since, until)
+    read_from = since - LOOK_BACK
+    rows = _between(read_from, until)
     if user:
         rows = rows.filter(username=user)
     if device:
@@ -169,13 +172,13 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     if device:
         logging_devices &= {device}
     try:
-        for username, ip, t in radius.accepted_logins(since, logging_devices, user, until=until):
+        for username, ip, t in radius.accepted_logins(read_from, logging_devices, user, until=until):
             events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "login",
                            "command": "", "source_ip": "", "result": "", "radius": True})
     except DatabaseError:
         logger.warning("Command History: RADIUS logins could not be read; sessions start at the first command")
     try:   # logouts from RADIUS accounting (Stop), for devices whose syslog logout message does not arrive
-        for username, ip, t in radius.accounting_stops(since, logging_devices, user, until=until):
+        for username, ip, t in radius.accounting_stops(read_from, logging_devices, user, until=until):
             events.append({"id": 0, "ts": t, "username": username, "device_ip": ip, "kind": "logout",
                            "command": "", "source_ip": "", "result": "", "radius": True})
     except DatabaseError:
@@ -189,6 +192,8 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     q = (q or "").strip().lower()[:100]
     out = []
     for s in found:
+        if (s["end"] or s["last"]) < since:
+            continue                    # over before the period began (read only to find logins)
         s["device"] = name_of(s["device_ip"])
         if q and not (q in s["username"].lower() or q in s["device_ip"] or q in s["device"].lower()
                       or q in s["source_ip"] or any(q in e["command"].lower() for e in s["events"])):
@@ -226,8 +231,10 @@ def sources():
 
 
 def _namer():
+    """ip -> device name: NAS Clients / Device Inventory first, else the host name the device sends in syslog."""
+    hostnames = {ip: h for ip, h in SyslogSource.objects.exclude(hostname="").values_list("ip", "hostname")[:5000]}
     try:
-        return radius.device_namer()
+        return radius.device_namer(hostnames)
     except DatabaseError:
-        names = devices.names_by_ip()
+        names = {**hostnames, **devices.names_by_ip()}
         return lambda ip: names.get(ip, "")

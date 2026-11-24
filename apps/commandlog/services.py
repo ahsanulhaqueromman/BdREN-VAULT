@@ -29,6 +29,8 @@ def record(events, stats, now=None):
                        "recognized": F("recognized") + s["recognized"]}
             if s.get("sample"):
                 changes["last_unrecognized"] = s["sample"][:500]
+            if s.get("hostname"):
+                changes["hostname"] = s["hostname"][:64]
             SyslogSource.objects.filter(pk=source.pk).update(**changes)
 
 

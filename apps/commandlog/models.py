@@ -31,6 +31,7 @@ class SyslogSource(models.Model):
     received = models.PositiveBigIntegerField(default=0)
     recognized = models.PositiveBigIntegerField(default=0)
     last_unrecognized = models.CharField(max_length=500, blank=True, default="")
+    hostname = models.CharField(max_length=64, blank=True, default="")   # as the device writes it in its messages
 
 
 class ReceiverState(models.Model):
