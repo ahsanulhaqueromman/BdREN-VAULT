@@ -191,7 +191,9 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
         s["duration"] = int((last - s["start"]).total_seconds()) if s["start"] and last else None
         s["key"] = f'{s["username"]}|{s["device_ip"]}|{(s["start"] or last).isoformat()}'
         out.append(s)
-    out.sort(key=lambda s: s["end"] or s["last"], reverse=True)
+    # sessions still open ("Active") first, then newest login first (a session whose login was not seen
+    # counts from its first action)
+    out.sort(key=lambda s: (s["status"] == "active", s["start"] or s["last"]), reverse=True)
     totals = {"sessions": len(out),
               "users": len({s["username"] for s in out}), "devices": len({s["device_ip"] for s in out}),
               "changes": sum(s["changes"] for s in out), "commands": sum(s["commands"] for s in out),

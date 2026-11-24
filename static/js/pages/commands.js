@@ -13,7 +13,7 @@ let cmdData=null,cmdSess=null,cmdTab="session",cmdDetail={},cmdJump=null,cmdOnly
 const cmdPer=d=>(d&&d.period&&d.period.label)||"";
 const CMD_STATUS={active:["Active","UP"],closed:["Logged out","k-logout"],"no-logout":["No logout","k-command"],failed:["Failed login","k-fail"]};
 const CMD_VIEW={
-  session:{title:"Session log",help:"One card per login, newest first: who, on which device, from when to when and what they did. A new login after a logout is a new card. Open a card to see every command.",noun:"session"},
+  session:{title:"Session log",help:"One card per login, active sessions first, then newest login first: who, on which device, from when to when and what they did. A new login after a logout is a new card. Open a card to see every command.",noun:"session"},
   device:{title:"Sessions by device",help:"One card per device. Open it to see who logged in, every command they ran and when they logged out, session by session.",noun:"device",
           key:s=>s.device_ip,param:"device"},
   user:{title:"Sessions by user",help:"One card per user. Open it to see everything that user did on every device, session by session.",noun:"user",
@@ -94,7 +94,7 @@ function cmdKeep(s){
 }
 function cmdGroups(){
   const by=new Map(),key=CMD_VIEW[cmdTab].key;
-  for(const s of (cmdSess.sessions||[]).filter(cmdKeep)){        /* newest first, so the first one is the latest */
+  for(const s of (cmdSess.sessions||[]).filter(cmdKeep)){        /* server order: active first, then newest login; a card takes the place of its first session */
     const k=key(s);let g=by.get(k);
     if(!g)by.set(k,g={key:k,name:cmdTab==="device"?(s.device||s.device_ip):s.username,ip:s.device_ip,named:!!s.device,
       sessions:0,failed:0,changes:0,commands:0,active:0,users:new Set(),devices:new Set(),last:s.end||s.last,lastStart:s.start});
@@ -205,7 +205,7 @@ function cmdBody(kind,key){
       <span class="cmd-av-s${other==="device"?" dev":""}">${other==="device"?CMD_IC.device:esc(w.name.slice(0,1).toUpperCase())}</span>
       <span><b>${esc(w.name)}</b><small>${w.changes?`<span class="cmd-c">${cmdPlural(w.changes,"change")}</span> · `:"No changes · "}${w.sessions?cmdPlural(w.sessions,"session"):""}${w.failed?`${w.sessions?" · ":""}<span class="bad-t">${cmdPlural(w.failed,"failed login")}</span>`:""}</small></span></button>`).join("");
   return `<div class="cmd-who"><span class="cmd-who-t">${kind==="device"?"Who logged in":"Devices used"}</span>${who}</div>
-    <div class="rep-head"><span>Sessions, newest first</span>
+    <div class="rep-head"><span>Sessions: active first, then newest login first</span>
       <span class="cmd-head-r"><span class="cmd-sum">${cmdPlural(list.length,"session")} · <b class="cmd-c">${cmdPlural(chg,"change")}</b></span>
       <button type="button" class="b cmd-only${only?" on":""}" data-only aria-pressed="${only}">Changes only</button></span></div>
     <ol class="rep-tl cmd-tl${only?" only-chg":""}">${cmdNumber(list).map(s=>cmdSessionItem(s,kind)).join("")}</ol>`;
