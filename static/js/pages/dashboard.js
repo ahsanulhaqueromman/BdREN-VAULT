@@ -63,6 +63,17 @@ function changesHTML(rows){
   /* name, then IP, then the date on its own line (the card can be narrow) */
   return `<ul class="dl">${rows.map(r=>`<li><a href="${r.id?`/devices/${r.id}`:"/backups"}"><i class="dot ok" aria-hidden="true"></i><span class="nm"><b>${esc(r.name||r.ip)}</b>${r.name?`<span>${esc(r.ip)}</span>`:""}<small>${esc(fmtBdDateTime(r.ts))}</small></span><span></span></a></li>`).join("")}</ul>`;
 }
+/* Active SSH sessions (administrators): one row per open session, user initials, device, where from, how long */
+function sshHTML(x){
+  if(!x.rows.length)return `<div class="ssh-empty"><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></i><b>No one is signed in</b><span>Nobody has an SSH session open on a device right now.</span></div>`;
+  const dur=s=>s<60?"just now":s<3600?Math.floor(s/60)+" min":Math.floor(s/3600)+" h "+String(Math.floor(s%3600/60)).padStart(2,"0")+" m";
+  const ini=u=>esc((u.match(/[a-z0-9]/gi)||["?"]).slice(0,2).join("").toUpperCase());
+  return `<ul class="ssh-list">${x.rows.map(r=>`<li><a href="${r.id?`/devices/${r.id}`:"/radius/commands"}">
+    <span class="ssh-av" aria-hidden="true">${ini(r.user)}<i></i></span>
+    <span class="ssh-who"><b>${esc(r.user)}</b><span>${esc(r.device||r.ip)}${r.device&&r.device!==r.ip?` <em>${esc(r.ip)}</em>`:""}</span>
+      ${r.from?`<small>from ${esc(r.from)}</small>`:""}</span>
+    <span class="ssh-meta"><strong>${dur(r.for_s)}</strong><small>since ${esc(bdClock(r.since))}</small>${r.changes?`<span class="tagx warn">${fmtNum(r.changes)} change${r.changes===1?"":"s"}</span>`:r.commands?`<span class="tagx">${fmtNum(r.commands)} cmd${r.commands===1?"":"s"}</span>`:""}</span></a></li>`).join("")}</ul>${more(x.count,x.rows.length,"/radius/commands","sessions")}`;
+}
 function accessHTML(x){
   const kpi=(label,val,cls,sub)=>`<div class="kpi"><small>${label}</small><strong class="${cls}">${val}</strong><span class="d">${sub}</span></div>`;
   return kpi("Login attempts",fmtNum(x.total),"","Accepted and rejected")
@@ -99,7 +110,10 @@ function renderDashboard(d){
     st.textContent=!d.total?"No devices yet":issues?`${fmtNum(issues)} need attention${online}`:`All systems normal${online}`;
     st.hidden=false;}
   if(att)$("#attSub").textContent=att.offline_count==null?"Failed backups now; online status appears once the ping monitor has run":"Offline devices and failed backups, right now";
-  setHTML("#changes",changesHTML(d.changes));
+  $("#sshCard").hidden=!d.ssh;$("#changesCard").hidden=!!d.ssh;
+  if(d.ssh){setHTML("#ssh",sshHTML(d.ssh));const lv=$("#sshLive");lv.hidden=!d.ssh.count;lv.querySelector("span").textContent=fmtNum(d.ssh.count)+" live";
+    $("#sshSub").textContent=d.ssh.count?`${fmtNum(d.ssh.users)} user${d.ssh.users===1?"":"s"} on ${fmtNum(d.ssh.devices)} device${d.ssh.devices===1?"":"s"}, right now`:"Who is signed in to a device right now"}
+  else setHTML("#changes",changesHTML(d.changes));
   $("#accessCard").hidden=!d.access;
   if(d.access)setHTML("#access",accessHTML(d.access));
   setHTML("#chDays",barChart(d.days));

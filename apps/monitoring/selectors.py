@@ -116,6 +116,32 @@ def device_access():
     return summary or None
 
 
+def active_sessions():
+    """Administrators: who is signed in to a device over SSH right now, from the Session Log (a session with no
+    logout and activity in the last 15 minutes). Read at most every 30 s. None when it cannot be read."""
+    from django.core.cache import cache
+
+    from apps.commandlog import selectors as commandlog
+    cached = cache.get("dash-ssh")
+    if cached is not None:
+        return cached or None
+    try:
+        now = timezone.now()
+        live = [s for s in commandlog.sessions(hours=24)["sessions"] if s["status"] == "active"]
+        ids = {d.ip: d.id for d in devices.devices_with_ips({s["device_ip"] for s in live})}
+        rows = [{"user": s["username"], "device": s["device"], "ip": s["device_ip"], "id": ids.get(s["device_ip"]),
+                 "from": s["source_ip"], "since": fmt_dt(s["start"] or s["last"]),
+                 "for_s": int((now - (s["start"] or s["last"])).total_seconds()),
+                 "last": fmt_dt(s["last"]), "commands": s["commands"], "changes": s["changes"]} for s in live]
+        out = {"count": len(rows), "users": len({r["user"] for r in rows}), "devices": len({r["ip"] for r in rows}),
+               "rows": rows[:SHOW]}
+    except Exception:
+        logging.getLogger("dbms").info("Dashboard: active SSH sessions unavailable", exc_info=True)
+        out = {}
+    cache.set("dash-ssh", out, 30)
+    return out or None
+
+
 def last_job():
     """The newest backup run: when, why, how long and its result counts (None before the first run)."""
     jobs = backups.job_history(1)["jobs"]
@@ -159,4 +185,5 @@ def dashboard(show_internals):
             "next_run": scheduling.next_scheduled_run(values),
             "ping_seconds": settings.PING_SECONDS, "job_running": job_running(),
             "health": health, "last_job": last_job(), "attention": attention(), "changes": recent_changes(),
-            "access": device_access() if show_internals else None}
+            "access": device_access() if show_internals else None,
+            "ssh": active_sessions() if show_internals else None}
