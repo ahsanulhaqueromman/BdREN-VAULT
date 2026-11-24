@@ -13,6 +13,7 @@ import threading
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 
 from . import selectors
 from .models import (NO_DEVICE, ROLE_MAX_LEN, ROLE_SUGGESTIONS, AuditLog, Nas, NasRole, RadCheck, RadGroupReply, RadUserGroup,
@@ -398,6 +399,21 @@ def sync_firewall():
 
 _FIREWALL_LOCK = threading.Lock()
 
+
+
+def name_nas_from_syslog(ip, hostname):
+    """Give the NAS Clients entry of `ip` the name the device sends in its syslog (Cisco "logging origin-id
+    hostname", Huawei / Juniper headers), but only while that entry has no name of its own: added without
+    one, its name is its address. A name someone typed is never changed. FreeRADIUS uses the name only as
+    a label, so nothing has to restart. Returns True when a name was written."""
+    hostname = (hostname or "").strip()[:32]
+    if not ip or not hostname or hostname == ip:
+        return False
+    changed = Nas.objects.filter(nasname=ip).filter(Q(shortname="") | Q(shortname=ip)).update(shortname=hostname)
+    if changed:
+        audit("system", "nas.name", ip, f"name {hostname} taken from the device's syslog")
+        logger.info("NAS Clients: %s is now named %s (from its syslog)", ip, hostname)
+    return bool(changed)
 
 
 def update_nas_type(device, vendor):

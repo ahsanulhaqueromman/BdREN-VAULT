@@ -5,12 +5,15 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
+from apps.radius import services as radius
 from apps.scheduling.services import retention_cutoff
 
 from .models import CommandEvent, ReceiverState, SyslogSource
 from .selectors import REJECTED_FOR
 
 logger = logging.getLogger("dbms")
+
+_named = set()   # (ip, hostname) already offered to NAS Clients by this receiver process
 
 
 def record(events, stats, now=None):
@@ -33,6 +36,14 @@ def record(events, stats, now=None):
             if s.get("hostname"):
                 changes["hostname"] = s["hostname"][:64]
             SyslogSource.objects.filter(pk=source.pk).update(**changes)
+    for ip, s in stats.items():   # a NAS entry added without a name gets the device's own name
+        key = (ip, s.get("hostname") or "")
+        if key[1] and key not in _named:
+            _named.add(key)
+            try:
+                radius.name_nas_from_syslog(*key)
+            except Exception:
+                logger.exception("Could not name NAS Clients entry %s from its syslog", ip)
 
 
 def heartbeat(port, rejected=0, rejected_ip="", dropped=0, started=False, now=None):
