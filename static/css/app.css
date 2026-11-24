@@ -1540,7 +1540,9 @@ button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:transla
   background:radial-gradient(420px 220px at 50% -40px,rgba(64,120,255,.32),transparent 70%),linear-gradient(180deg,#0f1d3d 0%,#0a1430 100%);
   border:1px solid rgba(127,178,255,.20);box-shadow:0 40px 100px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);
   animation:abtCard .38s var(--ease)}
-.abt-card::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,transparent,#3f7bff 25%,#22b8d8 75%,transparent)}
+.abt-card::before{content:"";position:absolute;top:0;left:50%;width:56%;height:2px;z-index:2;transform:translateX(-50%);border-radius:0 0 2px 2px;
+  background:linear-gradient(90deg,transparent,#4f86ff 30%,#7fd6f0 50%,#4f86ff 70%,transparent);
+  box-shadow:0 0 14px 1px rgba(79,134,255,.55);animation:abtLine 3.6s ease-in-out infinite}
 .abt-card::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
   background-image:linear-gradient(rgba(127,178,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(127,178,255,.07) 1px,transparent 1px);
   background-size:26px 26px;-webkit-mask-image:radial-gradient(closest-side,#000,transparent);mask-image:radial-gradient(closest-side,#000,transparent)}
@@ -1551,24 +1553,41 @@ button.kpi.kpi-link:hover .kpi-arrow{color:var(--kc)!important;transform:transla
 .abt-x:focus-visible{outline:2px solid #5b8cff;outline-offset:2px}
 .abt-mark{width:124px;height:80px;margin:0 auto 16px;display:grid;place-items:center;padding:10px 14px;border-radius:18px;background:#fff;
   box-shadow:0 0 0 6px rgba(63,123,255,.12),0 14px 34px rgba(0,0,0,.45)}
+.abt-mark{position:relative;overflow:hidden;animation:abtGlow 3.2s ease-in-out .8s infinite}
 .abt-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.abt-mark::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;transform:skewX(-20deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);animation:abtSheen 4s ease-in-out .9s infinite}
 .abt-app{font-size:19px;font-weight:750;letter-spacing:.02em;color:#fff}
 .abt-sub{margin-top:2px;font-size:12.5px;color:#8ea3c9}
 .abt-div{display:flex;align-items:center;justify-content:center;gap:10px;margin:22px auto 18px;width:180px}
 .abt-div span{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(127,178,255,.35))}
 .abt-div span:last-child{background:linear-gradient(90deg,rgba(127,178,255,.35),transparent)}
-.abt-div i{width:7px;height:7px;transform:rotate(45deg);border-radius:1.5px;background:#4f86ff;box-shadow:0 0 10px rgba(79,134,255,.8)}
+.abt-div i{width:7px;height:7px;transform:rotate(45deg);border-radius:1.5px;background:#4f86ff;box-shadow:0 0 10px rgba(79,134,255,.8);animation:abtDot 2.4s ease-in-out infinite}
+.abt-div span{transform-origin:right;animation:abtGrow .6s var(--ease) .35s both}
+.abt-div span:last-child{transform-origin:left}
+.abt-card>.abt-head,.abt-card>.abt-by,.abt-card>.abt-name,.abt-card>.abt-org,.abt-card>.abt-tags{animation:abtUp .55s var(--ease) both}
+.abt-card>.abt-head{animation-delay:.12s}.abt-card>.abt-by{animation-delay:.3s}.abt-card>.abt-name{animation:abtName .9s var(--ease) .35s both,abtShine 3.6s linear 1.3s infinite}
+.abt-card>.abt-org{animation-delay:.46s}.abt-card>.abt-tags{animation-delay:.54s}
 .abt-by{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#7fa6ff}
 .abt-name{margin:10px 0 6px;font-size:30px;font-weight:800;letter-spacing:-.015em;line-height:1.15;
-  background:linear-gradient(180deg,#ffffff 30%,#c9d8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  background:linear-gradient(100deg,#e3ebff 0%,#e3ebff 34%,#5ec8ff 43%,#ffffff 50%,#5ec8ff 57%,#e3ebff 66%,#e3ebff 100%);background-size:250% 100%;background-position:100% 0;
+  -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(79,134,255,.35))}
 .abt-org{font-size:14px;line-height:1.5;color:#a9b9d8}
 .abt-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:22px 0 4px}
 .abt-tags span{padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;color:#cfe0ff;
   background:rgba(79,134,255,.12);border:1px solid rgba(127,178,255,.22)}
-.abt-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px -34px -22px;padding:13px 20px;
-  border-top:1px solid rgba(127,178,255,.12);background:rgba(0,0,0,.18);font-size:11.5px;color:#7489b0;text-align:left}
-.abt-key{flex:none;padding:2px 7px;border-radius:6px;border:1px solid rgba(127,178,255,.25);font:600 11px var(--mono);color:#a9b9d8}
+.abt-foot{position:relative;margin:24px -34px -22px;padding:13px 62px;
+  border-top:1px solid rgba(127,178,255,.12);background:rgba(0,0,0,.18);font-size:11.5px;line-height:1.5;color:#7489b0;text-align:center}
+.abt-key{position:absolute;right:16px;top:50%;transform:translateY(-50%);padding:2px 7px;border-radius:6px;border:1px solid rgba(127,178,255,.25);font:600 11px var(--mono);color:#a9b9d8}
 @keyframes abtIn{from{opacity:0}to{opacity:1}}
 @keyframes abtCard{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
-@media (max-width:480px){.abt-card{padding:34px 22px 20px}.abt-foot{margin:22px -22px -20px}.abt-name{font-size:26px}}
-@media (prefers-reduced-motion:reduce){.abt-ov,.abt-card{animation:none}.abt-ov.out{transition:none}}
+@keyframes abtName{from{opacity:0;letter-spacing:.12em;filter:blur(6px) drop-shadow(0 0 0 transparent)}to{opacity:1;letter-spacing:-.015em;filter:blur(0) drop-shadow(0 0 18px rgba(79,134,255,.35))}}
+@keyframes abtShine{0%{background-position:100% 0}45%,100%{background-position:-150% 0}}
+@keyframes abtUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes abtGrow{from{transform:scaleX(0)}to{transform:none}}
+@keyframes abtLine{0%,100%{opacity:.55;width:44%}50%{opacity:1;width:60%}}
+@keyframes abtSheen{0%{left:-60%}35%,100%{left:130%}}
+@keyframes abtGlow{0%,100%{box-shadow:0 0 0 6px rgba(63,123,255,.12),0 14px 34px rgba(0,0,0,.45)}50%{box-shadow:0 0 0 10px rgba(63,123,255,.2),0 14px 40px rgba(47,91,234,.45)}}
+@keyframes abtDot{0%,100%{box-shadow:0 0 6px rgba(79,134,255,.6)}50%{box-shadow:0 0 16px rgba(79,134,255,1)}}
+@media (max-width:480px){.abt-card{padding:34px 22px 20px}.abt-foot{margin:22px -22px -20px;padding:13px 52px}.abt-key{right:12px}.abt-name{font-size:26px}}
+@media (prefers-reduced-motion:reduce){.abt-ov,.abt-card,.abt-card *,.abt-card::before,.abt-mark::after{animation:none!important}.abt-mark::after{display:none}.abt-ov.out{transition:none}}

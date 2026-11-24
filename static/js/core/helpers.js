@@ -191,7 +191,16 @@ const sfx=(()=>{
     add  :c=>{const t=at(c);tone(c,880,t,.3,.12);tone(c,1318.51,t+.075,.42,.11)},      /* added: quick rising pair (A5, E6) */
     del  :c=>{const t=at(c);tone(c,587.33,t,.3,.13);tone(c,440,t+.08,.42,.12)},        /* deleted: quick falling pair (D5, A4) */
     warn :c=>{const t=at(c);tone(c,698.46,t,.4,.14);tone(c,698.46,t+.16,.55,.12)},     /* finished with some failures: two even notes (F5) */
-    error:c=>{const t=at(c);tone(c,466.16,t,.45,.16);tone(c,349.23,t+.15,.7,.15)}      /* failed: lower falling pair (A#4, F4) */
+    error:c=>{const t=at(c);tone(c,466.16,t,.45,.16);tone(c,349.23,t+.15,.7,.15)},     /* failed: lower falling pair (A#4, F4) */
+    about:c=>{const t=at(c);                                                         /* about card: a warm pad swell (Cmaj9 voicing) under two soft bell notes */
+      const bus=c.createGain(),lp=c.createBiquadFilter();lp.type="lowpass";lp.Q.value=.7;
+      lp.frequency.setValueAtTime(700,t);lp.frequency.exponentialRampToValueAtTime(2600,t+.6);lp.frequency.exponentialRampToValueAtTime(1200,t+2.2);
+      bus.gain.setValueAtTime(.0001,t);bus.gain.exponentialRampToValueAtTime(.09,t+.35);bus.gain.exponentialRampToValueAtTime(.0001,t+2.4);
+      bus.connect(lp);lp.connect(out);
+      for(const f of [130.81,196,329.63,493.88,587.33])for(const det of [-5,5]){       /* C3 G3 E4 B4 D5, each as two slightly detuned voices */
+        const o=c.createOscillator(),g=c.createGain();o.type=f<200?"sine":"triangle";o.frequency.value=f;o.detune.value=det;
+        g.gain.value=f<200?.5:.28;o.connect(g);g.connect(bus);o.start(t);o.stop(t+2.5)}
+      tone(c,783.99,t+.12,1.3,.075);tone(c,1174.66,t+.34,1.5,.055)}                  /* G5 then D6, quiet, on top */
   };
   return{
     sounds,

@@ -80,6 +80,7 @@ document.addEventListener("keydown",e=>{
   foot.append(el("span","","© "+new Date().getFullYear()+" "+d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcms=")),el("span","abt-key","Esc"));
   card.append(x,head,div,el("div","abt-by",d("RGVzaWduZWQgYW5kIGRldmVsb3BlZCBieQ==")),el("div","abt-name",d("TWQgQWhzYW51bCBIYXF1ZQ==")),el("div","abt-org",d("QmFuZ2xhZGVzaCBSZXNlYXJjaCBhbmQgRWR1Y2F0aW9uIE5ldHdvcmsgKEJkUkVOKQ==")),tags,foot);
   ov.append(card);document.body.append(ov);
+  if(typeof sfx!=="undefined")sfx.play("about");
   const prev=document.activeElement;
   const shut=()=>{ov.classList.add("out");document.removeEventListener("keydown",onKey,true);setTimeout(()=>ov.remove(),200);prev&&prev.focus&&prev.focus()};
   const onKey=k=>{if(k.key==="Escape"){k.stopPropagation();shut()}};
