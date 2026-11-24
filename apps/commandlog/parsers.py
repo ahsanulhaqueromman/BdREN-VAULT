@@ -118,11 +118,23 @@ def huawei(text):
 _CISCO_CMD = re.compile(r"%PARSER-\d-CFGLOG_LOGGEDCMD:\s*User:\s*(\S+)\s+logged command:\s*(.*)$", re.I)
 _CISCO_LOGIN = re.compile(r"%SEC_LOGIN-\d-(LOGIN_SUCCESS|LOGIN_FAILED|LOGOUT)\b.*?\[user:\s*([^\]]*)\]"
                           r"(?:.*?\[Source:\s*([^\]]*)\])?", re.I)
+# Show / exec commands, sent by the EEM applet of Device Setup (Cisco logs configuration commands only):
+# %HA_EM-5-LOG: VAULT-CLI-LOG: user=shamim cmd=show running-config
+_CISCO_EEM = re.compile(r"%HA_EM-\d-LOG:\s*VAULT-CLI-LOG:\s*user=(\S*)\s+cmd=(.*)$", re.I)
+_CISCO_MODE = re.compile(r"^(?:end|exit|quit|disable|enable|conf(?:igure)?(?:\s+t(?:erminal)?)?)$", re.I)
 _CISCO_CONFIG = re.compile(r"%SYS-\d-CONFIG_I:\s*Configured from (\S+) by (\S+)(?:\s+on\s+\S+)?(?:\s*\(([^)]*)\))?",
                            re.I)
 
 
 def cisco(text):
+    m = _CISCO_EEM.search(text)
+    if m:
+        user, command = m.group(1), m.group(2).strip()
+        if user.startswith("$") or is_change(command) or _CISCO_MODE.match(command):
+            # $_cli_username not known on this IOS; changes are logged by the archive (CFGLOG) message already;
+            # moving between modes (end, exit, configure terminal) is not worth a line
+            return None
+        return _event("cisco", "command", user, command)
     m = _CISCO_CMD.search(text)
     if m:
         command = m.group(2)

@@ -462,7 +462,7 @@ Login order:         RADIUS first, then local accounts`],
 const SU_LOG_TITLE="Command logging (Session Log)";
 const SU_LOG_FROM=v=>`VAULT accepts logs only from addresses on NAS Clients, so send them from ${v.ip}.`;
 const SU_LOG={
-  cisco:v=>[SU_LOG_TITLE,`Logs every configuration command with the user's name, and every login. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlan1. Cisco logs configuration commands only, not show commands.`,
+  cisco:v=>[SU_LOG_TITLE,`Logs every configuration command with the user's name, and every login. ${SU_LOG_FROM(v)} Put the interface that holds it in place of Vlan1. Cisco itself logs configuration commands only: the event manager applet at the end adds show, ping and other commands (needs EEM 3.0 or newer: IOS 15 / IOS-XE).`,
 `archive
  log config
   logging enable
@@ -474,7 +474,11 @@ login on-success log
 login on-failure log
 logging source-interface Vlan1
 logging trap notifications
-logging host ${v.server}`],
+logging host ${v.server}
+event manager applet VAULT-CLI-LOG
+ event cli pattern ".*" sync no skip no
+ action 1.0 syslog priority notifications msg "user=$_cli_username cmd=$_cli_msg"
+ exit`],
   huawei:v=>[SU_LOG_TITLE,`Every command a user runs (SHELL/5/CMDRECORD) already goes to the log host; the SSH line adds logins and logouts. ${SU_LOG_FROM(v)} Only when the switch has several addresses, add: info-center loghost source <interface that holds it>.`,
 `info-center enable
 info-center loghost ${v.server}
