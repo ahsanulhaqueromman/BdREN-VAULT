@@ -8,6 +8,7 @@ a backup decides whether a configuration changed (services.normalize).
 """
 import difflib
 import re
+import threading
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -104,51 +105,13 @@ def change_report(months=None, start=None, end=None):
 
     rows = []
     for folder, stamp in storage.device_folders():
-        files = storage.versions(folder, stamp)          # from the version index, not a walk of the disk
-        if not files:
+        part = _device_part(folder, stamp, start, end)
+        if part is None:
             continue
-        cut = len(str(folder)) + 1
-
-        def rel(path, cut=cut):
-            return str(path)[cut:].replace("\\", "/")
-        dated = [(f, t) for f in files for t in (_when(f),) if t <= end]       # versions saved after the range are ignored
-        if not dated:
-            continue
-        before = [f for f, t in dated if t < start]
-        inside = [(f, t) for f, t in dated if t >= start]
-        prev = before[-1] if before else None
-        changes = []
-        for f, t in inside:
-            entry = {"file": rel(f), "time": t.strftime("%Y-%m-%d %H:%M:%S"),
-                     "prev": rel(prev) if prev else ""}
-            if prev is None:
-                entry.update(first=True, added=_line_count(str(f), f.stat().st_mtime_ns), removed=0, preview=[])
-            else:
-                added, removed, preview = _compare_files(str(prev), prev.stat().st_mtime_ns, str(f), f.stat().st_mtime_ns)
-                preview = list(preview)
-                if not added and not removed:
-                    # Saved only because a clock / "last change" line differed (older builds, e.g. IOS XR):
-                    # not a real change, so it is left out and the next version compares with the same base.
-                    continue
-                entry.update(first=False, added=added, removed=removed, preview=preview)
-            changes.append(entry)
-            prev = f
         device = devices_by_key.get(folder.name.lower())
-        real = [c for c in changes if not c["first"]]
-        rows.append({
-            "device": folder.name,
-            "device_id": device.pk if device else None,
-            "ip": device.ip if device else "",
-            "type": device.device_type if device else "",
-            "changes": len(real),
-            "first_backup_in_period": any(c["first"] for c in changes),
-            "added": sum(c["added"] for c in real),
-            "removed": sum(c["removed"] for c in real),
-            "last_change": changes[-1]["time"] if changes else "",
-            "baseline": rel(before[-1]) if before else "",
-            "latest": rel(dated[-1][0]),        # newest version inside the range
-            "timeline": list(reversed(changes))[:MAX_CHANGES],          # newest first
-        })
+        # Fresh dicts every call: the cached part is shared, and the view blanks previews for Viewers.
+        rows.append({**part, "device_id": device.pk if device else None, "ip": device.ip if device else "",
+                     "type": device.device_type if device else "", "timeline": [dict(c) for c in part["timeline"]]})
     rows.sort(key=lambda r: (-r["changes"], r["last_change"] == "", r["device"].lower()))
     changed = [r for r in rows if r["changes"]]
     return {
@@ -157,4 +120,70 @@ def change_report(months=None, start=None, end=None):
                     "changes": sum(r["changes"] for r in rows), "added": sum(r["added"] for r in rows),
                     "removed": sum(r["removed"] for r in rows)},
         "devices": rows,
+    }
+
+
+# One device's part of the report, kept until that device gets a new backup (its folder time changes) or the
+# period moves past one of its versions. With thousands of devices a report then only re-reads the devices
+# that changed; the rest is a dictionary look-up. Device name / IP / type are added fresh on every call.
+_PARTS = {}          # folder name -> (folder stamp, files, times, key, part)
+_PARTS_LOCK = threading.Lock()
+
+
+def _device_part(folder, stamp, start, end):
+    with _PARTS_LOCK:
+        hit = _PARTS.get(folder.name)
+    if hit and hit[0] == stamp:
+        files, times = hit[1], hit[2]
+    else:
+        files = storage.versions(folder, stamp)          # from the version index, not a walk of the disk
+        times = [_when(f) for f in files]
+        hit = None
+    # Which versions are before / inside the period decides the result, so that is the cache key.
+    dated = [i for i, t in enumerate(times) if t <= end]          # versions saved after the range are ignored
+    before = [i for i in dated if times[i] < start]
+    inside = tuple(i for i in dated if times[i] >= start)
+    key = (before[-1] if before else -1, inside, dated[-1] if dated else -1)
+    if hit and hit[3] == key:
+        return hit[4]
+    part = _build_part(folder, files, times, dated, before, inside)
+    with _PARTS_LOCK:
+        _PARTS[folder.name] = (stamp, files, times, key, part)
+    return part
+
+
+def _build_part(folder, files, times, dated, before, inside):
+    if not dated:
+        return None
+    cut = len(str(folder)) + 1
+
+    def rel(path):
+        return str(path)[cut:].replace("\\", "/")
+    prev = files[before[-1]] if before else None
+    changes = []
+    for i in inside:
+        f, t = files[i], times[i]
+        entry = {"file": rel(f), "time": t.strftime("%Y-%m-%d %H:%M:%S"), "prev": rel(prev) if prev else ""}
+        if prev is None:
+            entry.update(first=True, added=_line_count(str(f), f.stat().st_mtime_ns), removed=0, preview=[])
+        else:
+            added, removed, preview = _compare_files(str(prev), prev.stat().st_mtime_ns, str(f), f.stat().st_mtime_ns)
+            if not added and not removed:
+                # Saved only because a clock / "last change" line differed (older builds, e.g. IOS XR):
+                # not a real change, so it is left out and the next version compares with the same base.
+                continue
+            entry.update(first=False, added=added, removed=removed, preview=list(preview))
+        changes.append(entry)
+        prev = f
+    real = [c for c in changes if not c["first"]]
+    return {
+        "device": folder.name,
+        "changes": len(real),
+        "first_backup_in_period": any(c["first"] for c in changes),
+        "added": sum(c["added"] for c in real),
+        "removed": sum(c["removed"] for c in real),
+        "last_change": changes[-1]["time"] if changes else "",
+        "baseline": rel(files[before[-1]]) if before else "",
+        "latest": rel(files[dated[-1]]),        # newest version inside the range
+        "timeline": list(reversed(changes))[:MAX_CHANGES],          # newest first
     }

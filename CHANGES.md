@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-156.
+Entries 118-158.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -47,6 +47,8 @@ Entries 118-156.
 154. **Active Sessions card: faster, and opens the session** - the card (renamed from "Active SSH sessions") refreshes on its own every 10 seconds through `/api/dashboard/ssh` (read at most every 5 seconds), so a new login shows within seconds. Clicking a row opens that session in the Session Log (`#session=<user|device|start>`) with every command the user ran. A `#user=`, `#device=` or `#session=` link now opens and scrolls to its card once; the 30-second refresh no longer scrolls back to it.
 155. **Action menu in the Users, NAS and User Management tables** - the row buttons are now one "Action" drop-down (as on Device Inventory) under an "Action" column heading. RADIUS Users: Edit, Delete. NAS: Copy shared secret, Remove. User Management: Sign-in history, Edit, Delete. The menu opens upwards near the bottom of the screen, works with the keyboard (arrows, Esc) and closes on a click outside. On every table (Device Inventory too) the "Action" heading is centred over its button; on phones the button stays at the right of each card.
 156. **The first panel account is protected** - the first account (the one made at install, lowest id) has a "Main" tag on User Management, no Delete in its Action menu, and its role and Active switch are locked in the edit form. The server refuses to delete, demote or disable it, whoever asks. Its password can still be changed.
+157. **Change Reports open fast with thousands of devices** - each device's part of the report is kept in memory and rebuilt only when that device gets a new backup or the chosen period moves past one of its versions; device name, IP and type are still read fresh every time. Measured with 20,000 devices: a report that took 4-11 seconds after the first one now takes about 1.5 seconds, with exactly the same result. The very first report after a restart still reads every backup once.
+158. **Loading spinner in the middle** - while a list loads (Devices, Backups, Change Reports, Session Log, Users and others), the spinner and "Loading..." line now sit in the middle of the grey placeholder rows instead of under them.
 
 ## 23 Nov 2026
 
