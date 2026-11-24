@@ -39,6 +39,7 @@
 13. [Operations](#operations)
 14. [Project structure](#project-structure)
 15. [Documentation](#documentation)
+16. [Author](#author)
 
 </details>
 
@@ -514,6 +515,16 @@ A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Running locally, adding a page, API or vendor, release checklist |
 | [SECURITY.md](SECURITY.md) | Security model and how to report a problem |
 | [CHANGES.md](CHANGES.md) | Release notes |
+
+---
+
+## Author
+
+| | |
+|---|---|
+| **Designed and developed by** | **Ahsanul Haque** |
+| **Organization** | Bangladesh Research and Education Network (BdREN) |
+| **Project** | BdREN VAULT: network configuration backup, RADIUS / AAA access control and Session Log |
 
 ---
 
