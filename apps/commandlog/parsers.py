@@ -38,17 +38,20 @@ def is_change(command):
 # <189>Nov 24 11:19:00 core-rtr mgd[1234]: UI_CMDLINE_READ_LINE...            (Juniper, RFC 3164)
 # <189>1 2026-11-24T11:19:00+06:00 core-rtr mgd 1234 UI_LOGIN_EVENT ...      (RFC 5424)
 # ... devname="FGT-01" ...                                                     (Fortinet)
-# Cisco writes no host name unless "logging origin-id hostname"; then none is found and the address is shown.
+# Cisco writes its name only with "logging origin-id hostname" (_CISCO_HOST); without it the address is shown.
 _TS = (r"(?:[A-Z][a-z]{2}\s+\d{1,2}(?:\s+\d{4})?\s+\d{1,2}:\d{2}:\d{2}(?:\.\d+)?"
        r"|\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)(?:Z|[+-]\d{2}:?\d{2})?")
 _HOST = re.compile(r"^<\d{1,3}>(?:1 )?" + _TS + r"\s+([A-Za-z0-9][A-Za-z0-9._-]{0,63})\s")
 _FORTI_HOST = re.compile(r'\bdevname="?([A-Za-z0-9][A-Za-z0-9._-]{0,63})')
+# Cisco with "logging origin-id hostname": <189>812: SUST-EDGE-R1: *Nov 24 12:41:13.080 BST: %SYS-5-CONFIG_I: ...
+# (the sequence number is optional; the name starts with a letter, so a number is never taken for it)
+_CISCO_HOST = re.compile(r"^<\d{1,3}>(?:\d+:\s*)?([A-Za-z][A-Za-z0-9._-]{0,63}):\s+(?:\d+:\s+)?[*.]?[A-Z][a-z]{2}\s+\d")
 
 
 def hostname(data):
     """The host name in a syslog message's header, or "" (none written, or only an address)."""
     text = data.decode("utf-8", "replace") if isinstance(data, bytes) else (data or "")
-    m = _HOST.match(text) or _FORTI_HOST.search(text)
+    m = _HOST.match(text) or _CISCO_HOST.match(text) or _FORTI_HOST.search(text)
     if not m:
         return ""
     name = m.group(1)
@@ -121,7 +124,9 @@ _CISCO_LOGIN = re.compile(r"%SEC_LOGIN-\d-(LOGIN_SUCCESS|LOGIN_FAILED|LOGOUT)\b.
 # Show / exec commands, sent by the EEM applet of Device Setup (Cisco logs configuration commands only):
 # %HA_EM-5-LOG: VAULT-CLI-LOG: user=shamim cmd=show running-config
 _CISCO_EEM = re.compile(r"%HA_EM-\d-LOG:\s*VAULT-CLI-LOG:\s*user=(\S*)\s+cmd=(.*)$", re.I)
-_CISCO_MODE = re.compile(r"^(?:end|exit|quit|disable|enable|conf(?:igure)?(?:\s+t(?:erminal)?)?)$", re.I)
+# end / exit / quit already show up from the archive log ("configuration finished", exit), so the applet's copy
+# is left out; configure terminal is not logged by the archive, so it is kept
+_CISCO_MODE = re.compile(r"^(?:end|exit|quit)$", re.I)
 _CISCO_CONFIG = re.compile(r"%SYS-\d-CONFIG_I:\s*Configured from (\S+) by (\S+)(?:\s+on\s+\S+)?(?:\s*\(([^)]*)\))?",
                            re.I)
 
@@ -132,7 +137,7 @@ def cisco(text):
         user, command = m.group(1), m.group(2).strip()
         if user.startswith("$") or is_change(command) or _CISCO_MODE.match(command):
             # $_cli_username not known on this IOS; changes are logged by the archive (CFGLOG) message already;
-            # moving between modes (end, exit, configure terminal) is not worth a line
+            # end / exit / quit are already in the log from the archive (see _CISCO_MODE)
             return None
         return _event("cisco", "command", user, command)
     m = _CISCO_CMD.search(text)
