@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-142.
+Entries 118-143.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -33,6 +33,7 @@ Entries 118-142.
 140. **Cisco show commands in the Session Log** - Cisco logs only configuration commands by itself, so show, ping and other commands were missing. Device Setup > Cisco > "Command logging" now ends with a small event manager applet (VAULT-CLI-LOG) that sends every command with the user name, and VAULT lists show / ping / traceroute from it as view commands. Configuration commands still come from the archive log, so they are not counted twice, and end / exit / configure terminal are left out. Tested on an ASR1002 (IOS-XE 3.13, EEM 4.0); needs EEM with the cli event detector and $_cli_username.
 141. **Cisco device names and configure terminal** - with "logging origin-id hostname" on the router, VAULT now reads the name Cisco writes in each message (SUST-EDGE-R1) and shows it with the address, like Huawei and Juniper, even when the NAS entry has no name. configure terminal (and enable) from the EEM applet now show as view lines; end, exit and quit are still left out because the archive log already shows them.
 142. **Deleted NAS devices leave "Devices sending logs"** - a device deleted from NAS Clients is no longer accepted by the receiver, so it no longer stays in the Session Log list of devices sending logs either. Its past sessions stay in the Session Log.
+143. **Add an ignored sender in one click** - the Session Log note "log messages were ignored because the sender is not on NAS Clients" now has a button "Add <address> to NAS Clients". It opens Add NAS with that address filled in; give it a name and vendor and save, and the firewall opens UDP 514 for it.
 
 ## 23 Nov 2026
 

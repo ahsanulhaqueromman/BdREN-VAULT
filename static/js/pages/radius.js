@@ -179,6 +179,7 @@ async function loadRadNas(){
     $("#rnfrm").elements.vendor.innerHTML=radOptions(radVendors);
     paintRadRoleList();
     renderRadNas();
+    rnFromLink();
   }catch(e){radFail("#radNasList","RADIUS devices",e)}
 }
 function renderRadNas(){
@@ -230,6 +231,14 @@ function rnCount(){
   btn.textContent=ips.length>1?`Add ${ips.length} devices`:"Add device";
 }
 ["nasname","name"].forEach(n=>rnfrm.elements[n].addEventListener("input",rnCount));
+/* "Add ... to NAS Clients" on the Session Log (?add=IP): open Add NAS with that address filled in, once */
+function rnFromLink(){
+  const u=new URL(location.href),ip=(u.searchParams.get("add")||"").trim();if(!ip)return;
+  u.searchParams.delete("add");history.replaceState(history.state,"",u.pathname+u.search+u.hash);
+  if(!/^[0-9a-fA-F.:/]{2,49}$/.test(ip))return;
+  if(radNas.some(d=>d.nasname===ip))return toast(`${ip} is already on NAS Clients.`,{type:"info"});
+  rnfrm.reset();rnfrm.elements.nasname.value=ip;rnCount();rndlg.showModal();rnfrm.elements.name.focus();
+}
 $o("#radNasRefresh").onclick=loadRadNas;
 $o("#radNasQ").oninput=()=>{PAGES.radNas=1;renderRadNas()};
 rnfrm.onsubmit=async e=>{
