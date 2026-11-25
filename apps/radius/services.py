@@ -8,7 +8,6 @@ import logging
 import os
 import secrets
 import shlex
-import struct
 import subprocess
 import threading
 
@@ -20,7 +19,7 @@ from . import selectors
 from .models import (NO_DEVICE, ROLE_MAX_LEN, ROLE_SUGGESTIONS, AuditLog, Nas, NasRole, RadCheck, RadGroupReply, RadUserGroup,
                      UserDevice, UserGrant, clean_role, RadPostAuth)
 from .router import DB
-from .selectors import LEGACY_ATTR, LEGACY_OP, NT_ATTR, PASSWORD_ATTRS, is_single_ip, pattern_devices
+from .selectors import LEGACY_ATTR, LEGACY_OP, PASSWORD_ATTRS, is_single_ip, pattern_devices
 
 logger = logging.getLogger("dbms")
 
@@ -134,40 +133,6 @@ def hash_password(password):
     return "SSHA2-256-Password", base64.b64encode(digest + salt).decode("ascii")
 
 
-def _md4(data):
-    """MD4 digest. OpenSSL 3 (current Ubuntu / Debian) no longer offers it, so there is a small pure-Python copy."""
-    try:
-        return hashlib.new("md4", data).digest()
-    except (ValueError, TypeError):
-        pass
-    mask = 0xFFFFFFFF
-    rotl = lambda x, n: ((x << n) | ((x & mask) >> (32 - n))) & mask
-    n = len(data)
-    data += b"\x80" + b"\x00" * ((55 - n) % 64) + struct.pack("<Q", (n * 8) & 0xFFFFFFFFFFFFFFFF)
-    a, b, c, d = 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476
-    for off in range(0, len(data), 64):
-        x = struct.unpack("<16I", data[off:off + 64])
-        aa, bb, cc, dd = a, b, c, d
-        for i in range(16):
-            a = rotl((a + ((b & c) | (~b & d)) + x[i]) & mask, (3, 7, 11, 19)[i % 4])
-            a, b, c, d = d, a, b, c
-        for i, k in enumerate((0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15)):
-            a = rotl((a + ((b & c) | (b & d) | (c & d)) + x[k] + 0x5A827999) & mask, (3, 5, 9, 13)[i % 4])
-            a, b, c, d = d, a, b, c
-        for i, k in enumerate((0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15)):
-            a = rotl((a + (b ^ c ^ d) + x[k] + 0x6ED9EBA1) & mask, (3, 9, 11, 15)[i % 4])
-            a, b, c, d = d, a, b, c
-        a, b, c, d = (a + aa) & mask, (b + bb) & mask, (c + cc) & mask, (d + dd) & mask
-    return struct.pack("<4I", a, b, c, d)
-
-
-def nt_hash(password):
-    """The NT hash MS-CHAPv2 needs (MD4 of the password in UTF-16), as 32 hex characters. Weaker than the salted
-    SHA-256 VAULT normally stores: anyone who reads it can log in as the user with a suitable tool. It is therefore
-    kept only for users who are switched on for MikroTik / MS-CHAP login."""
-    return _md4(password.encode("utf-16-le")).hex().upper()
-
-
 def seed_groups():
     """Create/refresh the group reply attributes from PROFILES."""
     with transaction.atomic(using=DB):
@@ -177,15 +142,10 @@ def seed_groups():
                 RadGroupReply.objects.create(groupname=group, attribute=attr, op=op, value=val)
 
 
-def _set_password(username, password, ms_chap=None):
-    """Store the password. ms_chap: True / False = switch MikroTik (MS-CHAP) login on / off for this user;
-    None = keep it as it is (a user who has it keeps it, with the NT hash of the NEW password)."""
-    had_nt = RadCheck.objects.filter(username=username, attribute=NT_ATTR).exists()
-    RadCheck.objects.filter(username=username, attribute__in=(*PASSWORD_ATTRS, NT_ATTR)).delete()
+def _set_password(username, password):
+    RadCheck.objects.filter(username=username, attribute__in=PASSWORD_ATTRS).delete()
     attr, val = hash_password(password)
     RadCheck.objects.create(username=username, attribute=attr, op=":=", value=val)
-    if had_nt if ms_chap is None else ms_chap:
-        RadCheck.objects.create(username=username, attribute=NT_ATTR, op=":=", value=nt_hash(password))
 
 
 def cleartext_users(usernames=None):
@@ -340,21 +300,19 @@ def convert_legacy_limits():
     return done
 
 
-def create_user(username, password, level, devices=(), types=(), ms_chap=False):
+def create_user(username, password, level, devices=(), types=()):
     with transaction.atomic(using=DB):
-        _set_password(username, password, ms_chap)
+        _set_password(username, password)
         _set_access(username, list(devices), list(types))
         RadUserGroup.objects.create(username=username, groupname=level, priority=1)
 
 
-def update_user(username, level=None, password=None, devices=None, types=None, ms_chap=None):
+def update_user(username, level=None, password=None, devices=None, types=None):
     """`devices` / `types`: both None = leave access as it is; otherwise the new access
-    (both empty = every device). `ms_chap`: see _set_password; turning it on needs the password."""
+    (both empty = every device)."""
     with transaction.atomic(using=DB):
         if password:
-            _set_password(username, password, ms_chap)
-        elif ms_chap is False:
-            RadCheck.objects.filter(username=username, attribute=NT_ATTR).delete()
+            _set_password(username, password)
         if devices is not None or types is not None:
             _set_access(username, list(devices or []), list(types or []))
         if level:

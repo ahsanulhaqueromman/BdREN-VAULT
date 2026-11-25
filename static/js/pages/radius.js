@@ -59,7 +59,7 @@ function renderRadUsers(){
   $("#radUserCount").textContent=`${list.length} of ${radUsers.length} users`;
   const {rows,bar}=paginate("radUsers",list);
   $("#radUserList").innerHTML=list.length?`<div class="tbl"><table><thead><tr><th>Username</th><th>Access level</th><th>Can log in on</th><th class="acts">Action</th></tr></thead><tbody>`+
-    rows.map(u=>`<tr><td><span class="dn">${esc(u.username)}</span>${u.ms_chap?' <span class="tag" title="MikroTik (MS-CHAP) login is on: a second, weaker hash of the password is kept for this user">MS-CHAP</span>':""}</td><td>${lvPill(u.level)}</td><td>${radScope(u)}</td>
+    rows.map(u=>`<tr><td><span class="dn">${esc(u.username)}</span></td><td>${lvPill(u.level)}</td><td>${radScope(u)}</td>
      <td class="acts">${actMenu(esc(u.username),`<button class="link" type="button" data-rad-edit="${esc(u.username)}">Edit</button><button class="link d" type="button" data-rad-del="${esc(u.username)}">Delete</button>`)}</td></tr>`).join("")+`</tbody></table></div>`+bar
     :`<div class="empty"><b>${radUsers.length?"No matching users":"No RADIUS users yet"}</b>${radUsers.length?"Try changing the search or the access level.":"Use Add user to create the first device login."}${radUsers.length?"":emptyAct("Add user","#radAddUser")}</div>`;
 }
@@ -151,7 +151,6 @@ function openRadUser(u){
   f.username.value=u?u.username:"";f.username.readOnly=!!u;
   const want=u?u.level:"read-only";if(radLevels.includes(want))f.level.value=want;
   f.password.required=!u;f.password.type="password";f.password.placeholder=u?"Leave empty to keep the current password":"At least 8 characters";
-  f.ms_chap.checked=!!(u&&u.ms_chap);
   rudlg.querySelector(".eye").textContent="Show";
   radPickList({types:u&&u.types||[],devices:(u&&u.devices||[]).filter(ip=>radDevices.some(d=>d.ip===ip&&d.single))});
   rudlg.showModal();
@@ -162,9 +161,6 @@ $o("#radQ").oninput=$o("#radLevel").onchange=()=>{PAGES.radUsers=1;renderRadUser
 rufrm.onsubmit=async e=>{
   e.preventDefault();const f=rufrm.elements;
   const b={username:f.username.value.trim(),level:f.level.value,password:f.password.value,devices:radPicked(),types:radPickedTypes()};   /* both [] = all devices */
-  /* MikroTik login is sent only when it changes or a new password is typed (the server cannot rebuild it without the password) */
-  const was=!!(radEdit&&(radUsers.find(x=>x.username===radEdit)||{}).ms_chap);
-  if(!radEdit||f.ms_chap.checked!==was||f.password.value)b.ms_chap=f.ms_chap.checked;
   try{
     await api(radEdit?"/api/radius/users/"+encodeURIComponent(radEdit):"/api/radius/users",J(radEdit?"PUT":"POST",b));
     sfx.play(radEdit?"ok":"add");rudlg.close();toast(radEdit?"The changes apply to the next device login.":"The new login can be used on the selected devices.",{title:radEdit?"RADIUS user updated":"RADIUS user added"});loadRadUsers();
@@ -382,7 +378,6 @@ display users`]]},
     ["RADIUS server and login","VAULT sends the group full, write or read; these groups exist on every RouterOS.",
 `/radius add address=${v.server} secret="${v.secret}" service=login timeout=3s
 /user aaa set use-radius=yes default-group=read`],
-    ["Switch the user on for MikroTik","RouterOS sends the password as MS-CHAPv2, which VAULT's normal salted hash cannot check (FreeRADIUS then says \"No NT-Password\"). On AAA Users, edit each user who logs in to a MikroTik, tick Allow MikroTik (MS-CHAP) login and type the password again: a second, weaker hash is then kept for that user only. Users who never log in to a MikroTik should stay off.",""],
     ["Good to know","RouterOS checks its local users first: a local user with the same name as a VAULT user hides the RADIUS one. Behind NAT, register the NAT address in NAS. If the server log shows no error but the login still fails, the router is waiting for a Message-Authenticator in the answer:",
 `/radius set [find address=${v.server}] require-message-auth=no`],
     ["Test","Log in with a VAULT RADIUS user (SSH, Winbox or web), then:",`/user active print`]]},

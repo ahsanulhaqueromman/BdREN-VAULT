@@ -13,7 +13,6 @@ from .router import DB
 
 logger = logging.getLogger("dbms")
 PASSWORD_ATTRS = ("Cleartext-Password", "SSHA2-256-Password")
-NT_ATTR = "NT-Password"      # optional second password row: lets MS-CHAPv2 devices (MikroTik) log in; see services.nt_hash
 LEGACY_ATTR = "NAS-IP-Address"
 LEGACY_OP = "=~"
 
@@ -98,11 +97,10 @@ def list_users(query=""):
     groups = dict(RadUserGroup.objects.values_list("username", "groupname"))
     limits, grants = user_devices(), user_grants()
     legacy = dict(RadCheck.objects.filter(attribute=LEGACY_ATTR, op=LEGACY_OP).values_list("username", "value"))
-    ms_chap = set(RadCheck.objects.filter(attribute=NT_ATTR).values_list("username", flat=True))
     out = []
     for n in names:
         access = access_of(n, grants, limits)
-        out.append({"username": n, "level": groups.get(n, "-"), "types": access["types"], "ms_chap": n in ms_chap,
+        out.append({"username": n, "level": groups.get(n, "-"), "types": access["types"],
                     "devices": access["devices"] or ([] if access["types"] else pattern_devices(legacy.get(n, ""))),
                     # every address the user can log in on right now (types expanded); [] with types = none yet
                     "effective": limits.get(n, [])})
