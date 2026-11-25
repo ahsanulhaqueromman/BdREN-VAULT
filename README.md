@@ -226,7 +226,7 @@ that follow strict layers, **models → selectors → services → views**, chec
 
 | | |
 |---|---|
-| Server | Ubuntu or Debian (64-bit), with internet access during installation |
+| Server | Ubuntu 22.04 / Debian 12 or newer (64-bit; Python 3.10+), with internet access during installation |
 | Network | The server reaches devices on **SSH (TCP 22)** and **ICMP**; devices reach the server on **UDP 1812 / 1813** for RADIUS and **UDP 514** for Session Log (syslog) |
 | Browser | Any current browser; users reach the server on **TCP 443** |
 

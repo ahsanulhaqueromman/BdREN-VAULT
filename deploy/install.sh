@@ -108,6 +108,10 @@ if [ ${#need[@]} -gt 0 ]; then
   apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need[@]}" >/dev/null
   ok "installed: ${need[*]}"
 else ok "already installed"; fi
+# Django 5.2 needs Python 3.10 or newer: Ubuntu 22.04 / Debian 12 and everything after them; 20.04 / Debian 11 are too old
+if [ "$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 10) else 0)' 2>/dev/null || echo 0)" != 1 ]; then
+  die "This server has Python $(python3 -V 2>&1 | awk '{print $2}'); VAULT needs Python 3.10 or newer (Ubuntu 22.04 / Debian 12 or later)."
+fi
 id "$SVC_USER" >/dev/null 2>&1 || { useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$SVC_USER"; ok "created system user $SVC_USER"; }
 
 # ---- 2. program files -----------------------------------------------------------------------------
@@ -186,6 +190,16 @@ chown "$SVC_USER:$SVC_USER" "$APP_DIR/.env"; chmod 600 "$APP_DIR/.env"
 
 # ---- 4. Python environment ------------------------------------------------------------------------
 step "Python environment"
+# After an Ubuntu / Debian release upgrade the system Python changes (for example 3.10 -> 3.12) and the old
+# environment can no longer load its packages. If it cannot import Django with the server's current Python, build
+# it again: only .venv is replaced, .env, data/ and the databases are not touched.
+if [ -d "$APP_DIR/.venv" ]; then
+  sys_py="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+  if ! "$APP_DIR/.venv/bin/python" -c "import sys, django; assert '%d.%d' % sys.version_info[:2] == '$sys_py'" >/dev/null 2>&1; then
+    warn "the Python environment does not match this server's Python $sys_py (system upgrade?): rebuilding it"
+    rm -rf "$APP_DIR/.venv"
+  fi
+fi
 [ -x "$APP_DIR/.venv/bin/python" ] || python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/pip" install -q --upgrade pip >/dev/null
 "$APP_DIR/.venv/bin/pip" install -q -r "$APP_DIR/requirements.txt" || { rollback; die "Installing the Python packages failed."; }

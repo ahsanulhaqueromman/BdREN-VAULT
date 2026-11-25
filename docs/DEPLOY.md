@@ -64,6 +64,23 @@ For fixing problems, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 | RADIUS users get the right level | `sudo bash /opt/vault/deploy/radius/check_levels.sh` |
 | FreeRADIUS has room for a big backup run | `sudo bash /opt/vault/deploy/radius/check_capacity.sh` |
 | FreeRADIUS configuration | `sudo freeradius -XC` |
+| Everything after an operating-system update | `sudo bash /opt/vault/deploy/after_os_update.sh` (read-only) |
+
+## Operating-system updates
+
+**Supported:** Ubuntu 22.04 and Debian 12 or newer (VAULT needs Python 3.10+; Ubuntu 20.04 and Debian 11 are too old).
+
+- **Normal updates** (`apt upgrade`, the daily security updates) need nothing: VAULT runs in its own Python
+  environment under `/opt/vault/.venv`, and its services start again by themselves after a reboot.
+- **A release upgrade** (for example Ubuntu 22.04 to 24.04) replaces the system Python and may restore the
+  package's own FreeRADIUS files. Afterwards run, from your VAULT git folder:
+
+  ```bash
+  git pull && sudo bash deploy/install.sh        # rebuilds the Python environment if needed, re-applies VAULT's FreeRADIUS setup
+  sudo bash /opt/vault/deploy/after_os_update.sh # read-only check: environment, services, FreeRADIUS, health
+  ```
+
+- Before a release upgrade take a VM snapshot and run `sudo bash /opt/vault/deploy/backup_vault.sh`.
 
 ## Back up the server (disaster recovery)
 
