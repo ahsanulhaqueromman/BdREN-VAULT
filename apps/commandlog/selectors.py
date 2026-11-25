@@ -178,6 +178,32 @@ def _build(items):
     return out
 
 
+def _split_sources(items):
+    """items of ONE user on ONE device, oldest first -> one list per address the user came from, so several
+    people sharing one account (same user name, different addresses, at the same time) get a session each
+    instead of one merged session. Events that carry no address (RADIUS rows, Cisco command lines) follow the
+    login they sit next to, else whichever address was heard from last. One address or none: left as it is."""
+    real = [e for e in items if e["kind"] != "login-failed"]
+    if len({e["source_ip"] for e in real if e["source_ip"]}) < 2:
+        return [items]
+    logins = [(e["ts"], e["source_ip"]) for e in real if e["kind"] == "login" and e["source_ip"]]
+    streams, active, last = {}, {}, ""      # active: address -> time of its latest event, while it is logged in
+    for e in items:
+        src = e["source_ip"]
+        if not src:
+            near = [(abs((e["ts"] - t).total_seconds()), s) for t, s in logins] if e["kind"] == "login" else []
+            near = [n for n in near if n[0] <= 120]
+            src = min(near)[1] if near else (max(active, key=active.get) if active else last)
+        if src and e["kind"] != "login-failed":
+            last = src
+            if e["kind"] == "logout":
+                active.pop(src, None)
+            else:
+                active[src] = e["ts"]
+        streams.setdefault(src, []).append(e)
+    return list(streams.values())
+
+
 def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, since=None, until=None):
     """Sessions of the last `hours`, newest activity first: who was on which device, from where, from when to
     when, and what they did. Built from the syslog events plus the RADIUS logins (Access-Accept) of the devices
@@ -218,7 +244,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     groups = {}
     for e in events:
         groups.setdefault((e["username"], e["device_ip"]), []).append(e)
-    found = [s for items in groups.values() for s in _build(items)]
+    found = [s for items in groups.values() for part in _split_sources(items) for s in _build(part)]
     name_of = _namer()
     q = (q or "").strip().lower()[:100]
     out = []

@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-171.
+Entries 118-172.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -62,6 +62,7 @@ Entries 118-171.
 169. **Fix: an earlier session stayed "Active" after the user logged in again** - a user who left a Cisco switch (which sends no logout message) and logged in again within a few minutes showed two "Active" sessions: the older one still counted as open because its last command was recent. A new login by the same user on the same device now ends the previous session, which shows "No logout" instead of "Active" (also on the Dashboard's "Active SSH sessions").
 170. **Cisco: "Logged out" the moment the session ends** - a Cisco switch sends `%SSH-5-SSH2_CLOSE` as soon as an SSH session closes, whether the user typed `exit` / `quit` or just closed the window, and `%SYS-6-LOGOUT` for other sessions (that one needs `logging trap informational`). VAULT did not read either, so the session stayed "Active" and then turned "No logout". Both are now read as a logout, so the session shows "Logged out" at once with its real end time. "No logout" is left for the case where the device sent nothing at all.
 171. **Session Log refreshes every 10 seconds** - it was every 30, so a login or logout could take up to half a minute to appear. It now matches the Dashboard's "Active SSH sessions" card (10 seconds).
+172. **Several people on one account get a session each** - when the same user name is used from different addresses on the same device at the same time (a shared account), the Session Log used to merge them: the second login was swallowed by the first, one person's logout closed both, and the second person's commands were counted under the first. Sessions are now kept apart per address the user came from, each with its own login, commands and logout. A log line that carries no address (a Cisco configuration command, a RADIUS row) goes to the login it sits next to, else to the address that was active most recently - exact when the device logs the address, approximate when several people type at the same moment and it does not.
 
 ## 23 Nov 2026
 
