@@ -442,10 +442,11 @@ set system radius-server ${v.server} source-address ${v.ip}
 set system authentication-order [ radius password ]
 set system accounting events [ login interactive-commands ]
 set system accounting destination radius`],
-    ["Template accounts","VAULT sends the account name super-user, operator or read-only; Junos logs the user in with the rights of that local template account (no password needed on it).",
-`set system login user super-user class super-user
+    ["Template accounts","VAULT sends the account name super-user, operator or read-only; Junos logs the user in with the rights of that local template account (no password needed on it). The built-in read-only class only allows view (operational status), not view-configuration, so a read-only user could not see the configuration at all with it - this custom class adds that, without adding configure, so the user can read every configuration line but cannot enter configuration mode.",
+`set system login class vault-read-only permissions [ view view-configuration ]
+set system login user super-user class super-user
 set system login user operator class operator
-set system login user read-only class read-only
+set system login user read-only class vault-read-only
 commit`],
     ["Test","Log in with a VAULT RADIUS user, then:",`show system users`]]},
   {key:"bdcom",label:"BDCOM",match:["bdcom"],check:true,steps:v=>[
