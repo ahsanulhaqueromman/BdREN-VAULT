@@ -222,14 +222,16 @@ def mikrotik(text):
 # ---- Fortinet FortiGate / FortiSwitch (key=value event logs) ------------------------------------------------------
 # logid="0100044547" type="event" subtype="system" user="shamim" ui="ssh(10.0.0.5)" action="Edit"
 #   cfgpath="system.interface" cfgobj="port1" cfgattr="alias[->wan]" msg="Edit system.interface port1"
+# FortiSwitch: log_id=0103023811 ... user="admin" ui="GUI(192.168.99.132)" action=edit cfg_path="router.static" cfg_obj="1"
 # logid="0100032001" ... user="shamim" ui="ssh(10.0.0.5)" action="login" status="success" msg="Administrator ..."
 _FORTI_KV = re.compile(r'(\w+)=("(?:[^"\\]|\\.)*"|\S+)')
 
 
 def fortinet(text):
-    if "logid=" not in text or "user=" not in text:
+    # FortiGate writes logid= / cfgpath= / cfgobj= / cfgattr=; FortiSwitch writes log_id= / cfg_path= / cfg_obj= / cfg_attr=
+    if ("logid=" not in text and "log_id=" not in text) or "user=" not in text:
         return None
-    f = {k: v.strip('"') for k, v in _FORTI_KV.findall(text)}
+    f = {k.replace("_", ""): v.strip('"') for k, v in _FORTI_KV.findall(text)}
     user, action = f.get("user", ""), f.get("action", "").lower()
     ui = f.get("ui", "")
     ip_m = re.search(r"\(([^)]*)\)", ui)

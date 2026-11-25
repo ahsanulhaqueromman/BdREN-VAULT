@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-167.
+Entries 118-168.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -58,6 +58,7 @@ Entries 118-167.
 165. **Session Log cards recoloured by status** - "No logout" (the device never sent a clean sign-off) used to look exactly like a normal "Logged out" session, both plain grey; it now gets the same amber as other things worth a glance, on its pill, its left edge and its avatar. "Active" and "Failed login" get the same treatment (green / red) so a session's status reads at a glance without having to read the text.
 166. **Session Log: risky commands stand out** - commands that can take a device down or wipe it (reload / reboot, erase, format, delete, factory reset, Junos `request system reboot|halt|zeroize`, FortiGate `execute reboot|shutdown|factory-reset`) are shown in red with a "risky" tag inside a session, a red "N risky commands" badge appears on the session / device / user card, and the filter next to the search has a new "Risky commands" choice.
 167. **"No logout" shows sooner** - a user who left a device without `quit` / `exit` stayed "Active" for 15 minutes after their last command before turning to "No logout". It is now 5 minutes (also the Dashboard's "Active SSH sessions"). A user sitting idle at the prompt for longer than that shows "No logout" until their next command or logout.
+168. **Fix: FortiSwitch logs were not recognised** - a FortiSwitch (FortiSwitchOS) writes its event log keys with underscores (`log_id=`, `cfg_path=`, `cfg_obj=`, `cfg_attr=`) where a FortiGate writes them without (`logid=`, `cfgpath=` ...). VAULT only knew the FortiGate spelling, so a FortiSwitch showed "No user actions yet" under Devices that send logs although its messages arrived. Both spellings are now read, so a FortiSwitch's configuration changes (GUI or SSH) appear in the Session Log.
 
 ## 23 Nov 2026
 
