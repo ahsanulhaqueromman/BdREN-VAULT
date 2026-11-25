@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-163.
+Entries 118-164.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -54,6 +54,7 @@ Entries 118-163.
 161. **Fix: Juniper read-only users could not view the configuration at all** - the built-in Junos "read-only" login class has the `view` permission (operational status) but not `view-configuration`, so a Read-only RADIUS user on Juniper could not even see the device's configuration, let alone enter configuration mode. Device Setup now creates a custom login class with both `view` and `view-configuration` (never `configure`), so Read-only users can read every configuration line but still cannot enter configuration mode - the same guarantee Cisco and Huawei already had. Existing Juniper installs: run the updated "Template accounts" commands from Device Setup once.
 162. **Fix: Read-write could not see the full configuration either** - Cisco and Huawei only show the full running configuration at privilege 15 / level 15 by default, so Read-write (privilege 7 / level 2) saw an abridged copy on Cisco and, on Juniper, the built-in "operator" class has neither view-configuration nor configure at all. Device Setup now has a dedicated step for Cisco (`privilege exec level 1 show running-config view full` / level 7), and the Juniper "Template accounts" step adds a custom vault-read-write class (view, view-configuration, configure) in place of the built-in operator class. Huawei needed no change: a command level there already applies to that level and every level above it. Existing installs: run the updated commands once per device.
 163. **Fix: a Cisco (or other device) login could fail with RADIUS marked "dead"** - the standard FreeRADIUS table radpostauth logs the credential a device sends with each login attempt in a 64-character column; a device whose credential is longer fails that log line with a MySQL error, and the device then gets no reply at all, retries, times out and marks the RADIUS server down - every further login then falls back to the switch's own local accounts and fails. `radius_init` now widens `radpostauth.pass` to 253 characters (MySQL/MariaDB only; harmless to run again). Existing installs: `python manage.py radius_init`, or widen it directly - `ALTER TABLE radpostauth MODIFY pass VARCHAR(253) NOT NULL DEFAULT ''`.
+164. **Session Log order fixed** - an Active session was always pushed to the top of the list regardless of when it started, so a newer, already-closed session could sit below it out of time order. The list now sorts purely by when each session started (newest first), Active or not.
 
 ## 23 Nov 2026
 
