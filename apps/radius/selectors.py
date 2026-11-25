@@ -348,43 +348,6 @@ def accounting_stops(since, nas_ips, username="", limit=20000, until=None):
     return out
 
 
-def accounting_live(nas_ips, since, limit=20000):
-    """{(username, nas_ip): last time seen, in UTC} for sessions RADIUS accounting still considers open
-    (radacct.acctstoptime IS NULL): its last Interim-Update, or its start if none has arrived yet. Session
-    Log uses this to say whether a device without a logout message is confirmed still logged in by RADIUS,
-    or only assumed from a recent command. {} when no address is given; raises DatabaseError when radacct
-    is missing or has no accounting for these devices (the caller treats that the same as "not confirmed")."""
-    from datetime import datetime, timedelta, timezone as dt_tz
-    from django.db import connections
-    ips = sorted({ip for ip in nas_ips if ip})[:500]
-    if not ips:
-        return {}
-    _login_columns()                                # finds the database clock offset (_LOGIN_COLS["offset"])
-    shift = timedelta(seconds=_LOGIN_COLS.get("offset", 0))
-    sql = ("SELECT username, nasipaddress, COALESCE(acctupdatetime, acctstarttime) FROM radacct "
-           "WHERE acctstoptime IS NULL AND acctstarttime >= %s "
-           "AND nasipaddress IN (" + ",".join(["%s"] * len(ips)) + ") ORDER BY radacctid DESC LIMIT %s")
-    params = [_db_clock(since), *ips, max(1, int(limit))]
-    with connections[DB].cursor() as cur:
-        cur.execute(sql, params)
-        rows = cur.fetchall()
-    out = {}
-    for u, ip, t in rows:
-        if isinstance(t, str):                      # SQLite gives text
-            try:
-                t = datetime.fromisoformat(t)
-            except ValueError:
-                continue
-        if t is None:
-            continue
-        if t.tzinfo is None:
-            t = (t - shift).replace(tzinfo=dt_tz.utc)
-        key = (u, ip)
-        if key not in out or t > out[key]:
-            out[key] = t
-    return out
-
-
 SUMMARY_WINDOWS = (24, 24 * 7, 24 * 30, 24 * 90, 24 * 365)   # = apps.core.period.PRESETS
 
 

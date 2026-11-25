@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-161.
+Entries 118-160.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -51,7 +51,6 @@ Entries 118-161.
 158. **Loading spinner in the middle** - while a list loads (Devices, Backups, Change Reports, Session Log, Users and others), the spinner and "Loading..." line now sit in the middle of the grey placeholder rows instead of under them.
 159. **Weekly and monthly summary PDF** - Change Reports has two new buttons, "Weekly summary" and "Monthly summary": a short PDF (devices that changed, lines added/removed, backup jobs saved/unchanged/failed, RADIUS login attempts/accepted/rejected, the 10 most-changed devices and the list of users who logged in) for the last 7 or 30 days, always ending now, whatever month range is chosen above. Viewers can read it too - it holds no configuration content. New dependency: reportlab (pure Python, no system package needed). Designed in the app's own colours: a blue header band with the BdREN logo, coloured stat tiles (green for good, red for failed/rejected) and a striped device table.
 160. **Session Log: Export PDF** - a new "Export PDF" button next to Export CSV, styled like Change Reports' own PDF export (print-quality, saved with the browser's "Save as PDF", no server change needed): a summary table of every session matching the current period/search/filter (user, device, login, logout, duration, status, changes, commands), then each session's full login -> command -> logout log, with the same add/remove/view colouring as the page itself. New endpoint parameter `/api/radius/commands/sessions?export=1` returns every matching session with its commands in one request.
-161. **"Active" is now confirmed, not just assumed** - a session with no logout message was always shown as "Active" for 15 minutes after the last command, even if the user just closed the terminal without typing exit/quit. VAULT now also checks RADIUS accounting (radacct): if it still shows the login open and recently updated, the session is shown as a solid green "Active" (confirmed); if not - no accounting at all, or it has gone stale - it is shown as an amber "Active (unconfirmed)", with a tooltip explaining it may already be disconnected. Devices without RADIUS accounting behave exactly as before. New selector `apps.radius.selectors.accounting_live`; shown in the Session Log cards and the Export PDF.
 
 ## 23 Nov 2026
 
