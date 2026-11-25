@@ -58,6 +58,14 @@ def _password(data, required):
     return password
 
 
+def _ms_chap(data):
+    """True / False = switch MikroTik (MS-CHAP) login on / off; None = the form did not send it (leave as it is)."""
+    value = data.get("ms_chap")
+    if value is not None and not isinstance(value, bool):
+        raise ApiError(400, "MikroTik login must be on or off")
+    return value
+
+
 def _level(data):
     level = data.get("level", "")
     if level not in s.PROFILES:
@@ -128,9 +136,10 @@ def users(request):
     password, level, devices, types = _password(data, required=True), _level(data), _devices(data), _types(data)
     if q.user_exists(username):
         raise ApiError(409, "A RADIUS user with this name already exists")
-    s.create_user(username, password, level, devices, types)
+    ms_chap = bool(_ms_chap(data))
+    s.create_user(username, password, level, devices, types, ms_chap)
     actor, ip = _actor(request)
-    s.audit(actor, "user.create", username, f"{level}; {_scope(devices, types)}", ip)
+    s.audit(actor, "user.create", username, f"{level}; {_scope(devices, types)}" + ("; MS-CHAP on" if ms_chap else ""), ip)
     return JsonResponse({"username": username, "level": level, "devices": devices, "types": types}, status=201)
 
 
@@ -150,8 +159,13 @@ def user_detail(request, username):
     access = "devices" in data or "types" in data
     devices = _devices(data) if access else None
     types = _types(data) if access else None
-    s.update_user(username, level, password or None, devices, types)
-    detail = level + (f"; {_scope(devices, types)}" if access else "") + (" +password" if password else "")
+    ms_chap = _ms_chap(data)
+    if ms_chap and not password:
+        # the NT hash is made from the password itself, which is not stored: it must be typed again
+        raise ApiError(400, "To turn MikroTik login on, type the password again (it cannot be read back from the stored hash)")
+    s.update_user(username, level, password or None, devices, types, ms_chap)
+    detail = (level + (f"; {_scope(devices, types)}" if access else "") + (" +password" if password else "")
+              + ("; MS-CHAP on" if ms_chap else "; MS-CHAP off" if ms_chap is False else ""))
     s.audit(actor, "user.update", username, detail, ip)
     return JsonResponse({"username": username, "level": level})
 

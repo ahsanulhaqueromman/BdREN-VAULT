@@ -8,6 +8,10 @@
     <label>Access level<select name="level"></select></label>
     <label class="w">Password<div class="pwwrap"><input name="password" type="password" autocomplete="new-password" maxlength="253"><button type="button" class="eye">Show</button></div></label>
     <div class="cw">
+      <label class="ck"><input type="checkbox" name="ms_chap"> <span>Allow MikroTik (MS-CHAP) login</span></label>
+      <p class="hint">Only for users who log in to MikroTik routers: a MikroTik sends the password in a way the normal salted hash cannot check, so a second, weaker hash of it is kept for this user. Leave it off for everyone else. Turning it on needs the password typed in above.</p>
+    </div>
+    <div class="cw">
       <div class="cl" id="ruPickLabel">Where this user can log in</div>
       <details class="pick" id="ruPick">
         <summary aria-labelledby="ruPickLabel ruPickTx"><span id="ruPickTx">All devices</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
