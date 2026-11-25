@@ -148,6 +148,8 @@ def _build(items):
                 cur["login_seen"] = True
                 cur["source_ip"] = cur["source_ip"] or e["source_ip"]
                 continue
+            if cur and not cur["closed"]:
+                cur["superseded"] = True              # a new login by the same user on the same device: the old one is over
             cur = _session(e["username"], e["device_ip"], t, True)
             cur["source_ip"] = e["source_ip"]
             out.append(cur)
@@ -231,7 +233,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
         if s["closed"]:
             s["status"] = "closed"
         else:
-            s["status"] = "active" if now - last <= OPEN_FOR else "no-logout"
+            s["status"] = "active" if now - last <= OPEN_FOR and not s.get("superseded") else "no-logout"
         s["duration"] = int((last - s["start"]).total_seconds()) if s["start"] and last else None
         for e in s["events"]:
             e["risky"] = bool(RISKY.search(e["command"] or ""))
@@ -252,6 +254,7 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
         if not with_events:
             s["events"] = []
         s.pop("closed", None)
+        s.pop("superseded", None)
     return {"hours": hours, "sessions": out, "totals": totals, "truncated": len(events) >= MAX_EVENTS}
 
 

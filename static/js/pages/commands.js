@@ -9,7 +9,7 @@
      By user    one card per user; opening it lists that user's sessions on every device. #user=<name>
    #session=<user|address|start> opens one session (the Dashboard's Active Sessions card links here).
    Inside a card "Changes only" hides the view-only commands. Searches run on the server; Export CSV
-   downloads every matching action (up to 50,000). Refreshes itself every 30 seconds while the page is open. */
+   downloads every matching action (up to 50,000). Refreshes itself every 10 seconds while the page is open. */
 let cmdData=null,cmdSess=null,cmdTab="session",cmdDetail={},cmdJump=null,cmdJumped="",cmdOnlyChg=new Set();
 const cmdPer=d=>(d&&d.period&&d.period.label)||"";
 const CMD_STATUS={active:["Active","UP"],closed:["Logged out","k-logout"],"no-logout":["No logout","k-command"],failed:["Failed login","k-fail"]};
@@ -42,7 +42,7 @@ const cmdFetch=(kind,key)=>{
 };
 
 async function loadCommands(){
-  /* a #user= / #device= / #session= link opens its card once; the 30-second refresh keeps it open but does not
+  /* a #user= / #device= / #session= link opens its card once; the 10-second refresh keeps it open but does not
      scroll back to it */
   const jump=location.hash!==cmdJumped?cmdFromHash():null;
   if(jump){cmdTab=jump.kind;cmdJump=jump;cmdJumped=location.hash}
@@ -456,10 +456,10 @@ $o("#cmdPdf").onclick=async()=>{
   finally{btn.disabled=false}
 };
 
-/* the 30s refresh can reorder or resize an open card's session list (a session's status/position can change
+/* the 10s refresh can reorder or resize an open card's session list (a session's status/position can change
    between refreshes) - keep the page where the user left it instead of letting that silently scroll them */
 if(PAGE==="radius-commands")setInterval(()=>{
   if(document.hidden||!cmdData)return;
   const y=window.scrollY;
   loadCommands().then(()=>{if(Math.abs(window.scrollY-y)>1)window.scrollTo(0,y)});
-},30000);
+},10000);

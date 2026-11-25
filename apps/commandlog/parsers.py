@@ -127,6 +127,11 @@ _CISCO_EEM = re.compile(r"%HA_EM-\d-LOG:\s*VAULT-CLI-LOG:\s*user=(\S*)\s+cmd=(.*
 # end / exit / quit already show up from the archive log ("configuration finished", exit), so the applet's copy
 # is left out; configure terminal is not logged by the archive, so it is kept
 _CISCO_MODE = re.compile(r"^(?:end|exit|quit)$", re.I)
+# End of a session, sent by IOS as soon as it closes (quit / exit, or the window or connection just dropped):
+# %SSH-5-SSH2_CLOSE: SSH2 Session from 10.0.0.5 (tty = 0) for user 'shamim' using crypto cipher 'aes128-ctr' ... closed
+# %SYS-6-LOGOUT: User shamim has exited tty session 2(10.0.0.5)      (level 6: needs "logging trap informational")
+_CISCO_SSH_CLOSE = re.compile(r"%SSH-\d-SSH2_CLOSE:\s*SSH2 Session from\s+(\S+).*?for user\s+'([^']*)'", re.I)
+_CISCO_EXIT = re.compile(r"%SYS-\d-LOGOUT:\s*User\s+(\S+)\s+has exited tty session\s+\d+(?:\(([^)]*)\))?", re.I)
 _CISCO_CONFIG = re.compile(r"%SYS-\d-CONFIG_I:\s*Configured from (\S+) by (\S+)(?:\s+on\s+\S+)?(?:\s*\(([^)]*)\))?",
                            re.I)
 
@@ -148,6 +153,12 @@ def cisco(text):
     if m:
         kind = {"LOGIN_SUCCESS": "login", "LOGIN_FAILED": "login-failed", "LOGOUT": "logout"}[m.group(1).upper()]
         return _event("cisco", kind, m.group(2), "", m.group(3) or "")
+    m = _CISCO_SSH_CLOSE.search(text)
+    if m and m.group(2):
+        return _event("cisco", "logout", m.group(2), "", m.group(1))
+    m = _CISCO_EXIT.search(text)
+    if m:
+        return _event("cisco", "logout", m.group(1), "", m.group(2) or "")
     m = _CISCO_CONFIG.search(text)
     if m:
         return _event("cisco", "change", m.group(2), f"configuration finished (from {m.group(1)})", m.group(3) or "")

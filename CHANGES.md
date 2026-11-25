@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-168.
+Entries 118-171.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -59,6 +59,9 @@ Entries 118-168.
 166. **Session Log: risky commands stand out** - commands that can take a device down or wipe it (reload / reboot, erase, format, delete, factory reset, Junos `request system reboot|halt|zeroize`, FortiGate `execute reboot|shutdown|factory-reset`) are shown in red with a "risky" tag inside a session, a red "N risky commands" badge appears on the session / device / user card, and the filter next to the search has a new "Risky commands" choice.
 167. **"No logout" shows sooner** - a user who left a device without `quit` / `exit` stayed "Active" for 15 minutes after their last command before turning to "No logout". It is now 5 minutes (also the Dashboard's "Active SSH sessions"). A user sitting idle at the prompt for longer than that shows "No logout" until their next command or logout.
 168. **Fix: FortiSwitch logs were not recognised** - a FortiSwitch (FortiSwitchOS) writes its event log keys with underscores (`log_id=`, `cfg_path=`, `cfg_obj=`, `cfg_attr=`) where a FortiGate writes them without (`logid=`, `cfgpath=` ...). VAULT only knew the FortiGate spelling, so a FortiSwitch showed "No user actions yet" under Devices that send logs although its messages arrived. Both spellings are now read, so a FortiSwitch's configuration changes (GUI or SSH) appear in the Session Log.
+169. **Fix: an earlier session stayed "Active" after the user logged in again** - a user who left a Cisco switch (which sends no logout message) and logged in again within a few minutes showed two "Active" sessions: the older one still counted as open because its last command was recent. A new login by the same user on the same device now ends the previous session, which shows "No logout" instead of "Active" (also on the Dashboard's "Active SSH sessions").
+170. **Cisco: "Logged out" the moment the session ends** - a Cisco switch sends `%SSH-5-SSH2_CLOSE` as soon as an SSH session closes, whether the user typed `exit` / `quit` or just closed the window, and `%SYS-6-LOGOUT` for other sessions (that one needs `logging trap informational`). VAULT did not read either, so the session stayed "Active" and then turned "No logout". Both are now read as a logout, so the session shows "Logged out" at once with its real end time. "No logout" is left for the case where the device sent nothing at all.
+171. **Session Log refreshes every 10 seconds** - it was every 30, so a login or logout could take up to half a minute to appear. It now matches the Dashboard's "Active SSH sessions" card (10 seconds).
 
 ## 23 Nov 2026
 
