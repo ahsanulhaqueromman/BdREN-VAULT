@@ -1,6 +1,7 @@
 """Reads for Command History (/radius/commands)."""
 import ipaddress
 import logging
+import re
 from datetime import timedelta
 
 from django.db import Error as DatabaseError
@@ -119,6 +120,15 @@ LOOK_BACK = timedelta(hours=24)          # a session still going at the start of
                                          # for this far back, so it shows when it began (not "Before period")
 
 
+# commands that can take a device down or wipe what it holds (Cisco / Huawei / Juniper / FortiGate / MikroTik);
+# shown in red in the Session Log so they are not missed among the other commands
+RISKY = re.compile(
+    r"^\s*(?:do\s+)?(?:reload|reboot|erase|format|delete|factory-reset|reset\s+saved-configuration|"
+    r"reset\s+factory|request\s+system\s+(?:reboot|halt|zeroize|power-off)|"
+    r"execute\s+(?:reboot|shutdown|factory-?reset|formatlogdisk)|system\s+(?:reset|reboot)|"
+    r"write\s+erase|clear\s+configuration|undo\s+(?:startup|saved)|shutdown\s+system)\b", re.I)
+
+
 def _session(username, device_ip, start, login):
     return {"username": username, "device_ip": device_ip, "start": start, "login_seen": login, "end": None,
             "last": start, "source_ip": "", "events": [], "changes": 0, "commands": 0, "failed": False,
@@ -223,6 +233,9 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
         else:
             s["status"] = "active" if now - last <= OPEN_FOR else "no-logout"
         s["duration"] = int((last - s["start"]).total_seconds()) if s["start"] and last else None
+        for e in s["events"]:
+            e["risky"] = bool(RISKY.search(e["command"] or ""))
+        s["risky"] = sum(e["risky"] for e in s["events"])
         s["key"] = f'{s["username"]}|{s["device_ip"]}|{(s["start"] or last).isoformat()}'
         out.append(s)
     # sessions still open ("Active") first, then newest login first (a session whose login was not seen
@@ -231,7 +244,8 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
     totals = {"sessions": len(out),
               "users": len({s["username"] for s in out}), "devices": len({s["device_ip"] for s in out}),
               "changes": sum(s["changes"] for s in out), "commands": sum(s["commands"] for s in out),
-              "active": sum(1 for s in out if s["status"] == "active")}
+              "active": sum(1 for s in out if s["status"] == "active"),
+              "risky": sum(s["risky"] for s in out)}
     out = out[:limit]
     for s in out:
         s["event_count"] = len(s["events"])

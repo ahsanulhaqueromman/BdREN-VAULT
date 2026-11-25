@@ -1323,6 +1323,7 @@ details.lvl-map[open]{padding-bottom:14px}
 .pill.k-login{background:var(--ok-bg);color:var(--ok)}
 .pill.k-fail{background:var(--bad-bg);color:var(--bad-ink)}
 .pill.k-command,.pill.k-logout{min-width:84px}
+.pill.k-command{background:var(--warn-bg);color:var(--warn)}   /* "No logout": an irregular end, worth a glance - not the plain grey of a normal "Logged out" */
 code.cmd{display:inline-block;max-width:560px;padding:2px 8px;border-radius:6px;background:var(--soft);color:var(--ink);font:12.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
 td .sub.bad-t{color:var(--bad-ink)}
 .cmd-sample{margin-top:6px;font-size:12px}
@@ -1368,6 +1369,8 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 .cmd-log .l.chg.save{color:#b9d4ff;background:rgba(59,130,246,.14)}
 .cmd-log .l.chg.save i{color:#7fb0ff;font-weight:700}
 .cmd-log .l.fail{color:#ff9aa2;background:rgba(239,68,68,.12)}
+.cmd-log .l.risk{color:#ffb4ba;background:rgba(239,68,68,.22);box-shadow:inset 3px 0 0 #f87171;font-weight:700}
+.cmd-log .l.risk i{color:#f87171;font-weight:800}
 .cmd-log .l.none{color:#7f8ea8;font-style:italic}
 .cmd-log em{color:#ff9aa2;font-style:normal}
 .cmd-head-r{display:flex;align-items:center;gap:12px;text-transform:none;letter-spacing:0;font-weight:600}
@@ -1405,7 +1408,12 @@ button.cmd-user:focus-visible{outline:2px solid var(--blue);outline-offset:2px;b
 .cmd-scard .cmd-no{margin-top:0}
 .cmd-when{text-align:right}.cmd-when b{font-size:13px}.cmd-when span{font-size:12px}
 .cmd-scard.st-failed{border-left:4px solid var(--bad)}
+.cmd-scard.st-no-logout{border-left:4px solid var(--warn)}
 .cmd-scard .rep-lines .bad-t{color:var(--bad-ink);font-family:inherit;font-weight:650}
+/* the avatar circle picks up the same colour as the card's status, instead of staying the same blue for every row */
+.cmd-scard.st-active .cmd-av-s{background:var(--ok-bg);color:var(--ok)}
+.cmd-scard.st-no-logout .cmd-av-s{background:var(--warn-bg);color:var(--warn)}
+.cmd-scard.st-failed .cmd-av-s{background:var(--bad-bg);color:var(--bad-ink)}
 .cmd-one{padding:4px 0 2px}
 .cmd-links{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0;font-size:13px}
 .cmd-tl.only-chg .l.in,.cmd-tl.only-chg .l.out{opacity:.75}

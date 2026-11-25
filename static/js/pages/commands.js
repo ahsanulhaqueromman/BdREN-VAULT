@@ -124,7 +124,7 @@ function renderCmdKpis(){
 /* ---- the list: one card per device (or per user) ---- */
 function cmdKeep(s){
   const f=$("#cmdSFilter").value;
-  return f==="changes"?s.changes>0:f==="active"?s.status==="active":true;
+  return f==="changes"?s.changes>0:f==="active"?s.status==="active":f==="risky"?s.risky>0:true;
 }
 function cmdGroups(){
   const by=new Map(),key=CMD_VIEW[cmdTab].key;
@@ -133,7 +133,7 @@ function cmdGroups(){
     if(!g)by.set(k,g={key:k,name:cmdTab==="device"?(s.device||s.device_ip):s.username,ip:s.device_ip,named:!!s.device,
       sessions:0,failed:0,changes:0,commands:0,active:0,users:new Set(),devices:new Set(),last:s.end||s.last,lastStart:s.start});
     if(s.failed)g.failed++;else g.sessions++;
-    g.changes+=s.changes;g.commands+=s.commands;
+    g.changes+=s.changes;g.commands+=s.commands;g.risky=(g.risky||0)+(s.risky||0);
     if(s.status==="active")g.active++;
     g.users.add(s.username);g.devices.add(s.device||s.device_ip);
   }
@@ -160,7 +160,8 @@ function cmdCard(g,isOpen){
   const work=g.changes+g.commands,chgPct=work?Math.round(g.changes/work*100):0;
   const badges=(g.sessions?`<span class="rep-badge ${g.changes?"chg":"same"}">${cmdPlural(g.sessions,"session")}</span>`:"")+
     (g.failed?`<span class="rep-badge fail">${cmdPlural(g.failed,"failed login")}</span>`:"")+
-    (g.active?'<span class="rep-badge is-live">Active now</span>':"");
+    (g.active?'<span class="rep-badge is-live">Active now</span>':"")+
+    (g.risky?`<span class="rep-badge fail" title="Reload, erase, delete, format ... commands">${cmdPlural(g.risky,"risky command")}</span>`:"");
   const users=[...g.users],devs=[...g.devices];
   const names=a=>esc(a.slice(0,2).join(", "))+(a.length>2?` +${a.length-2} more`:"");
   const sub=cmdTab==="device"?`${g.named?`<span class="m">${esc(g.ip)}</span> · `:""}<span class="cmd-who-ic">${CMD_IC.user}</span>${names(users)}`:
@@ -207,7 +208,7 @@ function cmdSessCard(s,isOpen){
       <span class="cmd-sid"><span class="cmd-av-s">${esc(s.username.slice(0,1).toUpperCase())}</span>
         <span class="rep-dev"><b>${esc(s.username)} <span class="cmd-on">on</span> ${esc(s.device||s.device_ip)}</b>
         <small>${s.device?`<span class="m">${esc(s.device_ip)}</span>`:""}${s.source_ip?`${s.device?" · ":""}from <span class="m">${esc(s.source_ip)}</span>`:""}</small></span></span>
-      <span class="cmd-badges">${cmdPill(s.status)}${s.of>1&&!s.failed?`<span class="cmd-no">Session ${s.no} of ${s.of}</span>`:""}</span>
+      <span class="cmd-badges">${cmdPill(s.status)}${s.risky?`<span class="rep-badge fail" title="Reload, erase, delete, format ... commands">${cmdPlural(s.risky,"risky command")}</span>`:""}${s.of>1&&!s.failed?`<span class="cmd-no">Session ${s.no} of ${s.of}</span>`:""}</span>
       <span class="rep-bar" title="${cmdPlural(s.changes,"change")} / ${cmdPlural(s.commands,"view command")}"><i class="chg" style="width:${chgPct}%"></i><i class="cmdv" style="width:${work?100-chgPct:0}%"></i></span>
       <span class="rep-lines">${s.failed?'<span class="bad-t">Login refused</span>':`<span class="cmd-c">${cmdPlural(s.changes,"change")}</span><span class="cmd-v">${fmtNum(s.commands)} view</span>`}</span>
       <span class="rep-last cmd-when"><b>${s.start?esc(bdClock(s.start)):"Before period"}${until?` → ${esc(until)}`:""}</b><br><span>${cmdDate(at)}${s.failed?"":" · "+cmdDur(s.duration)}</span></span>
@@ -279,7 +280,7 @@ function cmdLog(s){
   else{
     const steps=s.events.filter(e=>e.kind==="change"||e.kind==="command").map(e=>{
       const bad=e.result&&!/^succ/i.test(e.result);
-      const [cls,tag]=cmdMark(e);
+      const [cls0,tag0]=cmdMark(e),risk=e.risky,cls=risk?"risk":cls0,tag=risk?"⚠ risky":tag0;
       return line(e.ts,cls,`<i>${tag}</i>${esc(e.command)}${bad?` <em>(${esc(e.result)})</em>`:""}`)}).join("");
     log=(s.start?line(s.start,"in",`▶ Logged in${s.source_ip?" from "+esc(s.source_ip):""}`):line(null,"in","▶ Logged in before this period"))+
       (steps||`<span class="l none"><time></time><span>No commands in this session</span></span>`)+
