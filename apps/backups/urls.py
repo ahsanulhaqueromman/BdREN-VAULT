@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/logs", views.logs, name="api-logs"),
     path("api/reports/compliance.csv", views.compliance_report, name="api-compliance-report"),
     path("api/reports/changes", views.change_report, name="api-change-report"),
+    path("api/reports/summary.pdf", views.summary_report, name="api-summary-report"),
     path("api/audit", views.audit_events, name="api-audit-events"),
     path("api/alerts", views.alerts, name="api-backup-alerts"),
     path("api/notifications", views.notifications, name="api-notifications"),

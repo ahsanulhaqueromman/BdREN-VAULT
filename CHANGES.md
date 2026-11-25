@@ -5,7 +5,7 @@ says what changed and why. To install a new version, see [Updating](README.md#up
 
 ## 24 Nov 2026
 
-Entries 118-158.
+Entries 118-159.
 
 118. **Paging fixed** - Next / Previous under the Session Log list no longer also opened a session and jumped back to page 1 (the pager buttons now use their own attribute and stop the click there). After a page change the list scrolls back to its top if it was out of sight.
 119. **Smoother moves between screens** - the whole page no longer cross-fades on top of the content's own fade (that made it blink twice); the old screen stays until the new one is ready, then only the content fades up. The side menu and top bar stay put, the side menu keeps its scroll position from screen to screen, and the cross-page transition listener now loads in the page head so a skipped transition no longer shows an error in the browser console.
@@ -49,6 +49,7 @@ Entries 118-158.
 156. **The first panel account is protected** - the first account (the one made at install, lowest id) has a "Main" tag on User Management, no Delete in its Action menu, and its role and Active switch are locked in the edit form. The server refuses to delete, demote or disable it, whoever asks. Its password can still be changed.
 157. **Change Reports open fast with thousands of devices** - each device's part of the report is kept in memory and rebuilt only when that device gets a new backup or the chosen period moves past one of its versions; device name, IP and type are still read fresh every time. Measured with 20,000 devices: a report that took 4-11 seconds after the first one now takes about 1.5 seconds, with exactly the same result. The very first report after a restart still reads every backup once.
 158. **Loading spinner in the middle** - while a list loads (Devices, Backups, Change Reports, Session Log, Users and others), the spinner and "Loading..." line now sit in the middle of the grey placeholder rows instead of under them.
+159. **Weekly and monthly summary PDF** - Change Reports has two new buttons, "Weekly summary" and "Monthly summary": a short PDF (devices that changed, lines added/removed, backup jobs saved/unchanged/failed, RADIUS login attempts/accepted/rejected, the 10 most-changed devices and the list of users who logged in) for the last 7 or 30 days, always ending now, whatever month range is chosen above. Viewers can read it too - it holds no configuration content. New dependency: reportlab (pure Python, no system package needed).
 
 ## 23 Nov 2026
 

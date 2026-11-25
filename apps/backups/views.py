@@ -249,6 +249,21 @@ def change_report(request):
 
 
 @api(GET="viewer")
+def summary_report(request):
+    """Weekly (last 7 days) or monthly (last 30 days) summary PDF: devices changed, backups failed,
+    configuration lines added/removed and RADIUS logins. No configuration content, so Viewers may read it."""
+    from apps.core.summary_report import build_pdf
+    period = request.GET.get("period", "weekly")
+    if period not in ("weekly", "monthly"):
+        raise ApiError(400, "Choose weekly or monthly")
+    pdf, filename = build_pdf(period)
+    record_audit(request, "backup.summary_report", period)
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@api(GET="viewer")
 def compliance_report(request):
     """CSV report of current inventory and latest backup outcome; contains no credentials/config."""
     response = HttpResponse(content_type="text/csv; charset=utf-8")

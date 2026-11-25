@@ -211,6 +211,20 @@ def zip_all_latest():
 
 
 # ---------- reports ----------
+def change_report_for(start, end):
+    """The change report for a custom period (see reports.change_report); used by the summary PDF."""
+    from . import reports
+    return reports.change_report(start=start, end=end)
+
+
+def backup_counts_between(start, end):
+    """{"SUCCESS": n, "UNCHANGED": n, "FAILED": n} for backups logged between start and end (used by
+    the summary PDF); a status with no rows in the period is simply missing from the dict."""
+    rows = (BackupLog.objects.filter(ts__gte=start, ts__lt=end)
+            .values_list("status").annotate(n=Count("id")).values_list("status", "n"))
+    return dict(rows)
+
+
 def compliance_rows():
     """(device, latest log line or None) for the compliance CSV, in inventory order.
     Two queries in all (newest line per address), not one per device."""
