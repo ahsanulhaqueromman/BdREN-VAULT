@@ -118,7 +118,7 @@ def device_access():
 
 def active_sessions():
     """Administrators: who is signed in to a device over SSH right now, from the Session Log (a session with no
-    logout and activity in the last 15 minutes). Read at most every 5 s (the card asks every 10 s).
+    logout and activity in the last 5 minutes). Read at most every 5 s (the card asks every 10 s).
     None when it cannot be read."""
     from django.core.cache import cache
 

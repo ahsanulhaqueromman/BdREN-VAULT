@@ -114,7 +114,7 @@ def history(hours=24, q="", kind="", limit=500, since=None, until=None):
 # ---- sessions: one user's stay on one device, from login to logout ---------------------------------------------
 SESSION_GAP = timedelta(minutes=30)      # this long without activity (and no logout) = the next action is a new session
 SAME_MOMENT = timedelta(seconds=15)      # two login (or logout) messages this close are the same login (or logout)
-OPEN_FOR = timedelta(minutes=15)         # no logout and active this recently = shown as "Active"
+OPEN_FOR = timedelta(minutes=5)        # no logout and active this recently = shown as "Active"
 MAX_EVENTS = 20000                       # newest events read per request
 LOOK_BACK = timedelta(hours=24)          # a session still going at the start of the period: its login is looked
                                          # for this far back, so it shows when it began (not "Before period")

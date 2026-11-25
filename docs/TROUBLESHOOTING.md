@@ -300,7 +300,7 @@ sudo ufw status | grep 514                      # with the firewall on, the devi
 |---|---|
 | Configuration changes arrive, `show` / `ping` do not | Cisco logs configuration commands only. Add the event manager applet from Device Setup, step "Command logging" (needs EEM 3.0 or newer: IOS 15 / IOS-XE) |
 | `show running-config \| include x` arrives as `show running-config` | Cisco removes the part after the pipe before the applet sees the command; only TACACS+ command accounting sends it |
-| The session shows "No logout" | Cisco sends its logout message at level 6 (informational), below `logging trap notifications`. The session closes 15 minutes after the last command, or at once with RADIUS accounting: `aaa accounting exec default start-stop group radius` |
+| The session shows "No logout" | Cisco sends its logout message at level 6 (informational), below `logging trap notifications`. The session shows "No logout" 5 minutes after the last command, or at once with RADIUS accounting: `aaa accounting exec default start-stop group radius` |
 | The device shows by address, not by name | Add `logging origin-id hostname`, or give the device a name on NAS Clients or in Device Inventory |
 | The router sends from a different address per path | Each VAULT server sees the address the packets leave from (a VRF or management interface may differ). Check with `sudo tcpdump -ni any udp port 514` and put that address on NAS Clients, or set `logging source-interface` |
 

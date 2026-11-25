@@ -190,7 +190,7 @@ panel. `deploy/radius/check_levels.sh` verifies the whole chain on a server.
 ```
 
 - A session is built on each request from the period asked for (plus 24 hours before it, for a session already
-  going), at most 20,000 events; with no logout it shows as active for 15 minutes after the last event.
+  going), at most 20,000 events; with no logout it shows as active for 5 minutes after the last event.
 - Device names: NAS Clients, then Device Inventory, then the syslog host name (`selectors._namer`).
 - The warnings on the page (receiver not installed or not running, messages ignored or dropped) carry the
   steps to fix them; ignored / dropped can be cleared (`POST /api/radius/commands/notes/<note>/dismiss`).
