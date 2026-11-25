@@ -171,9 +171,24 @@ def _build(items):
         if not cur or cur["closed"] or t - cur["last"] > SESSION_GAP:
             cur = _session(e["username"], e["device_ip"], t, False)
             out.append(cur)
+        counted = True
+        if kind == "change":
+            if e["command"].startswith("configuration finished"):
+                # Cisco sends this whenever configuration mode is left, changed or not. Where the device also
+                # logs each configuration command, one that follows no command of its own changed nothing.
+                if cur.get("real") and not cur.get("pending"):
+                    e = {**e, "kind": "command", "command": "left configuration mode (nothing changed)"}
+                    kind = "command"
+                else:
+                    cur["pending"] = 0
+                    counted = not cur.get("real")       # the end of changes already counted, not one more change
+            else:
+                cur["real"] = True
+                cur["pending"] = cur.get("pending", 0) + 1
         cur["events"].append(e)
         cur["last"] = t
-        cur["changes" if kind == "change" else "commands"] += 1
+        if counted:
+            cur["changes" if kind == "change" else "commands"] += 1
         cur["source_ip"] = cur["source_ip"] or e["source_ip"]
     return out
 
@@ -281,6 +296,8 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
             s["events"] = []
         s.pop("closed", None)
         s.pop("superseded", None)
+        s.pop("real", None)
+        s.pop("pending", None)
     return {"hours": hours, "sessions": out, "totals": totals, "truncated": len(events) >= MAX_EVENTS}
 
 
