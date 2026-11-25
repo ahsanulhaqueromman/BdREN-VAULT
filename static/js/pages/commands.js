@@ -455,4 +455,10 @@ $o("#cmdPdf").onclick=async()=>{
   finally{btn.disabled=false}
 };
 
-if(PAGE==="radius-commands")setInterval(()=>{if(!document.hidden&&cmdData)loadCommands()},30000);
+/* the 30s refresh can reorder or resize an open card's session list (a session's status/position can change
+   between refreshes) - keep the page where the user left it instead of letting that silently scroll them */
+if(PAGE==="radius-commands")setInterval(()=>{
+  if(document.hidden||!cmdData)return;
+  const y=window.scrollY;
+  loadCommands().then(()=>{if(Math.abs(window.scrollY-y)>1)window.scrollTo(0,y)});
+},30000);
