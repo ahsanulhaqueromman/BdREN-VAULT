@@ -28,7 +28,13 @@ const cmdFromHash=()=>{const m=/^#(user|device|session)=(.+)$/.exec(location.has
 const cmdDur=s=>{if(s==null)return "-";if(s<60)return `${s} s`;if(s<3600)return `${Math.round(s/60)} min`;const h=Math.floor(s/3600),m=Math.round(s%3600/60);return m?`${h} h ${m} min`:`${h} h`};
 const cmdDevice=(name,ip)=>`<span class="dn">${esc(name||ip)}</span>${name?`<span class="sub m">${esc(ip)}</span>`:""}`;
 const cmdPlural=(n,w)=>`${fmtNum(n)} ${w}${n===1?"":"s"}`;
-const cmdPill=st=>{const [label,cls]=CMD_STATUS[st]||[st,""];return `<span class="pill ${cls}">${esc(label)}</span>`};
+/* "Active" means no logout was seen; `confirmed` says whether that is because RADIUS accounting itself
+   still shows the login open (a stronger signal) or only guessed from a recent command (a softer one) */
+const cmdPill=s=>{
+  if(s.status==="active")return s.confirmed?
+    `<span class="pill UP" title="RADIUS accounting still shows this login open">Active</span>`:
+    `<span class="pill k-change" title="No logout was seen and RADIUS accounting could not confirm it; assumed open because of a recent command. It may already have disconnected.">Active (unconfirmed)</span>`;
+  const [label,cls]=CMD_STATUS[s.status]||[s.status,""];return `<span class="pill ${cls}">${esc(label)}</span>`};
 const cmdDate=s=>esc(fmtBdDateTime(s).split(", ")[0]);
 const cmdId=(kind,key)=>kind+":"+key;
 const cmdOpenCards=()=>[...document.querySelectorAll("#cmdSessList details[open]")].map(d=>({kind:d.dataset.kind,key:d.dataset.key}));
@@ -207,7 +213,7 @@ function cmdSessCard(s,isOpen){
       <span class="cmd-sid"><span class="cmd-av-s">${esc(s.username.slice(0,1).toUpperCase())}</span>
         <span class="rep-dev"><b>${esc(s.username)} <span class="cmd-on">on</span> ${esc(s.device||s.device_ip)}</b>
         <small>${s.device?`<span class="m">${esc(s.device_ip)}</span>`:""}${s.source_ip?`${s.device?" · ":""}from <span class="m">${esc(s.source_ip)}</span>`:""}</small></span></span>
-      <span class="cmd-badges">${cmdPill(s.status)}${s.of>1&&!s.failed?`<span class="cmd-no">Session ${s.no} of ${s.of}</span>`:""}</span>
+      <span class="cmd-badges">${cmdPill(s)}${s.of>1&&!s.failed?`<span class="cmd-no">Session ${s.no} of ${s.of}</span>`:""}</span>
       <span class="rep-bar" title="${cmdPlural(s.changes,"change")} / ${cmdPlural(s.commands,"view command")}"><i class="chg" style="width:${chgPct}%"></i><i class="cmdv" style="width:${work?100-chgPct:0}%"></i></span>
       <span class="rep-lines">${s.failed?'<span class="bad-t">Login refused</span>':`<span class="cmd-c">${cmdPlural(s.changes,"change")}</span><span class="cmd-v">${fmtNum(s.commands)} view</span>`}</span>
       <span class="rep-last cmd-when"><b>${s.start?esc(bdClock(s.start)):"Before period"}${until?` → ${esc(until)}`:""}</b><br><span>${cmdDate(at)}${s.failed?"":" · "+cmdDur(s.duration)}</span></span>
@@ -304,7 +310,7 @@ function cmdSessionItem(s,kind){
         ${s.failed?"":`<span>${cmdDur(s.duration)}</span>`}
         ${s.changes?`<span class="cmd-c">${cmdPlural(s.changes,"change")}</span>`:""}${s.commands?`<span>${cmdPlural(s.commands,"view command")}</span>`:""}</p>
       <pre class="rep-prev cmd-log">${log}</pre></div>
-    <div class="rep-act">${cmdPill(s.status)}</div></li>`;
+    <div class="rep-act">${cmdPill(s)}</div></li>`;
 }
 /* opening a card loads its sessions */
 $o("#cmdSessList").addEventListener("toggle",e=>{
@@ -385,9 +391,9 @@ $o("#cmdPdf").onclick=async()=>{
     const day=v=>v?esc(fmtBdDateTime(v).split(", ")[0]):"";
     const rows=list.map((s,i)=>`<tr><td>${i+1}</td><td><b>${esc(s.username)}</b></td><td>${esc(s.device||s.device_ip)}<br><span class="m">${esc(s.device_ip)}</span></td>
       <td>${s.start?`${day(s.start)}<br>${esc(bdClock(s.start))}`:"Before period"}</td>
-      <td>${s.failed?"-":s.status==="active"?"Still logged in":s.end?`${day(s.end)}<br>${esc(bdClock(s.end))}`:"No logout"}</td>
+      <td>${s.failed?"-":s.status==="active"?(s.confirmed?"Still logged in":"Still logged in (unconfirmed)"):s.end?`${day(s.end)}<br>${esc(bdClock(s.end))}`:"No logout"}</td>
       <td class="c">${s.failed?"-":esc(cmdDur(s.duration))}</td>
-      <td class="c">${s.failed?'<span class="fail">Login refused</span>':`<span class="${s.status}">${esc((CMD_STATUS[s.status]||[s.status])[0])}</span>`}</td>
+      <td class="c">${s.failed?'<span class="fail">Login refused</span>':s.status==="active"?(s.confirmed?'<span class="active">Active</span>':'<span class="no-logout">Active (unconfirmed)</span>'):`<span class="${s.status}">${esc((CMD_STATUS[s.status]||[s.status])[0])}</span>`}</td>
       <td class="c">${s.changes?`<span class="add">${s.changes}</span>`:'<span class="none">0</span>'}</td><td class="c">${fmtNum(s.commands)}</td></tr>`).join("");
     const mark=e=>{if(e.kind==="login")return ["in","▶ Logged in"+(e.source_ip?" from "+esc(e.source_ip):"")];
       if(e.kind==="logout")return ["out","◀ Logged out"];

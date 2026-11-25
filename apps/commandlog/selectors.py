@@ -202,6 +202,12 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
                            "command": "", "source_ip": "", "result": "", "radius": True})
     except DatabaseError:
         logger.debug("Command History: no RADIUS accounting (radacct) to read logouts from")
+    try:   # RADIUS accounting still shows the session open and recently updated: "Active" is confirmed,
+        # not just assumed from a recent command (see the "confirmed" field below)
+        live = radius.accounting_live(logging_devices, read_from)
+    except DatabaseError:
+        live = {}
+        logger.debug("Command History: no RADIUS accounting (radacct) to confirm active sessions")
     events.sort(key=lambda e: (e["ts"], e["id"]))
     groups = {}
     for e in events:
@@ -220,8 +226,15 @@ def sessions(hours=24, q="", user="", device="", with_events=False, limit=500, s
         last = s["end"] or s["last"]
         if s["closed"]:
             s["status"] = "closed"
+            s["confirmed"] = False
         else:
-            s["status"] = "active" if now - last <= OPEN_FOR else "no-logout"
+            live_seen = live.get((s["username"], s["device_ip"]))
+            # "confirmed": RADIUS accounting itself still shows this login open and was updated recently -
+            # a stronger signal than "the user typed a command a moment ago". A session only "no-logout" by
+            # inactivity (no RADIUS accounting at all, or it is stale) is shown as Active but not confirmed.
+            confirmed = bool(live_seen and live_seen >= (s["start"] or last) and now - live_seen <= OPEN_FOR)
+            s["status"] = "active" if confirmed or now - last <= OPEN_FOR else "no-logout"
+            s["confirmed"] = confirmed
         s["duration"] = int((last - s["start"]).total_seconds()) if s["start"] and last else None
         s["key"] = f'{s["username"]}|{s["device_ip"]}|{(s["start"] or last).isoformat()}'
         out.append(s)
