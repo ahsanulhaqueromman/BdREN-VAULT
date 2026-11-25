@@ -163,7 +163,7 @@ def build_pdf(period):
                  ("Failed", f"{s['backups_failed']:,}", _BAD, _BAD_BG if s["backups_failed"] else _NEUTRAL_BG)]),
              *section("RADIUS logins", [
                  ("Accepted", f"{s['logins_accepted']:,}", _OK, _OK_BG),
-                 ("Rejected", f"{s['logins_rejected']:,}", _BAD, _BAD_BG if s["logins_rejected"] else _NEUTRAL_BG),
+                 ("Rejected (last 24 h)", f"{s['logins_rejected']:,}", _BAD, _BAD_BG if s["logins_rejected"] else _NEUTRAL_BG),
                  ("Different users", f"{len(s['login_users']):,}", _BLUE_D, _NEUTRAL_BG)])]
 
     if s["top_changed"]:

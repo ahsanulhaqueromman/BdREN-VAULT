@@ -5,6 +5,7 @@ Reads the FreeRADIUS database (the `radius` connection, see router.py). Selector
 import ipaddress
 import logging
 import re
+from datetime import timedelta
 
 from apps.core.api import ApiError
 
@@ -13,6 +14,7 @@ from .router import DB
 
 logger = logging.getLogger("dbms")
 PASSWORD_ATTRS = ("Cleartext-Password", "SSHA2-256-Password")
+REJECTED_KEEP = timedelta(hours=24)   # rejected logins are shown, and kept, for this long only (accepted ones follow Settings)
 LEGACY_ATTR = "NAS-IP-Address"
 LEGACY_OP = "=~"
 
@@ -213,10 +215,11 @@ def _db_clock(moment):
     return moment.astimezone(dt_tz.utc).replace(tzinfo=None) + timedelta(seconds=_LOGIN_COLS.get("offset", 0))
 
 
-def recent_logins(q="", limit=500, since=None, until=None):
+def recent_logins(q="", limit=20000, since=None, until=None, result=""):
     """Newest logins first: username, result, time and - when recorded - the device (IP, name).
     `q` matches the username, the device IP, or a device name from NAS Clients / Device Inventory;
-    since / until (aware datetimes) limit it to a period. Returns (rows, device_logging_enabled)."""
+    since / until (aware datetimes) limit it to a period; result "accept" / "reject" keeps only those logins
+    (done in the query, so the newest `limit` are of that kind). Returns (rows, device_logging_enabled)."""
     from django.db import connections
     from apps.devices import selectors as devices
     cols = _login_columns()
@@ -250,6 +253,14 @@ def recent_logins(q="", limit=500, since=None, until=None):
             parts.append("callingstationid LIKE %s")
             params.append(like)
         where.append("(" + " OR ".join(parts) + ")")
+    if result == "accept":
+        where.append("reply LIKE %s")
+        params.append("%accept%")
+    else:                                       # rejected ones only from the last 24 hours, even before the clean-up ran
+        from datetime import datetime, timezone as _tz
+        recent = _db_clock(datetime.now(_tz.utc) - REJECTED_KEEP)
+        where.append("reply NOT LIKE %s AND authdate >= %s" if result == "reject" else "(reply LIKE %s OR authdate >= %s)")
+        params += ["%accept%", recent]
     if since is not None:
         where.append("authdate >= %s")
         params.append(_db_clock(since))
@@ -261,7 +272,7 @@ def recent_logins(q="", limit=500, since=None, until=None):
            + ("calledstationid" if has_st else "''") + ", "
            + ("callingstationid" if has_from else "''") + " FROM radpostauth"
            + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT %s")
-    params.append(max(1, min(int(limit), 2000)))
+    params.append(max(1, min(int(limit), 20000)))
     with connections[DB].cursor() as cur:
         cur.execute(sql, params)
         rows = cur.fetchall()
@@ -367,6 +378,8 @@ def login_summary(hours=24, since=None, until=None):
     where, params = "authdate >= %s", [_db_clock(since)]
     if until is not None:
         where, params = where + " AND authdate < %s", params + [_db_clock(until)]
+    where += " AND (reply = 'Access-Accept' OR authdate >= %s)"      # failed logins exist for 24 hours only
+    params.append(_db_clock(datetime.now(dt_tz.utc) - REJECTED_KEEP))
     device_count = ("COUNT(DISTINCT CASE WHEN nasipaddress <> '' THEN nasipaddress END)" if has_ip else "0")
     with connections[DB].cursor() as cur:
         cur.execute("SELECT COUNT(*), SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END), "

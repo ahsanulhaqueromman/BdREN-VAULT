@@ -226,8 +226,9 @@ def audit(request):
     """Authentication Audit: a summary of the chosen period and every device login. The changes made
     on the RADIUS pages are shown in Activity Logs (apps/backups/views.py audit_events)."""
     period = periods.from_request(request)
-    logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=500, since=period["since"],
-                                         until=period["until"])
+    result = request.GET.get("result", "")
+    logins, logging_on = q.recent_logins(q=request.GET.get("q", ""), limit=20000, since=period["since"],
+                                         until=period["until"], result=result if result in ("accept", "reject") else "")
     from apps.commandlog.selectors import fill_login_sources   # From: the device's syslog when RADIUS has none
     fill_login_sources(logins)
     for row in logins:

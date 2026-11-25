@@ -85,17 +85,15 @@ def audit(actor, action, target="", detail="", ip=None):
         logger.exception("Could not write the RADIUS audit line %s %s", action, target)
 
 
-REJECTED_KEEP_DAYS = 183     # rejected logins: six months whenever a retention period is chosen
+# rejected logins are kept 24 hours whatever the retention setting (selectors.REJECTED_KEEP); accepted ones follow it
 
 
 def prune_old_logins(now=None):
-    """Delete old device logins from radpostauth. With Settings > "Keep logs and backup files for" on Forever
-    nothing is deleted. With a period chosen (12, 24 or 48 months) accepted logins older than it are deleted like
-    every other log, and rejected ones (every result but Access-Accept) after six months (REJECTED_KEEP_DAYS).
-    Runs once a day from the background threads, in slices so FreeRADIUS can keep writing. A server without the
+    """Delete old device logins from radpostauth. Rejected ones (every result but Access-Accept) are deleted when
+    they are older than 24 hours, whatever the setting. Accepted ones follow Settings > "Keep logs and backup files
+    for": Forever deletes none, 12 / 24 / 48 months deletes those older than that, like every other log.
+    Runs every hour from the background threads, in slices so FreeRADIUS can keep writing. A server without the
     RADIUS database skips it. Returns the number of rows removed."""
-    from datetime import timedelta
-
     from django.db import DatabaseError
     from django.utils import timezone
 
@@ -103,11 +101,9 @@ def prune_old_logins(now=None):
 
     now = now or timezone.now()
     cutoff = retention_cutoff(now)
-    if cutoff is None:                       # Forever: keep every login, accepted and rejected
-        return 0
-    slices = [RadPostAuth.objects.exclude(reply="Access-Accept").filter(
-                  authdate__lt=now - timedelta(days=REJECTED_KEEP_DAYS)),
-              RadPostAuth.objects.filter(reply="Access-Accept", authdate__lt=cutoff)]
+    slices = [RadPostAuth.objects.exclude(reply="Access-Accept").filter(authdate__lt=now - selectors.REJECTED_KEEP)]
+    if cutoff is not None:                   # Forever: accepted logins are never deleted
+        slices.append(RadPostAuth.objects.filter(reply="Access-Accept", authdate__lt=cutoff))
     removed = 0
     try:
         for rows in slices:

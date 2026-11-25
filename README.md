@@ -75,7 +75,7 @@ Tested with **20,000+ devices** and **30,000+ RADIUS users / NAS clients** on ge
 - Up to 200 parallel SSH sessions (`DBMS_MAX_WORKERS`, default 50)
 - **Retention:** one setting keeps every log (Activity Logs, saved configurations, Session Log, accepted
   logins) for Forever, 12, 24 or 48 months. The newest configuration of every device is always kept.
-  With a period chosen, rejected logins are deleted after six months; Forever deletes nothing.
+  Rejected (failed) logins are kept for 24 hours only; Forever deletes no other log.
 
 **Supported platforms:** Cisco IOS / IOS-XE, NX-OS and ASA · Huawei VRP and SmartAX OLTs · Juniper Junos ·
 MikroTik RouterOS · Fortinet FortiOS · Arista EOS · HPE Comware · TP-Link Omada / JetStream · BDCOM ·
@@ -387,8 +387,7 @@ After editing `.env`, run `sudo systemctl restart vault`.
 - Session Log entries
 - accepted logins in Authentication Audit
 
-With a period chosen, rejected logins are deleted after six months. **Forever deletes nothing**, rejected
-logins included.
+Rejected (failed) logins are kept for **24 hours** only. **Forever deletes none of the other logs.**
 
 ---
 
@@ -432,7 +431,7 @@ logins included.
   package with the fix, otherwise the installer says to update it. Keep RADIUS on a management network or VPN
   where you can, and update device firmware so devices send and check Message-Authenticator
 - Every device login is recorded in Authentication Audit
-- Accepted logins are kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months); with a period chosen, rejected ones are deleted after six months (a daily clean-up)
+- Accepted logins are kept as long as **System Settings > Keep logs and backup files for** (Forever, 12, 24 or 48 months); rejected ones are kept for 24 hours only (an hourly clean-up)
 
 **Session Log (syslog)**
 - The receiver runs as the unprivileged `vault` user; systemd gives it only the right to use port 514

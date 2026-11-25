@@ -625,8 +625,8 @@ $o("#suBody").addEventListener("click",async e=>{
    are in Activity Logs > Administrative audit trail) ---- */
 let radLoggingOn=true,radSummary=null;
 async function loadRadAudit(){
-  const q=($("#radLoginQ")?.value||"").trim();
-  try{const d=await api("/api/radius/audit?"+new URLSearchParams({...periodQuery("#radAuditHours"),...(q?{q}:{})}));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
+  const q=($("#radLoginQ")?.value||"").trim(),res=$("#radLoginRes")?.value||"ALL";
+  try{const d=await api("/api/radius/audit?"+new URLSearchParams({...periodQuery("#radAuditHours"),...(q?{q}:{}),...(res!=="ALL"?{result:res}:{})}));radLogins=d.logins;radLoggingOn=d.device_logging!==false;
     radSummary=d.summary?{...d.summary,label:(d.period&&d.period.label)||""}:null;
     renderRadSummary();renderRadLogins()}
   catch(e){radFail("#radLoginList","the RADIUS audit log",e);{const el=$("#radAuditKpis");if(el)el.innerHTML=""}}
@@ -636,9 +636,9 @@ function renderRadSummary(){
   const s=radSummary;if(!s||!$("#radAuditKpis"))return;
   const per=s.label||"",rate=s.total?Math.round(s.accepted*100/s.total):0;
   radKpis("#radAuditKpis",[
-    ["Login attempts",s.total,`All device logins ${per}`],
-    ["Successful",s.accepted,s.total?`${rate}% of attempts`:"No attempts","g"],
-    ["Failed",s.rejected,s.rejected?"Wrong password, not allowed or unknown user":"No failed logins",s.rejected?"bad":""],
+    ["Login attempts",s.total,`Accepted ${per}, failed in the last 24 hours`],
+    ["Successful",s.accepted,s.total?`Accepted logins ${per}`:"No attempts","g"],
+    ["Failed",s.rejected,s.rejected?"Last 24 hours: wrong password, not allowed or unknown user":"No failed logins in the last 24 hours",s.rejected?"bad":""],
     ["Users",s.users,"Different usernames that tried"],
     ["Devices",s.device_logging?s.devices:"-",s.device_logging?"Different devices logged in to":"Device not recorded yet"]]);
 }
@@ -646,7 +646,7 @@ periodPicker("#radAuditHours",loadRadAudit);
 /* search runs on the server (user, device IP, or a device name from NAS Clients / Device Inventory) */
 let radLoginT=0;
 $("#radLoginQ")?.addEventListener("input",()=>{clearTimeout(radLoginT);radLoginT=setTimeout(()=>{PAGES.radLogins=1;loadRadAudit()},350)});
-$("#radLoginRes")?.addEventListener("change",()=>{PAGES.radLogins=1;renderRadLogins()});
+$("#radLoginRes")?.addEventListener("change",()=>{PAGES.radLogins=1;loadRadAudit()});   /* the server filters, so the newest 500 are of the chosen result */
 const radAccepted=r=>/accept/i.test(r.reply||"");
 function renderRadLogins(){
   $("#radLoginNote").innerHTML=radLoggingOn?"":`<div class="rad-note"><b>The device is not recorded yet.</b> FreeRADIUS's standard login table stores only the user, result and time.
@@ -654,7 +654,7 @@ function renderRadLogins(){
   const res=$("#radLoginRes")?.value||"ALL";
   const list=radLogins.filter(r=>res==="ALL"||(res==="accept")===radAccepted(r));
   const q=($("#radLoginQ")?.value||"").trim();
-  $("#radLoginCount").textContent=radLogins.length?`${fmtNum(list.length)} attempt${list.length===1?"":"s"}${radLogins.length>=500?" shown (newest 500)":""}`:"";
+  $("#radLoginCount").textContent=radLogins.length?`${fmtNum(list.length)} attempt${list.length===1?"":"s"}${radLogins.length>=20000?" shown (newest 20,000)":""}`:"";
   if(!list.length){$("#radLoginList").innerHTML=`<div class="empty"><b>${q||res!=="ALL"?"No matching logins":"No device logins recorded yet"}</b>${q||res!=="ALL"?"Try another user, device name or IP.":"Logins appear here when users sign in to the network devices."}</div>`;return}
   const {rows,bar}=paginate("radLogins",list);
   morph($("#radLoginList"),`<div class="tbl"><table><thead><tr><th>Time</th><th>User</th><th>Device</th><th>From</th><th>Result</th></tr></thead><tbody>`+
