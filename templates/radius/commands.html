@@ -5,7 +5,7 @@
 {% block content %}
 <section id="radius-commands">
     <div class="title"><div>{% include "components/_page_heading.html" with title=page.title subtitle="Every login to a network device as a session: who, on which device, from where, for how long, and each command they ran." %}</div>
-      <div class="tacts"><select id="cmdHours" aria-label="Period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="2160">Last 90 days</option><option value="8760">Last year</option><option value="custom">Custom dates…</option></select><button class="b" id="cmdCsv" type="button">Export CSV</button><button class="b" id="cmdRefresh" type="button">Refresh</button></div></div>
+      <div class="tacts"><select id="cmdHours" aria-label="Period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="2160">Last 90 days</option><option value="8760">Last year</option><option value="custom">Custom dates…</option></select><button class="b" id="cmdCsv" type="button">Export CSV</button><button class="b p" id="cmdPdf" type="button">Export PDF</button><button class="b" id="cmdRefresh" type="button">Refresh</button></div></div>
     <div id="cmdStatus"></div>
     <div class="kpis" id="cmdKpis"><div class="loading-block" role="status"><span class="spin"></span>Loading summary…</div></div>
     <div class="su-tabs" role="tablist" aria-label="View" id="cmdTabs">

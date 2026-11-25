@@ -365,4 +365,94 @@ $o("#cmdCsv").addEventListener("click",()=>{
   const p=new URLSearchParams({...cmdHours(),format:"csv"}),q=cmdSearch();if(q)p.set("q",q);
   location.href="/api/radius/commands?"+p;
 });
+
+/* ---- Export PDF: a clean, print-quality session report in a new window, saved with the browser's "Save
+   as PDF" - the same no-library, no-server-change approach as Change Reports (pages/reports.js). Follows
+   the current period, search and "With changes / Active now" filter: every matching session in one table,
+   then the full login -> command -> logout log of every session that did something. ---- */
+let cmdPdfHtml="";     /* the last generated PDF document (kept for checking the layout) */
+$o("#cmdPdf").onclick=async()=>{
+  const btn=$("#cmdPdf");if(btn.disabled)return;btn.disabled=true;
+  try{
+    const p=new URLSearchParams({...cmdHours(),export:"1"}),q=cmdSearch();if(q)p.set("q",q);
+    const data=await api("/api/radius/commands/sessions?"+p);
+    const list=cmdNumber((data.sessions||[]).slice()).filter(cmdKeep);
+    if(!list.length)return toast("No sessions match the current period, search or filter.",{type:"warning",title:"Nothing to export"});
+    const t=data.totals||{},per=cmdPer(data);
+    const who=(typeof ME!=="undefined"&&ME&&(ME.username||ME.name))||"";
+    const now=new Date(),stamp=now.toLocaleString("en-GB",{timeZone:"Asia/Dhaka",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    const n=v=>Number(v||0).toLocaleString("en-US");
+    const day=v=>v?esc(fmtBdDateTime(v).split(", ")[0]):"";
+    const rows=list.map((s,i)=>`<tr><td>${i+1}</td><td><b>${esc(s.username)}</b></td><td>${esc(s.device||s.device_ip)}<br><span class="m">${esc(s.device_ip)}</span></td>
+      <td>${s.start?`${day(s.start)}<br>${esc(bdClock(s.start))}`:"Before period"}</td>
+      <td>${s.failed?"-":s.status==="active"?"Still logged in":s.end?`${day(s.end)}<br>${esc(bdClock(s.end))}`:"No logout"}</td>
+      <td class="c">${s.failed?"-":esc(cmdDur(s.duration))}</td>
+      <td class="c">${s.failed?'<span class="fail">Login refused</span>':`<span class="${s.status}">${esc((CMD_STATUS[s.status]||[s.status])[0])}</span>`}</td>
+      <td class="c">${s.changes?`<span class="add">${s.changes}</span>`:'<span class="none">0</span>'}</td><td class="c">${fmtNum(s.commands)}</td></tr>`).join("");
+    const mark=e=>{if(e.kind==="login")return ["in","▶ Logged in"+(e.source_ip?" from "+esc(e.source_ip):"")];
+      if(e.kind==="logout")return ["out","◀ Logged out"];
+      if(e.kind!=="change")return ["cmd",`<span class="tag view">view</span>${esc(e.command)}`];
+      const [cls,tag]=cmdMark(e);return [cls.includes("del")?"del":cls.includes("save")?"save":"add",`<span class="tag ${cls.includes("del")?"del":cls.includes("save")?"save":"add"}">${tag.replace(/^[+−✓]\s*/,"")}</span>${esc(e.command)}`];
+    };
+    const details=list.filter(s=>s.failed||s.changes||s.commands).map(s=>{
+      const lines=s.failed?[['fail',`✕ Login refused${s.source_ip?" from "+esc(s.source_ip):""}`]]:
+        [...(s.start?[['in',`▶ Logged in${s.source_ip?" from "+esc(s.source_ip):""}`]]:[['in','▶ Logged in before this period']]),
+         ...s.events.filter(e=>e.kind==="change"||e.kind==="command").map(e=>{const [cls,html]=mark(e);return [cls,html]}),
+         s.status==="closed"?['out',`◀ Logged out · ${esc(cmdDur(s.duration))} on the device`]:
+         s.status==="active"?['now','● Still logged in']:['out','◀ No logout recorded (last activity)']];
+      return `<section class="sess"><h3>${esc(s.username)} <small>on ${esc(s.device||s.device_ip)} (${esc(s.device_ip)})</small></h3>
+        <p class="meta">${s.start?`${day(s.start)} ${esc(bdClock(s.start))}`:"Before period"} → ${s.failed?"refused":s.status==="active"?"now":s.end?`${day(s.end)} ${esc(bdClock(s.end))}`:"no logout"}${!s.failed&&s.duration!=null?` · ${esc(cmdDur(s.duration))}`:""} · <span class="add">${s.changes} change${s.changes===1?"":"s"}</span> · ${fmtNum(s.commands)} view command${s.commands===1?"":"s"}</p>
+        <div class="log">${lines.map(([cls,html])=>`<div class="ln ${cls}">${html}</div>`).join("")}</div></section>`;
+    }).join("");
+    const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Session Log Report</title><style>
+      @page{size:A4;margin:16mm 14mm 18mm}
+      @page{@bottom-right{content:"Page " counter(page) " of " counter(pages);font:9px Arial,sans-serif;color:#64748b}@bottom-left{content:"VAULT - Session Log Report";font:9px Arial,sans-serif;color:#64748b}}
+      *{box-sizing:border-box}body{margin:0;font:11px/1.45 "Segoe UI",Arial,sans-serif;color:#0f1b2d;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .bar{height:6px;background:linear-gradient(90deg,#2f5bea,#0ea5c6);border-radius:3px;margin-bottom:14px}
+      header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding-bottom:10px;border-bottom:1px solid #d8e0ec;margin-bottom:14px}
+      h1{margin:0;font-size:20px;letter-spacing:-.02em}header p{margin:3px 0 0;color:#5b6b82}
+      .ids{text-align:right;color:#5b6b82;font-size:10px;line-height:1.6}.ids b{color:#0f1b2d}
+      .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+      .kpi{border:1px solid #d8e0ec;border-top:3px solid #2f5bea;border-radius:6px;padding:7px 9px}.kpi small{display:block;color:#5b6b82;font-size:9.5px}.kpi b{font-size:16px}
+      .kpi:nth-child(2){border-top-color:#8a5600}.kpi:nth-child(3){border-top-color:#0ea5c6}.kpi:nth-child(4){border-top-color:#0e9566}
+      h2{font-size:13px;margin:18px 0 8px;padding-bottom:4px;border-bottom:2px solid #2f5bea;color:#1e3a8a}
+      table{width:100%;border-collapse:collapse;font-size:10px}th{background:#eef2f9;color:#334155;text-align:left;font-weight:700;padding:6px 7px;border-bottom:1px solid #cfd8e6}
+      td{padding:5px 7px;border-bottom:1px solid #e6ebf3;vertical-align:top}tr{break-inside:avoid}tbody tr:nth-child(even) td{background:#f8fafc}
+      .m{font-family:Consolas,monospace;color:#5b6b82;font-size:9px}.c{text-align:center}
+      .add{color:#0e9566;font-weight:700}.del{color:#d63447;font-weight:700}.none{color:#94a3b8}.fail{color:#d63447;font-weight:700}
+      .active{color:#0e9566;font-weight:700}.closed{color:#5b6b82}.no-logout{color:#8a5600;font-weight:700}
+      .sess{break-inside:avoid-page;margin:0 0 12px;padding:9px 11px;border:1px solid #d8e0ec;border-left:4px solid #2f5bea;border-radius:6px}
+      .sess h3{margin:0;font-size:12.5px}.sess h3 small{font-weight:400;color:#5b6b82}.meta{margin:2px 0 6px;color:#5b6b82;font-size:10px}
+      .log{padding:6px 8px;background:#0b1222;border-radius:4px;font:9.5px/1.8 Consolas,monospace;color:#d4deec}
+      .ln{display:flex;gap:8px}.tag{display:inline-block;min-width:38px;text-align:center;border-radius:3px;padding:0 4px;margin-right:4px;font-size:8.5px;font-weight:700}
+      .tag.view{background:#1e293b;color:#93a3bd}.tag.add{background:#0e3426;color:#7be0a8}.tag.del{background:#3b1820;color:#ff9aa2}.tag.save{background:#0e2a52;color:#9cc0ff}
+      .ln.in,.ln.now{color:#7be0a8}.ln.out{color:#93a3bd}.ln.fail{color:#ff9aa2}
+      .note{margin-top:16px;padding:8px 10px;border-radius:6px;background:#f1f5fb;color:#475569;font-size:9.5px}
+      @media screen{body{max-width:900px;margin:24px auto;padding:0 20px}.tip{position:sticky;top:0;margin:-24px -20px 16px;padding:10px 20px;background:#0f1a30;color:#e7eefc;font-size:12px}}
+      @media print{.tip{display:none}}
+    </style></head><body>
+    <div class="tip">To save as PDF: in the print window choose <b>Destination: Save as PDF</b>, then Save.</div>
+    <div class="bar"></div>
+    <header><div><h1>Session Log Report</h1><p>VAULT · ${esc(per)}</p></div>
+      <div class="ids">Generated <b>${esc(stamp)}</b> (Bangladesh time)${who?`<br>By <b>${esc(who)}</b>`:""}<br>Sessions in report <b>${n(list.length)}</b>${q?`<br>Search “${esc(q)}”`:""}</div></header>
+    <div class="kpis"><div class="kpi"><small>Sessions</small><b>${n(t.sessions)}</b></div><div class="kpi"><small>Changes</small><b class="add">${n(t.changes)}</b></div>
+      <div class="kpi"><small>Commands</small><b>${n(t.commands)}</b></div><div class="kpi"><small>Users</small><b>${n(t.users)}</b></div></div>
+    <h2>Summary</h2>
+    <table><thead><tr><th>#</th><th>User</th><th>Device</th><th>Login</th><th>Logout</th><th class="c">Duration</th><th class="c">Status</th><th class="c">Changes</th><th class="c">Commands</th></tr></thead><tbody>${rows}</tbody></table>
+    ${details?`<h2>Session details</h2>${details}`:""}
+    <p class="note">One card per login (a new login after a logout is a new session). Read from the devices' own syslog and RADIUS logins/accounting; a device without command logging turned on shows logins only. Period, search and filter follow what was chosen on the Session Log page.</p>
+    </body></html>`;
+    cmdPdfHtml=html;
+    document.getElementById("cmdPdfFrame")?.remove();
+    const f=document.createElement("iframe");
+    f.id="cmdPdfFrame";f.title="Session log report for printing";f.setAttribute("aria-hidden","true");
+    f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    document.body.append(f);
+    const d=f.contentWindow.document;d.open();d.write(html);d.close();
+    toast("Choose “Save as PDF” as the destination in the print window.",{type:"info",title:"Preparing the PDF"});
+    setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast("The print window could not open. Use Ctrl+P on the report instead.",{type:"error",title:"PDF export failed"})}},350);
+  }catch(e){toast(e.message,{type:"error",title:"Could not build the report"})}
+  finally{btn.disabled=false}
+};
+
 if(PAGE==="radius-commands")setInterval(()=>{if(!document.hidden&&cmdData)loadCommands()},30000);

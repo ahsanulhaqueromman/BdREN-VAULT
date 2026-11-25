@@ -4,7 +4,8 @@
                                            events + totals + receiver state (period: apps/core/period.py)
     /api/radius/commands?format=csv   GET  the same filter as a CSV file (up to 50,000 rows)
     /api/radius/commands/sessions     GET  ?hours= &q= &user= &device=   sessions (login to logout); with user=
-                                           or device= each session also carries its commands
+                                           or device=, or &export=1 (PDF export), each session also carries
+                                           its commands
     /api/radius/commands/notes/<rejected|dropped>/dismiss  POST  clear that note (it comes back with the next one)
 """
 import csv
@@ -65,7 +66,10 @@ def sessions(request):
     user = request.GET.get("user", "").strip()[:64]
     device = request.GET.get("device", "").strip()[:45]
     when, shown = _period(request)
-    data = q.sessions(q=request.GET.get("q", ""), user=user, device=device, with_events=bool(user or device), **when)
+    # ?export=1 (the Session Log "Export PDF" button): every matching session's commands, not just one
+    # user's or one device's - the same cost as the normal list (events are already built), just not stripped.
+    with_events = bool(user or device or request.GET.get("export"))
+    data = q.sessions(q=request.GET.get("q", ""), user=user, device=device, with_events=with_events, **when)
     for s in data["sessions"]:
         for key in ("start", "end", "last"):
             s[key] = _when(s[key])
