@@ -23,6 +23,7 @@ class Command(BaseCommand):
                     editor.create_model(model)
                 self.stdout.write(self.style.SUCCESS(f"{table}: created."))
         self.widen_role_column(connection)
+        self.widen_postauth_pass(connection, existing)
         self.index_login_time(connection, existing)
         fixed = normalize_roles()
         if fixed:
@@ -45,6 +46,23 @@ class Command(BaseCommand):
                 return
             cursor.execute("CREATE INDEX dbms_authdate ON radpostauth (authdate)")
         self.stdout.write(self.style.SUCCESS("radpostauth: added an index on authdate."))
+
+    def widen_postauth_pass(self, connection, existing):
+        """radpostauth (written by FreeRADIUS, not a VAULT table) logs the password/credential the device sent
+        with each login attempt. The standard FreeRADIUS schema makes that column only 64 characters wide; a
+        device that sends a longer credential (a long CHAP response, for example) then fails the INSERT with
+        "Data too long for column 'pass'" - and on some setups that error stops FreeRADIUS answering the
+        request at all, so the device sees no reply, marks RADIUS down, and every login fails until it
+        retries. Only MySQL/MariaDB enforces the column width (SQLite does not), and only there is this safe."""
+        if "radpostauth" not in existing or connection.vendor != "mysql":
+            return
+        with connection.cursor() as cursor:
+            columns = connection.introspection.get_table_description(cursor, "radpostauth")
+            size = next((c.internal_size for c in columns if c.name == "pass"), None)
+            if size is None or size >= 253:
+                return
+            cursor.execute("ALTER TABLE radpostauth MODIFY pass VARCHAR(253) NOT NULL DEFAULT ''")
+        self.stdout.write(self.style.SUCCESS(f"radpostauth.pass: widened from {size} to 253."))
 
     def widen_role_column(self, connection):
         """dbms_nas_role.role was created 30 characters wide by the first build that had it; it is 50 now."""
