@@ -21,7 +21,7 @@
           <tr><td data-l="Access level"><b>Read-only</b><span class="lvl-d">View only, no configuration</span></td><td data-l="Cisco">privilege 1</td><td data-l="Huawei">level 1 (display only)</td><td data-l="Juniper">read-only</td><td data-l="MikroTik">read</td><td data-l="Fortinet">ro_admin</td></tr>
         </tbody>
       </table></div>
-      <p class="lvl-note">Which commands a level allows is defined on the device itself. To let read-only users view the full configuration (never configuration mode), allow it once per device: Cisco <code>privilege exec level 1 show running-config view full</code>, Huawei <code>command-privilege level 1 view shell display current-configuration</code>, Juniper a custom login class (Device Setup gives the commands) instead of the built-in read-only class, which cannot view configuration at all.</p>
+      <p class="lvl-note">Which commands a level allows is defined on the device itself. By default Cisco and Huawei only show the full configuration at the top level, and Junos's built-in read-only and operator classes cannot view it at all - Device Setup gives the exact commands for every vendor so Read-only and Read-write both see the full configuration (Read-write can still change it; Read-only never enters configuration mode).</p>
     </details>
   </section>
 {% endblock %}

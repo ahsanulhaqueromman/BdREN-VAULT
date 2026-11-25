@@ -311,6 +311,9 @@ line vty 0 15
  authorization exec default`],
     ["Send RADIUS from the registered address",`Only when the switch has several addresses: requests must come from ${v.ip}, the address in NAS. Put the interface that holds it in place of Vlan1.`,
 `ip radius source-interface Vlan1`],
+    ["Let Read-only and Read-write see the full configuration","By default show running-config only gives the full output at privilege 15 - levels 1 and 7 see an abridged, less useful copy, even though they can read other show commands fine. view full removes that limit for exactly these two levels; configuration mode itself still needs privilege 15 (Super-admin) or 7 (Read-write - who can also change it), never 1 (Read-only, view only).",
+`privilege exec level 1 show running-config view full
+privilege exec level 7 show running-config view full`],
     ["Test",`Replace user / password with a VAULT RADIUS user. Super-admin gets privilege 15, Read-write 7, Read-only 1.`,
 `test aaa group VAULT-GRP user password legacy
 show aaa servers`]]},
@@ -442,10 +445,11 @@ set system radius-server ${v.server} source-address ${v.ip}
 set system authentication-order [ radius password ]
 set system accounting events [ login interactive-commands ]
 set system accounting destination radius`],
-    ["Template accounts","VAULT sends the account name super-user, operator or read-only; Junos logs the user in with the rights of that local template account (no password needed on it). The built-in read-only class only allows view (operational status), not view-configuration, so a read-only user could not see the configuration at all with it - this custom class adds that, without adding configure, so the user can read every configuration line but cannot enter configuration mode.",
+    ["Template accounts","VAULT sends the account name super-user, operator or read-only; Junos logs the user in with the rights of that local template account (no password needed on it). The built-in read-only class only allows view (operational status), not view-configuration, and the built-in operator class has neither view-configuration nor configure - so a read-only user could not see the configuration at all, and a read-write user could not see or change it either. These two custom classes add exactly what each needs: read-only gets view-configuration only (full configuration, never configuration mode); read-write also gets configure (can see and change configuration, same as Cisco privilege 7 / Huawei level 2).",
 `set system login class vault-read-only permissions [ view view-configuration ]
+set system login class vault-read-write permissions [ view view-configuration configure ]
 set system login user super-user class super-user
-set system login user operator class operator
+set system login user operator class vault-read-write
 set system login user read-only class vault-read-only
 commit`],
     ["Test","Log in with a VAULT RADIUS user, then:",`show system users`]]},
