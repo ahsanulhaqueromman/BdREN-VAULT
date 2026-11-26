@@ -8,10 +8,13 @@
 ![Django](https://img.shields.io/badge/Django-5.2_LTS-092E20?logo=django&logoColor=white)
 ![MariaDB](https://img.shields.io/badge/MariaDB%20%2F%20MySQL-database-003545?logo=mariadb&logoColor=white)
 ![FreeRADIUS](https://img.shields.io/badge/FreeRADIUS-3.x-D22128)
+![nginx](https://img.shields.io/badge/nginx-HTTPS-009639?logo=nginx&logoColor=white)
+![Netmiko](https://img.shields.io/badge/Netmiko-SSH%20read--only-555555)
 ![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%2F%20Debian-E95420?logo=ubuntu&logoColor=white)
 ![Use](https://img.shields.io/badge/Use-Internal%20(BdREN)-blue)
 
 [Features](#features) ·
+[Technology](#technology-stack) ·
 [Pages](#pages-in-the-portal) ·
 [Installation](#installation) ·
 [Updating](#updating) ·
@@ -26,20 +29,21 @@
 
 1. [Overview](#overview)
 2. [Features](#features)
-3. [Pages in the portal](#pages-in-the-portal)
-4. [Architecture](#architecture)
-5. [Requirements](#requirements)
-6. [Ports and services](#ports-and-services)
-7. [Installation](#installation)
-8. [Updating](#updating)
-9. [Configuration](#configuration)
-10. [Data and retention](#data-and-retention)
-11. [Roles](#roles)
-12. [Security](#security)
-13. [Operations](#operations)
-14. [Project structure](#project-structure)
-15. [Documentation](#documentation)
-16. [Author](#author)
+3. [Technology stack](#technology-stack)
+4. [Pages in the portal](#pages-in-the-portal)
+5. [Architecture](#architecture)
+6. [Requirements](#requirements)
+7. [Ports and services](#ports-and-services)
+8. [Installation](#installation)
+9. [Updating](#updating)
+10. [Configuration](#configuration)
+11. [Data and retention](#data-and-retention)
+12. [Roles](#roles)
+13. [Security](#security)
+14. [Operations](#operations)
+15. [Project structure](#project-structure)
+16. [Documentation](#documentation)
+17. [Author](#author)
 
 </details>
 
@@ -106,6 +110,24 @@ V-SOL · any other device through generic SSH
 - Backup Jobs page with live progress, Activity Logs and one audit trail of every administrative action (panel and RADIUS)
 - Notification bell for failed backups and other problems
 - Responsive interface for desktop, tablet and phone, with light and dark themes
+
+---
+
+## Technology stack
+
+| Layer | Technology | Used for |
+|---|---|---|
+| Language and framework | Python 3.10+, Django 5.2 | Pages, JSON API, database access, sessions, CSRF protection, password hashing |
+| Web serving | nginx (HTTPS) in front of Waitress; WhiteNoise | TLS, the application server, static files |
+| Device access | Netmiko, Paramiko 4.0.0 (pinned for older SSH algorithms) | SSH login, read-only commands, host-key checking |
+| Encryption | `cryptography` (Fernet) | Saved device passwords |
+| Databases | MariaDB / MySQL with PyMySQL | `dbms` (application) and `radius` (shared with FreeRADIUS) |
+| AAA | FreeRADIUS 3 with the SQL module | Device logins and accounting |
+| Reports | ReportLab; browser print to PDF | Weekly / monthly summary PDF; change and session reports |
+| Browser | Plain JavaScript and CSS, SVG charts | No front-end framework, no build step, no third-party script or font |
+| System | systemd, ufw, fail2ban, fping, unattended-upgrades | Services, firewall, brute-force protection, ping, security updates |
+
+Python packages and their version limits are in [requirements.txt](requirements.txt).
 
 ---
 
@@ -346,7 +368,7 @@ files, migrates the database and restarts the service. The previous version is s
 `/var/backups/vault/` and restored automatically if the update fails. Afterwards, reload the portal once
 with **Ctrl+F5**.
 
-Release notes for every build are in [CHANGES.md](CHANGES.md).
+The history of changes is the Git log (`git log --oneline`).
 
 ---
 
@@ -403,6 +425,16 @@ Rejected (failed) logins are kept for **24 hours** only. **Forever deletes none 
 
 ## Security
 
+| Area | Protection at a glance |
+|---|---|
+| Transport and browser | HTTPS, HSTS and secure cookies when served over HTTPS, strict Content Security Policy |
+| Sign-in | Hashed passwords, lockout after 5 failures, rate limit, fail2ban, idle sign-out |
+| Authorisation | Viewer / Operator / Administrator, checked on the server for every page and API call |
+| Device access | Backup sends read-only commands only (allow-list); SSH host keys are checked |
+| Stored secrets | Device passwords encrypted (key kept outside the database and Git); RADIUS passwords salted SHA-256 |
+| Network | RADIUS and syslog ports open only for registered devices (NAS Clients) |
+| Traceability | Portal audit trail, Authentication Audit, Session Log |
+
 **Portal**
 - HTTPS with HSTS, secure cookies, a strict Content Security Policy, no-sniff and clickjacking protection
 - Passwords hashed by Django, minimum 12 characters
@@ -424,7 +456,8 @@ Rejected (failed) logins are kept for **24 hours** only. **Forever deletes none 
 - User passwords are stored only as salted SHA-256 (`SSHA2-256-Password`), so the `radius` database and its
   backups hold no readable password. The installer converts passwords left in clear text by older versions
   (`manage.py radius_hash_passwords`), keeping the same passwords. Logins use PAP, which SSH / Telnet logins on
-  network devices use; CHAP / MS-CHAP need the clear text and do not work
+  network devices use; CHAP / MS-CHAP need the clear text (or an NT hash) and do not work, which includes the
+  management login of current MikroTik RouterOS (MS-CHAPv2); MikroTik backup and Session Log still work
 - Shared secrets are 24 random characters per device
 - BlastRADIUS (CVE-2024-3596): the installer sets `require_message_authenticator = auto` and
   `limit_proxy_state = auto` in FreeRADIUS (`deploy/radius/enable_blastradius.sh`); needs FreeRADIUS 3.2.5 or a
@@ -446,6 +479,16 @@ Rejected (failed) logins are kept for **24 hours** only. **Forever deletes none 
 **Server**
 - Runs as an unprivileged `vault` user; automatic security updates are enabled
 - `.env` and `data/` are excluded from Git, so a clone never contains secrets
+
+**Known limitations** (plan around these)
+- The installer's HTTPS certificate is self-signed; use `deploy/set-domain.sh` (a public domain) or your own
+  certificate authority, and keep the portal on a management network or VPN
+- RADIUS shared secrets must be readable by FreeRADIUS, so protect the `radius` database and its backups
+- A read-write level on a device can delete configuration; rely on the Session Log and the saved versions
+- Cisco view commands appear in the Session Log only on models whose software supports the event manager applet
+- Where several people share one account and the device log carries no address, commands are attributed to the
+  most recently active session
+- One server is one point of failure: keep a local administrator account on every device
 
 To report a security problem, see [SECURITY.md](SECURITY.md).
 
@@ -513,7 +556,6 @@ A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
 | [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md) | Which file does what |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Running locally, adding a page, API or vendor, release checklist |
 | [SECURITY.md](SECURITY.md) | Security model and how to report a problem |
-| [CHANGES.md](CHANGES.md) | Release notes |
 
 ---
 

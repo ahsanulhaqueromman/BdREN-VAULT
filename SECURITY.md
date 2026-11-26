@@ -7,7 +7,7 @@ directly through the BdREN network operations team, with:
 
 - what you found and where (page, API path or script)
 - how to reproduce it
-- the version (commit or `CHANGES.md` entry) you tested
+- the version (the commit shown by `git log -1`) you tested
 
 You will get an answer as soon as possible, and a fix will be released through the normal update
 (`git pull` + `sudo bash deploy/install.sh`).
@@ -21,12 +21,16 @@ You will get an answer as soon as possible, and a fix will be released through t
 | Portal sign-in | Django password hashing, minimum 12 characters; 5 wrong passwords lock that address and username for 5 minutes; nginx rate limit on `/login`; fail2ban; idle sign-out (15 minutes by default) |
 | Authorisation | Viewer / Operator / Administrator roles checked on every page and API call; RADIUS / AAA, user management and reusing saved device logins are administrator-only; an Operator who changes a device's address or SSH port must type its password again |
 | Device passwords | Encrypted with Fernet; the key is `data/secret.key` on the server only; hidden in the portal until **Show** is pressed |
+| RADIUS user passwords | Stored only as salted SHA-256, which works with PAP; MS-CHAP / CHAP logins are not supported |
+| RADIUS protocol | BlastRADIUS (CVE-2024-3596) protection applied by the installer; rejected login records kept for 24 hours |
 | RADIUS secrets | Hidden until **Show** or **Copy**; revealing one is logged |
 | Saved configurations | SHA-256 checksum per version; files owned by the `vault` service user |
 | RADIUS service | UDP 1812 / 1813 open only to NAS clients; firewall changed by a root-owned script without arguments; to stop password guessing, limit SSH/Telnet on the devices to management addresses with an ACL |
 | Audit | Every portal sign-in, every change and every device login is recorded with time, user and source address |
 | Secrets in Git | `.env`, `data/` and `*.key` are git-ignored; the installer creates them on the server |
 | Server | Runs as an unprivileged `vault` user; unattended security updates; device access is read-only |
+
+Known limitations are listed in [README.md](README.md#security).
 
 ## Operator checklist
 
