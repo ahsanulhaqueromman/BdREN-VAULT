@@ -42,7 +42,7 @@ function renderSignins(){
       In the nginx site for this website, inside <i>location / { … }</i> next to <i>proxy_pass</i>, add these lines, then run <i>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</i>:
       <code>proxy_set_header X-Forwarded-For $remote_addr;<br>proxy_set_header X-Forwarded-Proto $scheme;<br>proxy_set_header X-Forwarded-Host $host;</code>`,
     not_applied:`<b>nginx sends the visitor's address, but the app does not use it yet.</b> Restart the service so the setting takes effect
-      (<i>sudo systemctl restart vault</i>). The service must start the app with <i>manage.py serve</i>, as in deploy/vault.service.`
+      (<i>sudo systemctl restart vault</i>). The service must start the app with <i>manage.py serve</i>, as in deploy/systemd/vault.service.`
   };
   $("#signinNote").innerHTML=IP_FIX[d.ip_diag]?`<div class="rad-note">${IP_FIX[d.ip_diag]}<br>New sign-ins then show the real IP address; older entries keep 127.0.0.1.</div>`:"";
   $("#signinCount").textContent=`${d.rows.length}${d.rows.length>=1000?"+":""} event${d.rows.length===1?"":"s"}`;

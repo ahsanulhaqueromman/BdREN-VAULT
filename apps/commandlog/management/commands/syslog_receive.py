@@ -1,6 +1,6 @@
 """`python manage.py syslog_receive`: the syslog receiver for Command History (see apps/commandlog/receiver.py).
 
-Production: started by systemd (deploy/vault-syslog.service), which gives it the right to use port 514
+Production: started by systemd (deploy/systemd/vault-syslog.service), which gives it the right to use port 514
 without running as root. Settings in .env: SYSLOG_HOST (default 0.0.0.0) and SYSLOG_PORT (default 514).
 """
 import os

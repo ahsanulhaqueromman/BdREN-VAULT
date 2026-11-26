@@ -373,7 +373,7 @@ for unit in /etc/systemd/system/vault.service /etc/systemd/system/dbms.service; 
 done
 sed -e "s|^User=.*|User=$SVC_USER|" -e "s|^Group=.*|Group=$SVC_USER|" -e "s|^WorkingDirectory=.*|WorkingDirectory=$APP_DIR|" \
     -e "s|^ExecStart=.*|ExecStart=$APP_DIR/.venv/bin/python manage.py serve --host 127.0.0.1 --port $PORT|" \
-    "$APP_DIR/deploy/vault.service" > /etc/systemd/system/vault.service
+    "$APP_DIR/deploy/systemd/vault.service" > /etc/systemd/system/vault.service
 # migrate away from the old "dbms" service name, if a previous install left one
 if [ -f /etc/systemd/system/dbms.service ]; then
   systemctl stop dbms 2>/dev/null || true; systemctl disable dbms 2>/dev/null || true; rm -f /etc/systemd/system/dbms.service
@@ -405,7 +405,7 @@ if [ "$WANT_HTTPS" = 1 ]; then
   fi
   sed -e "s|backup.example.com|$ADDR|g" -e "s|/etc/ssl/certs/dbms.crt|/etc/ssl/dbms/dbms.crt|" \
       -e "s|/etc/ssl/private/dbms.key|/etc/ssl/dbms/dbms.key|" -e "s|127.0.0.1:8495|127.0.0.1:$PORT|" \
-      "$APP_DIR/deploy/nginx-dbms.conf" > /etc/nginx/sites-available/dbms
+      "$APP_DIR/deploy/nginx/nginx-dbms.conf" > /etc/nginx/sites-available/dbms
   ln -sf /etc/nginx/sites-available/dbms /etc/nginx/sites-enabled/dbms
   rm -f /etc/nginx/sites-enabled/default
   if [ -n "$PRE_WANT_HTTPS" ]; then
@@ -450,7 +450,7 @@ if command -v nginx >/dev/null 2>&1; then
     if grep -qE "listen[[:space:]]+[^;]*443" "$SITE"; then
       for k in DBMS_SECURE_COOKIES DBMS_FORCE_HTTPS; do [ "$(env_get $k)" = 1 ] || { env_set $k 1; ok "$k=1 (site uses HTTPS)"; }; done
     fi
-  else warn "no nginx site proxies to port $PORT yet: see deploy/nginx-dbms.conf"; fi
+  else warn "no nginx site proxies to port $PORT yet: see deploy/nginx/nginx-dbms.conf"; fi
 fi
 
 # ---- 8b. optional: turn on the ufw firewall (SSH, web and RADIUS stay open) ---------------------------

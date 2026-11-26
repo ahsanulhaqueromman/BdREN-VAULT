@@ -523,23 +523,37 @@ nightly with cron. Without `secret.key`, saved device passwords cannot be recove
 ## Project structure
 
 ```
-apps/
-  accounts/     portal users, sign-in, lockout, roles
-  devices/      device inventory, vendors, credentials
-  backups/      SSH backup engine, versions, reports, retention
-  scheduling/   backup schedule and settings
-  monitoring/   ICMP reachability monitor
-  radius/       RADIUS / AAA users, NAS clients, audit
-  commandlog/   Session Log: syslog receiver, vendor parsers, history page
-  core/         pages, API helpers, background tasks, architecture check
-config/         Django settings and URLs
-templates/      HTML pages
-static/         CSS and JavaScript
-deploy/         installer, updater, hardening, DR backup, FreeRADIUS scripts
-docs/           guides
+BdREN-VAULT/
+├── apps/                 Django apps, one per area
+│   ├── accounts/         portal users, sign-in, lockout, roles
+│   ├── devices/          device inventory, vendors, credentials
+│   ├── backups/          SSH backup engine, versions, reports, retention
+│   ├── scheduling/       backup schedule and settings
+│   ├── monitoring/       ICMP reachability monitor
+│   ├── radius/           RADIUS / AAA users, NAS clients, audit
+│   ├── commandlog/       Session Log: syslog receiver, vendor parsers, history page
+│   └── core/             pages, API helpers, background tasks, architecture check
+├── config/               Django settings and URLs
+├── templates/            HTML pages and shared components
+├── static/               css/, js/core/, js/pages/, img/
+├── deploy/               install.sh, update and health scripts
+│   ├── systemd/          vault.service, vault-syslog.service
+│   ├── nginx/            HTTPS site
+│   ├── radius/           FreeRADIUS policies and setup scripts
+│   └── build/            release zip and compiled build
+├── docs/                 guides
+└── manage.py
 ```
 
-A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
+Inside every app the files follow the three tiers:
+
+| Tier | Files |
+|---|---|
+| Presentation | `views.py`, `urls.py`, `templates/`, `static/` |
+| Application | `services.py` (changes), `selectors.py` (reads), integrations such as `engine.py`, `parsers.py` |
+| Data | `models.py`, `migrations/`, MariaDB `dbms` and `radius` |
+
+`python manage.py check_architecture` enforces the order. A file-by-file guide is in [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md).
 
 ---
 

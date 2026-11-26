@@ -99,7 +99,7 @@ One entry in `VENDORS` in `apps/devices/vendors.py` (login driver and backup com
   browser console must show no errors.
 - Raise the `?v=` numbers in `templates/base.html` if CSS or JS changed.
 - Write a clear commit message: the Git log is the change history.
-- Build the release zip with `python deploy/build_release.py` (it leaves out `.env`, the runtime `data/` and
+- Build the release zip with `python deploy/build/build_release.py` (it leaves out `.env`, the runtime `data/` and
   `logs/` folders, caches and tests, and stops if any template, static file or module is missing).
   Do not zip by hand: excluding a folder name such as `logs` by hand also drops `templates/logs/`.
   Deploy it with [DEPLOY.md](DEPLOY.md).

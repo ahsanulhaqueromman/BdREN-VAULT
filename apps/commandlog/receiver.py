@@ -1,6 +1,6 @@
 """The syslog receiver: listens on UDP (514 by default) and keeps what users did on the network devices.
 
-Run by `manage.py syslog_receive` (systemd unit deploy/vault-syslog.service), in its own process so the web
+Run by `manage.py syslog_receive` (systemd unit deploy/systemd/vault-syslog.service), in its own process so the web
 server never needs the privileged port. Rules:
 
   * only addresses on NAS Clients (single addresses or networks) are accepted;

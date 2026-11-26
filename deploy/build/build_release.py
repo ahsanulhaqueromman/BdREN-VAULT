@@ -1,4 +1,4 @@
-"""Build the release zip of this project:  python deploy/build_release.py [output.zip]
+"""Build the release zip of this project:  python deploy/build/build_release.py [output.zip]
 
 Packs the project folder as vault/... with forward-slash paths (Linux unzip friendly), leaving out only what
 is created at run time or must never ship:
@@ -11,7 +11,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 TOP_LEVEL_SKIP = {"data", "logs", "staticfiles", ".venv", "venv", ".git", ".idea", ".vscode"}
 ANYWHERE_SKIP_DIRS = {"__pycache__"}
 SKIP_FILES = {".env", "tests.py"}

@@ -100,17 +100,34 @@ static/
   js/pages/              One file per page
   img/vendors/           Vendor logos
 
-deploy/
+deploy/                  Server scripts (the ones you run are at the top level)
   install.sh             One command: install a new server or update an existing one
+  uninstall.sh           Remove VAULT from a server
+  backup_vault.sh        Back up the databases, keys and settings before an update
+  after_os_update.sh     Read-only health check after an Ubuntu / Debian upgrade
+  harden.sh              Firewall, login rate limit, automatic security updates (install.sh runs it)
   set-domain.sh          Add a domain name with a Let's Encrypt certificate
-  vault.service          systemd unit
-  vault-syslog.service   systemd unit of the Session Log syslog receiver
   enable_syslog.sh       Install / repair the syslog receiver (install.sh runs it)
-  nginx-dbms.conf        nginx site (HTTPS)
+  systemd/               vault.service (web app), vault-syslog.service (Session Log receiver)
+  nginx/                 nginx-dbms.conf: the HTTPS site in front of the app
   radius/                FreeRADIUS policies, enable_*.sh helpers, check_levels.sh (RADIUS health check)
+  build/                 build_release.py (release zip), build_compiled.sh (build without .py sources)
 
-docs/                    ARCHITECTURE, FILE_GUIDE (this file), CONTRIBUTING, DEPLOY
+docs/                    ARCHITECTURE, FILE_GUIDE (this file), CONTRIBUTING, DEPLOY, TROUBLESHOOTING
 ```
+
+## The same layout by tier
+
+VAULT is a three-tier application. Every folder belongs to one tier:
+
+| Tier | Folders and files | Job |
+|---|---|---|
+| 1. Presentation | `templates/`, `static/`, `apps/*/views.py`, `apps/*/urls.py`, `deploy/nginx/` | Screens, JSON answers, HTTPS |
+| 2. Application | `apps/*/services.py`, `apps/*/selectors.py`, `engine.py`, `jobs.py`, `parsers.py`, `receiver.py`, `apps/core/` | Rules, backups, syslog, background work |
+| 3. Data | `apps/*/models.py`, `apps/*/migrations/`, `apps/radius/router.py`, `data/` (not in Git) | Tables in MariaDB `dbms` and `radius`, backup files, keys |
+| Around them | `config/` (settings), `deploy/` (install and run), `docs/` | Setup and operation |
+
+`python manage.py check_architecture` makes sure a tier only calls the tier below it.
 
 ## Scripts and their order
 

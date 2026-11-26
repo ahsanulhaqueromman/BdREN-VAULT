@@ -16,7 +16,7 @@
 #  Usage (on the Linux build/server box):
 #      sudo apt install -y build-essential python3-dev
 #      python3 -m pip install cython
-#      bash deploy/build_compiled.sh [OUTPUT_DIR]          # default: ../BdREN-VAULT-compiled
+#      bash deploy/build/build_compiled.sh [OUTPUT_DIR]          # default: ../BdREN-VAULT-compiled
 #
 #  Then TEST before shipping (do not trust an untested compile):
 #      cd OUTPUT_DIR
@@ -28,7 +28,7 @@
 # =====================================================================================================
 set -euo pipefail
 
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="${1:-$(cd "$SRC/.." && pwd)/BdREN-VAULT-compiled}"
 PY="${PYTHON:-python3}"
 

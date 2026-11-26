@@ -11,7 +11,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/vault}"; ENV_FILE="${ENV_FILE:-$APP_DIR/.env}"
 UNIT=/etc/systemd/system/vault-syslog.service
-SRC_UNIT="$APP_DIR/deploy/vault-syslog.service"
+SRC_UNIT="$APP_DIR/deploy/systemd/vault-syslog.service"
 ok()   { printf '\033[1;32m OK\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m  !\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
